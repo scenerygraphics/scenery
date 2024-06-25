@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.fasterxml.jackson.module.kotlin.SingletonSupport
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.lazyLogger
@@ -110,16 +109,17 @@ class RenderConfigReader {
         var type: RenderpassType = RenderpassType.geometry,
         var blitInputs: Boolean = false,
         var renderTransparent: Boolean = false,
+        var blending: List<Boolean>? = null,
         var depthTestEnabled: Boolean = true,
         var depthWriteEnabled: Boolean = true,
         var order: RenderOrder = RenderOrder.BackToFront,
         var renderOpaque: Boolean = true,
-        var colorBlendOp: Blending.BlendOp = Blending.BlendOp.add,
-        var alphaBlendOp: Blending.BlendOp = Blending.BlendOp.add,
-        var srcColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
-        var dstColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
-        var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
-        var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
+        var colorBlendOp: List<Blending.BlendOp> = listOf(Blending.BlendOp.add),
+        var alphaBlendOp: List<Blending.BlendOp> = listOf(Blending.BlendOp.add),
+        var srcColorBlendFactor: List<Blending.BlendFactor> = listOf(Blending.BlendFactor.SrcAlpha),
+        var dstColorBlendFactor: List<Blending.BlendFactor> = listOf(Blending.BlendFactor.OneMinusSrcAlpha),
+        var srcAlphaBlendFactor: List<Blending.BlendFactor> = listOf(Blending.BlendFactor.SrcAlpha),
+        var dstAlphaBlendFactor: List<Blending.BlendFactor> = listOf(Blending.BlendFactor.OneMinusSrcAlpha),
         var shaders: List<String> = listOf(),
 
         @JsonDeserialize(contentUsing = JsonDeserialisers.BindingDeserializer::class)

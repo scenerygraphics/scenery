@@ -159,6 +159,12 @@ fun Blending.BlendFactor.toVulkan() = when (this) {
     Blending.BlendFactor.SrcAlphaSaturate -> VK_BLEND_FACTOR_SRC_ALPHA_SATURATE
 }
 
+fun List<Blending.BlendFactor>.toVulkanFactor(i: Int) = if(this.size > 1 && i < this.size) {
+    this[i].toVulkan()
+} else {
+    this[0].toVulkan()
+}
+
 /**
  * Converts a [Blending.BlendOp] to a Vulkan-intenal integer-based descriptor.
  */
@@ -169,6 +175,16 @@ fun Blending.BlendOp.toVulkan() = when (this) {
     Blending.BlendOp.max -> VK_BLEND_OP_MAX
     Blending.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
 }
+
+/**
+ * Converts a [Blending.BlendOp] to a Vulkan-intenal integer-based descriptor.
+ */
+fun List<Blending.BlendOp>.toVulkanOp(i: Int) = if(this.size > 1 && i < this.size) {
+    this[i].toVulkan()
+} else {
+    this[0].toVulkan()
+}
+
 
 /**
  * VU - Vulkan Utils

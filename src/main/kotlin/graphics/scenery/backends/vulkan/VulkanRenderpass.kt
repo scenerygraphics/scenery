@@ -522,15 +522,15 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
             (0 until framebuffer.colorAttachmentCount()).forEach {
-                if (passConfig.renderTransparent) {
+                if (passConfig.renderTransparent || passConfig.blending != null) {
                     blendMasks[it]
-                        .blendEnable(true)
-                        .colorBlendOp(passConfig.colorBlendOp.toVulkan())
-                        .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkan())
-                        .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkan())
-                        .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
-                        .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
-                        .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
+                        .blendEnable(passConfig.blending?.get(it) ?: true)
+                        .colorBlendOp(passConfig.colorBlendOp.toVulkanOp(it))
+                        .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkanFactor(it))
+                        .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkanFactor(it))
+                        .alphaBlendOp(passConfig.alphaBlendOp.toVulkanOp(it))
+                        .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkanFactor(it))
+                        .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkanFactor(it))
                         .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
                 } else {
                     blendMasks[it]
@@ -632,15 +632,15 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0 until framebuffer.colorAttachmentCount()).forEach {
-            if(passConfig.renderTransparent) {
+            if(passConfig.renderTransparent || passConfig.blending != null) {
                 blendMasks[it]
-                    .blendEnable(true)
-                    .colorBlendOp(passConfig.colorBlendOp.toVulkan())
-                    .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkan())
-                    .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkan())
-                    .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
-                    .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
-                    .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
+                    .blendEnable(passConfig.blending?.get(it) ?: true)
+                    .colorBlendOp(passConfig.colorBlendOp.toVulkanOp(it))
+                    .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkanFactor(it))
+                    .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkanFactor(it))
+                    .alphaBlendOp(passConfig.alphaBlendOp.toVulkanOp(it))
+                    .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkanFactor(it))
+                    .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkanFactor(it))
                     .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
             } else {
                 blendMasks[it]
