@@ -13,8 +13,9 @@ layout(location = 0) out vec4 FragColor;
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 3) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 4) uniform sampler2D InputZBuffer;
 layout(set = 3, binding = 2) uniform sampler2D InputEmission;
+layout(set = 3, binding = 3) uniform sampler2D InputReveal;
 layout(set = 4, binding = 0) uniform sampler2D InputOcclusion;
 
 struct Light {
@@ -484,8 +485,10 @@ void main()
 
 
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
-
-	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
+//	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
+    vec4 accum = texture(InputDiffuseAlbedo, textureCoord);
+    float reveal = texture(InputReveal, textureCoord).r;
+    vec4 Albedo = vec4(accum.rgb / max(accum.a, 1e-5), reveal);
     vec4 Emissive = texture(InputEmission, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
 	vec2 MaterialParams = texture(InputNormalsMaterial, textureCoord).ba;

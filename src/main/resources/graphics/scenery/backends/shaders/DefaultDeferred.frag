@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
-    vec3 FragPosition;
+    vec4 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
@@ -10,6 +10,7 @@ layout(location = 0) in VertexData {
 layout(location = 0) out vec4 NormalsMaterial;
 layout(location = 1) out vec4 DiffuseAlbedo;
 layout(location = 3) out vec4 Emission;
+layout(location = 4) out float Reveal;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
@@ -141,8 +142,7 @@ void main() {
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     DiffuseAlbedo.rgb = Material.Kd;
-    DiffuseAlbedo.a = 0.0f;
-
+    DiffuseAlbedo.a = 0.1f;
     Emission = Material.Emissive;
 
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
@@ -152,11 +152,11 @@ void main() {
     }
 
     if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-        DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
+        DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb * DiffuseAlbedo.a;
     }
 
     if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-        DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
+//        DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
         NormalsMaterial.b = texture(ObjectTextures[2], Vertex.TexCoord).r;
     }
 
@@ -165,6 +165,21 @@ void main() {
             discard;
         }
     }
+    const float depthZ = -Vertex.FragPosition.z * 20.0f;
+    vec4 color = DiffuseAlbedo.rgba;
+
+    const float distWeight = clamp(0.03 / (1e-5 + pow(depthZ / 200, 4.0)), 1e-2, 3e3);
+
+    float alphaWeight = min(1.0, max(max(color.r, color.g), max(color.b, color.a)) * 40.0 + 0.01);
+    alphaWeight *= alphaWeight;
+
+    const float weight = alphaWeight * distWeight;
+
+    // GL Blend function: GL_ONE, GL_ONE
+    DiffuseAlbedo = color * weight;
+
+    // GL blend function: GL_ZERO, GL_ONE_MINUS_SRC_ALPHA
+    Reveal = color.a;
 /*
 Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
 component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.

@@ -8,6 +8,7 @@ rendertargets:
       NormalsMaterial: RGBA_Float16
       DiffuseAlbedo: RGBA_UInt8
       Emission: RGBA_Float16
+      Reveal: R_UInt8
       ZBuffer: Depth32
   ForwardBuffer:
     attachments:
@@ -38,6 +39,11 @@ renderpasses:
     type: geometry
     renderTransparent: false
     renderOpaque: true
+    blending: [false, true, false, true]
+    srcColorBlendFactor: [SrcAlpha, One, SrcAlpha, Zero]
+    srcAlphaBlendFactor: [SrcAlpha, One, SrcAlpha, Zero]
+    dstColorBlendFactor: [SrcAlpha, One, SrcAlpha, OneMinusSrcAlpha]
+    dstAlphaBlendFactor: [SrcAlpha, One, SrcAlpha, OneMinusSrcAlpha]
     shaders:
       - "DefaultDeferred.vert.spv"
       - "DefaultDeferred.frag.spv"
@@ -89,6 +95,11 @@ renderpasses:
     renderOpaque: false
     depthWriteEnabled: false
     depthTestEnabled: false
+    blending: [true]
+    srcColorBlendFactor: [OneMinusSrcAlpha]
+    srcAlphaBlendFactor: [OneMinusSrcAlpha]
+    dstColorBlendFactor: [SrcAlpha]
+    dstAlphaBlendFactor: [SrcAlpha]
     shaders:
       - "DeferredLighting.vert.spv"
       - "DeferredLighting.frag.spv"

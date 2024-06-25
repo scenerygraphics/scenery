@@ -30,7 +30,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             spatial {
                 position = Vector3f(0.0f, 1.0f, 0.0f)
             }
-            perspectiveCamera(50.0f, windowWidth, windowHeight)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.1f, farPlaneLocation = 500.0f)
             scene.addChild(this)
         }
 
