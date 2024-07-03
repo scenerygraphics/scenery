@@ -927,6 +927,49 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
+    class VolumeTextureCache {
+        private val cache = mutableMapOf<Volume.BlockKey, Texture>()
+
+        fun contains(key: Volume.BlockKey): Boolean = key in cache
+
+        fun put(key: Volume.BlockKey, texture: Texture) {
+            cache[key] = texture
+        }
+
+        fun get(key: Volume.BlockKey): Texture? = cache[key]
+
+        fun clear() {
+            cache.clear()
+        }
+    }
+
+    private val volumeTextureCache: VolumeTextureCache = VolumeTextureCache()
+
+    fun update(camera: Camera) {
+        children.filterIsInstance<Volume>().forEach { volume ->
+            val bestLevel = determineBestLevel(volume, camera)
+            volume.switchResolutionLevel(bestLevel, camera)
+            loadVisibleBlocks(volume)
+            updateShaderUniforms(volume)// TODO write this
+        }
+    }
+
+    private fun loadVisibleBlocks(volume: Volume) {
+        val resLevel = volume.resolutionLevels[volume.currentResolutionLevel]
+        volume.activeBlocks.forEach { blockKey ->
+            if (!volumeTextureCache.contains(blockKey)) {
+                val cellImg = resLevel.cellImg
+                val block = cellImg.getAt(blockKey.position.x, blockKey.position.y, blockKey.position.z)
+                val texture = Texture(block)// TODO no matching signature
+                volumeTextureCache.put(blockKey, texture)
+            }
+        }
+    }
+
+    private fun determineBestLevel(volume: Volume, camera: Camera): Int {
+        // Implement logic to choose the best resolution level
+    }
+
     /**
      * Requests re-rendering.
      */
