@@ -31,7 +31,7 @@ import org.scijava.ui.behaviour.DragBehaviour
  */
 open class VRGrab(
     protected val name: String,
-    protected val controllerHitbox: Node,
+    protected var controllerHitbox: Spatial,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
     protected val holdToDrag: Boolean = true,
@@ -41,9 +41,6 @@ open class VRGrab(
 ) : DragBehaviour, Enablable{
 
     override var enabled: Boolean = true
-
-    protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
-        ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
 
     protected var selected = emptyList<Node>()
 
@@ -59,8 +56,8 @@ open class VRGrab(
     /**
      * Called on the first frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun init(x: Int, y: Int) {
         if (!enabled) return
@@ -69,7 +66,7 @@ open class VRGrab(
             return
         }
 
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box, true) ?: false }
+        selected = targets().filter { box -> controllerHitbox.intersects(box, true) }
         if (!multiTarget) {
             selected = selected.take(1)
         }
@@ -83,22 +80,22 @@ open class VRGrab(
                 it.update += dragFunction
             }
         }
-        lastPos = controllerSpatial.worldPosition()
-        lastRotation = controllerSpatial.worldRotation()
+        lastPos = controllerHitbox.worldPosition()
+        lastRotation = controllerHitbox.worldRotation()
     }
 
     /**
      * Called on every frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun drag(x: Int, y: Int) {
         if (!enabled) return
         if (!holdToDrag && x != -42) return //magic number
-        val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
+        val newPos = controllerHitbox.worldPosition() 
         val diffTranslation = newPos - lastPos
-        val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
+        val diffRotation = Quaternionf(controllerHitbox.worldRotation()).mul(lastRotation.conjugate())
 
         selected.forEach { node ->
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
@@ -131,15 +128,15 @@ open class VRGrab(
             }
         }
 
-        lastPos = controllerSpatial.worldPosition()
-        lastRotation = controllerSpatial.worldRotation()
+        lastPos = controllerHitbox.worldPosition()
+        lastRotation = controllerHitbox.worldRotation()
     }
 
     /**
      * Called on the last frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun end(x: Int, y: Int) {
         if (!enabled) return
@@ -184,7 +181,7 @@ open class VRGrab(
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
-                                controller.children.firstOrNull { it.name == "collider"}?: controller.children.first(),
+                                (controller.children.firstOrNull { it.name == "collider"}?: controller.children.first()).spatialOrNull() ?: throw IllegalArgumentException("Need collider spatial for VRGrab."),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
                                 holdToDrag,
