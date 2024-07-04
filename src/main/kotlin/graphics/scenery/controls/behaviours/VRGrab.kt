@@ -32,8 +32,8 @@ import java.util.concurrent.Future
  * @author Jan Tiemann
  */
 open class VRGrab(
-    protected val name: String,
-    protected var controllerHitbox: Spatial,
+    val name: String,
+    var controllerHitbox: Spatial,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
     protected val holdToDrag: Boolean = true,
