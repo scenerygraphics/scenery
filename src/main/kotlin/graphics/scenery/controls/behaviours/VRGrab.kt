@@ -12,6 +12,8 @@ import graphics.scenery.utils.extensions.plus
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 
 /**
@@ -166,18 +168,18 @@ open class VRGrab(
         fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: List<TrackerRole>,
+            button: OpenVRHMD.OpenVRButton,
+            controllerSide: TrackerRole,
             holdToDrag: Boolean = true,
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
-        ) : List<VRGrab>{
-            val future = mutableListOf<VRGrab>()
+        ) : Future<VRGrab>{
+            val future = CompletableFuture<VRGrab>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
-                        if (controllerSide.contains(device.role)) {
+                        if (controllerSide == device.role) {
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
@@ -191,10 +193,8 @@ open class VRGrab(
                             )
 
                             hmd.addBehaviour(name, grabBehaviour)
-                            button.forEach {
-                                hmd.addKeyBinding(name, device.role, it)
-                            }
-                            future.add(grabBehaviour)
+                            hmd.addKeyBinding(name, device.role, button)
+                            future.complete(grabBehaviour)
                         }
                     }
                 }
