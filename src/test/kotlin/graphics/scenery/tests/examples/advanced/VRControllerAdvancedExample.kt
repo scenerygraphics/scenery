@@ -232,12 +232,14 @@ class VRControllerAdvancedExample : SceneryBase(
 
         // initialize touching, grabbing  and pressing(clicking) of objects
         VRTouch.createAndSet(scene, hmd, listOf(TrackerRole.RightHand, TrackerRole.LeftHand), true)
-        VRGrab.createAndSet(
-            scene,
-            hmd,
-            listOf(OpenVRHMD.OpenVRButton.Side),
-            listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
-        )
+        listOf(TrackerRole.LeftHand, TrackerRole.RightHand).forEach {
+            VRGrab.createAndSet(
+                scene,
+                hmd,
+                OpenVRHMD.OpenVRButton.Side,
+                it
+            )
+        }
         VRPress.createAndSet(
             scene,
             hmd,
