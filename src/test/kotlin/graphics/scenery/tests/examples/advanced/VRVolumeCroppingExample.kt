@@ -46,7 +46,7 @@ class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.
         }
 
         hub.add(SceneryElement.HMDInput, hmd)
-        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
+        VRGrab.createAndSet(scene,hmd, OpenVRHMD.OpenVRButton.Side, TrackerRole.RightHand)
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
