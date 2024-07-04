@@ -24,6 +24,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.thread
 import kotlin.time.ExperimentalTime
 
 /**
@@ -541,33 +542,81 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
             if(texture != null && name != null) {
                 val material = node.material()
-                val gt = material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
+                var gt = material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
 
-                logger.debug("Running ${updates.size} texture updates for $texture")
+                logger.debug("Running {} texture updates for {}", updates.size, texture)
                 updates.forEach { update ->
                     if (texture.reallocate) {
                         val newDimensions = Vector3i(update.width, update.height, update.depth)
                         val dimensionsChanged = Vector3i(newDimensions).sub(gt.dimensions).length() > 0.0001f
 
                         if(dimensionsChanged) {
-                            logger.debug("Reallocating for size change ${gt.dimensions} -> $newDimensions")
+                            logger.warn("*** SIZE CHANGE FOR $name ***")
+                            logger.debug("Reallocating for size change {} -> {}", gt.dimensions, newDimensions)
+
                             gt.clearUpdates()
-                            gt.dimensions = newDimensions
-                            gt.contents = null
+                            val nt = UpdatableTexture(
+                                newDimensions,
+                                gt.channels,
+                                gt.type,
+                                null,
+                                gt.repeatUVW,
+                                gt.borderColor,
+                                gt.normalized,
+                                gt.mipmap,
+                                gt.minFilter,
+                                gt.maxFilter,
+                                gt.usageType
+                            )
+                            nt.clearUpdates()
+                            nt.usageType += Texture.UsageType.AsyncLoad
 
                             if (t is LookupTextureARGB) {
-                                gt.normalized = false
+                                nt.normalized = false
                             }
 
-                            material.textures[name] = gt
+//                            material.textures["$name"] = gt
+                            val timestampedName = "$name-${System.nanoTime()}"
+                            material.textures[timestampedName] = nt
+
+                            val textureUpdate = TextureUpdate(
+                                TextureExtents(
+                                    update.xoffset,
+                                    update.yoffset,
+                                    update.zoffset,
+                                    update.width,
+                                    update.height,
+                                    update.depth
+                                ),
+                                update.contents, deallocate = update.deallocate
+                            )
+                            nt.addUpdate(textureUpdate)
+                            texture.reallocate = false
+
+                            thread {
+                                while(!nt.availableOnGPU() && nt.hasConsumableUpdates()) {
+                                    Thread.sleep(1)
+                                }
+
+                                material.textures[name] = nt
+                                material.textures.remove(timestampedName)
+                            }
+                        } else {
+                            val textureUpdate = TextureUpdate(
+                                TextureExtents(
+                                    update.xoffset,
+                                    update.yoffset,
+                                    update.zoffset,
+                                    update.width,
+                                    update.height,
+                                    update.depth
+                                ),
+                                update.contents, deallocate = update.deallocate
+                            )
+                            gt.addUpdate(textureUpdate)
+
+                            texture.reallocate = false
                         }
-
-                        val textureUpdate = TextureUpdate(
-                            TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = update.deallocate)
-                        gt.addUpdate(textureUpdate)
-
-                        texture.reallocate = false
                     } else {
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
@@ -628,15 +677,6 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             return
         }
 
-//        val (params, duration) = measureTimedValue {
-//            UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH3_64bits(pixels))
-//        }
-
-//        if (lastUpdates[texture] == params) {
-//            logger.debug("Updates already seen, skipping")
-//            return
-//        }
-
         logger.debug("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
             texture,
             xoffset, yoffset, zoffset,
@@ -644,14 +684,8 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         )
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-//        val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
-//        val tmp = //MemoryUtil.memAlloc(allocationSize)
-//        p.limit(p.position() + allocationSize)
-//        MemoryUtil.memCopy(p, tmp)
-
-//        lastUpdates[texture] = params
         val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, p)
-        cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
+        cachedUpdates.getOrPut(texture) { ArrayList(10) }.add(update)
     }
 
     fun clearLUTs() {
