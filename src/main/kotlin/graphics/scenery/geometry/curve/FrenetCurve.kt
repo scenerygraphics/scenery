@@ -62,8 +62,8 @@ interface FrenetCurve: Curve {
                 val transformedPoint = Vector3f()
                 val transformedNormal = Vector3f()
                 base.transformPosition(point.v, transformedPoint)
-                base.transformPosition(point.n, transformedNormal)
-                val v = Vertex(transformedPoint, transformedNormal, point.uv)
+                base.transformDirection(point.n, transformedNormal)
+                val v = Vertex(transformedPoint, transformedNormal.normalize(), point.uv)
                 transformedVertices.add(v)
             }
             transformedBaseShapes.add(Shape(transformedVertices))
