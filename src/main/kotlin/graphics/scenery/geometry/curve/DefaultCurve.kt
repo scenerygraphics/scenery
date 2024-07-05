@@ -81,8 +81,8 @@ open class DefaultCurve(
         normals: MutableList<Vector3f>?
     ): Vector3f {
         vertices += v1.v
-        vertices += v2.v
         vertices += v3.v
+        vertices += v2.v
 
         val normal = ((v3.v - v1.v).cross(v2.v - v1.v)).normalize()
         normals?.add(normal)
@@ -197,10 +197,7 @@ open class DefaultCurve(
             //add the vertices and normals of the curve's body to the buffers
             verticesWithoutCoverBuffer.flip()
             verticesBuffer.put(verticesWithoutCoverBuffer)
-//            val curveNormals = computeNormals(intermediateNormals, curveGeometry.first().vertices.size)
-//            curveNormals.flip()
             intermediateNormals.flatten().forEach { normalsBuffer += it }
-//            normalsBuffer.put(curveNormals)
 
             if (cover == CurveCover.Bottom || cover == CurveCover.Both) {
                 val newVerticesAndNormals = getCoverVertices(
@@ -264,7 +261,7 @@ open class DefaultCurve(
         val verticesList = ArrayList<Vector3f>(size + (size / 2))
         val normalVectors = ArrayList<Vector3f>(verticesList.size)
 
-        val order = if(ccw) {
+        val order = if(!ccw) {
             listOf(0, 2, 1)
         } else {
             listOf(0, 1, 2)

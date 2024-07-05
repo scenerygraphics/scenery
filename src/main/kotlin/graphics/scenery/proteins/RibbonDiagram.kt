@@ -80,7 +80,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
     private val widthBeta = 2.2f
     private val widthCoil = 1.0f
     private val chainList =  ArrayList<List<Group>>(groups.size)
-    private val sectionVerticesCount = 10
+    private val sectionVerticesCount = 20
     private val secStruc = dssp()
     //calculate the centroid of the protein
     private val centroid = Axis.getCentroid(groups.flatMap { it.atoms }.filter{it.name == "CA"}.map{it.getVector()})
@@ -110,6 +110,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                 rainbow.colorVector(subProtein)
             }
             this.addChild(subProtein)
+
         }
     }
 
@@ -231,7 +232,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                         )
                     }
                     val betaCurve = DefaultCurve(
-                        DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
+                        DummySpline(subSpline, sectionVerticesCount), { ssSubList })
                     if (showSecondaryStructures) {
                         betas.addChild(betaCurve)
                     } else {
@@ -242,7 +243,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                         ssSubList.add(octagon)
                     }
                     val coilCurve =
-                        DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
+                        DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { ssSubList })
                     if (showSecondaryStructures) {
                         coils.addChild(coilCurve)
                     } else {
@@ -504,12 +505,6 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             return guidePoints
         }
 
-        /**
-         * Dummy lambda function for the curve
-         */
-        private fun baseShape(baseShapes: List<Shape>): List<Shape> {
-            return baseShapes
-        }
 
         /**
          * Extension function to make a Vector out of an atom position. We do not

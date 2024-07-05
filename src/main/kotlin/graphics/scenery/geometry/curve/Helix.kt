@@ -17,7 +17,7 @@ import kotlin.math.absoluteValue
  */
 class Helix (private val axis: PositionDirection,
              spline: Spline,
-             baseShapes: () -> SegmentedShapeList): DefaultCurve(spline, baseShapes) {
+             baseShapes: () -> SegmentedShapeList): DefaultCurve(spline, baseShapes, createSubShapes = false) {
 
     init {
         val pointsPerSection = spline.pointsPerSection()
@@ -44,13 +44,6 @@ class Helix (private val axis: PositionDirection,
                 }
             }
         }
-    }
-
-    /**
-     * Not used, as shapes are created in the constructor.
-     */
-    override fun createSubShapes() {
-        /* noop */
     }
 
     /**
