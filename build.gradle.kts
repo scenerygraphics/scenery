@@ -95,9 +95,9 @@ dependencies {
         }
     }
     implementation("org.xerial.snappy:snappy-java:1.1.10.5")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
     implementation("org.zeromq:jeromq:0.6.0")
     implementation("com.esotericsoftware:kryo:5.6.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
@@ -106,9 +106,9 @@ dependencies {
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.170")
+    implementation("io.github.classgraph:classgraph:4.8.172")
 
-    implementation("info.picocli:picocli:4.7.5")
+    implementation("info.picocli:picocli:4.7.6")
 
     api("sc.fiji:bigdataviewer-core:10.4.14")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
@@ -134,7 +134,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.23")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:2.0.0")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))

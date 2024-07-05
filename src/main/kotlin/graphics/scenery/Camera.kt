@@ -92,7 +92,6 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     override fun wantsSync(): Boolean = wantsSync
 
     init {
-        this.nodeType = "Camera"
         this.viewSpaceTripod = cameraTripod()
         this.name = "Camera-${counter.incrementAndGet()}"
         addSpatial()

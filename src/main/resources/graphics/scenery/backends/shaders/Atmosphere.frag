@@ -86,7 +86,7 @@ layout(push_constant) uniform currentEye_t {
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 layout(set = 5, binding = 0) uniform ShaderProperties {
-    vec3 sunDir;
+    vec3 sunDirection;
 };
 
 // courtesy of Christian Schueler - http://www.thetenthplanet.de/archives/1180
@@ -296,7 +296,7 @@ void main() {
     vec3 color = atmosphere(
         normalize(Vertex.FragPosition), // normalized ray direction
         vec3(0,6372e3,0),               // ray origin
-        sunDir,                         // position of the sun
+        sunDirection,                         // position of the sun
         22.0,                           // intensity of the sun
         6371e3,                         // radius of the planet in meters
         6471e3,                         // radius of the atmosphere in meters

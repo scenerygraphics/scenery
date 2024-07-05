@@ -124,7 +124,7 @@ tasks {
         archiveVersion = rootProject.version.toString()
         manifest.attributes["Implementation-Build"] = run { // retrieve the git commit hash
             val gitFolder = "$projectDir/.git/"
-            val digit = 6
+            val digit = 7
             /*  '.git/HEAD' contains either
              *      in case of detached head: the currently checked out commit hash
              *      otherwise: a reference to a file containing the current commit hash     */
@@ -137,6 +137,8 @@ tasks {
                     .readText()
             }.trim().take(digit)
         }
+
+        manifest.attributes["Implementation-Version"] = project.version
     }
 
     jacocoTestReport {

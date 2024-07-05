@@ -166,7 +166,7 @@ open class Volume(
     }
 
     /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
-    var origin = Origin.Center
+    var origin: Origin = Origin.Center
 
     /** Rendering method */
     var renderingMethod = RenderingMethod.AlphaBlending
@@ -235,7 +235,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<*>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int
             ) : VolumeDataSource()
         class RAISource<T: NumericType<T>>(
@@ -244,7 +244,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<T>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int,
             @Transient
             val cacheControl: CacheControl? = null,
@@ -1221,14 +1221,17 @@ open class Volume(
          * into account.
          */
         override fun composeModel() {
-            val shift = Vector3f(volume.getDimensions()) * (-0.5f)
-
             model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
             model.scale(scale)
             model.scale(volume.localScale())
-            if (volume.origin == Origin.Center) {
-                model.translate(shift)
+            when(val o = volume.origin) {
+                is Origin.Center -> {
+                    val shift = Vector3f(volume.getDimensions()) * (-0.5f)
+                    model.translate(shift)
+                }
+                is Origin.Custom -> model.translate(o.origin)
+                else -> {}
             }
         }
     }

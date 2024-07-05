@@ -55,7 +55,7 @@ class NetworkVolumeExample : SceneryBase("SpimData Rendering example", 1280, 720
             Volume.VolumeFileSource.VolumeType.TIFF
         )
 
-        val online = IJVolumeInitializer("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val online = IJVolumeInitializer(getDemoFilesPath() + "/volumes/t1-head.zip")
 
 
         val choice = online

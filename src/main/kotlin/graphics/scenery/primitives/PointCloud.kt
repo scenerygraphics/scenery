@@ -16,7 +16,7 @@ import java.nio.file.Files
  * @author Kyle Harrington <kharrington@uidaho.edu>
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class PointCloud(var pointRadius: Float = 1.0f, override var name: String = "PointCloud") : Mesh(name) {
+open class PointCloud(var pointRadius: Float = 1.0f, name: String = "PointCloud") : Mesh(name) {
 
     init {
         geometry {

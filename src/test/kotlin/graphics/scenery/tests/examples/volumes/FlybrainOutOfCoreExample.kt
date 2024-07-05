@@ -52,7 +52,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         }
 
         logger.info("Downloading flybrain stack ...")
-        val imp = IJ.openImage("https://imagej.nih.gov/ij/images/flybrain.zip")
+        val imp = IJ.openImage(getDemoFilesPath() + "/volumes/flybrain.zip")
         val flybrain: RandomAccessibleInterval<ARGBType> = ImageJFunctions.wrapRGBA(imp)
         logger.info("Done.")
 
@@ -98,6 +98,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         brain.transferFunction = TransferFunction.ramp(0.001f, 0.4f)
         brain.converterSetups.first().setDisplayRange(0.0, 255.0)
         brain.spatial().position = Vector3f(-3.0f, 3.0f, 0.0f)
+        brain.spatial().scale = Vector3f(20.0f)
 
         @Suppress("UNCHECKED_CAST")
         val gaussDiff = Volume.fromRAI(
@@ -109,6 +110,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         gaussDiff.transferFunction = TransferFunction.ramp(0.1f, 0.1f)
         gaussDiff.converterSetups.first().setDisplayRange(0.0, 255.0)
         gaussDiff.spatial().position = Vector3f(3.0f, 3.0f, 0.0f)
+        gaussDiff.spatial().scale = Vector3f(20.0f)
 
         @Suppress("UNCHECKED_CAST")
         val brainGauss1 = Volume.fromRAI(
@@ -120,6 +122,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         brainGauss1.transferFunction = TransferFunction.ramp(0.1f, 0.1f)
         brainGauss1.converterSetups.first().setDisplayRange(0.0, 60.0)
         brainGauss1.spatial().position = Vector3f(-3.0f, -3.0f, 0.0f)
+        brainGauss1.spatial().scale = Vector3f(20.0f)
 
         @Suppress("UNCHECKED_CAST")
         val brainGauss2 = Volume.fromRAI(
@@ -131,6 +134,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         brainGauss2.transferFunction = TransferFunction.ramp(0.1f, 0.1f)
         brainGauss2.converterSetups.first().setDisplayRange(0.0, 60.0)
         brainGauss2.spatial().position = Vector3f(3.0f, -3.0f, 0.0f)
+        brainGauss2.spatial().scale = Vector3f(20.0f)
 
         scene.addChild(brain)
         scene.addChild(gaussDiff)
