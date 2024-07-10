@@ -51,10 +51,19 @@ import kotlin.math.min
  * by Richardson et al.)
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
- * @param [protein] the polypeptide you wish to visualize, stored in the class Protein
+ * @param [protein]                 The polypeptide you wish to visualize, stored in the class Protein
+ *
+ * @param [showSecondaryStructures] Whether or not to show secondary structures as well
+ *
+ * @param [verticesPerSection]      How many vertices should be rendered per section. The default is 20, and can also
+ *                                  be overridden by the system property `scenery.Proteins.VerticesPerSection`.
  */
 
-class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: Boolean = false): Mesh("ribbon") {
+class RibbonDiagram(
+    val protein: Protein,
+    private val showSecondaryStructures: Boolean = false,
+    val verticesPerSection: Int = System.getProperty("scenery.Proteins.VerticesPerSection", "20").toInt()
+): Mesh("ribbon") {
 
     /*
      *[structure] the structure of the protein stored in the class Structure of BioJava
@@ -75,12 +84,11 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
      */
     private val structure = protein.structure
     private val chains = structure.chains
-    val groups = chains.flatMap { it.atomGroups }
+    private val groups = chains.flatMap { it.atomGroups }
     private val widthAlpha = 2.0f
     private val widthBeta = 2.2f
     private val widthCoil = 1.0f
     private val chainList =  ArrayList<List<Group>>(groups.size)
-    private val sectionVerticesCount = 20
     private val secStruc = dssp()
     //calculate the centroid of the protein
     private val centroid = Axis.getCentroid(groups.flatMap { it.atoms }.filter{it.name == "CA"}.map{it.getVector()})
@@ -129,31 +137,6 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
         else{splinePointCentered}
 
-        val rectangle = Shape(listOf(
-            Vertex(Vector3f(0.9f, 0f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(0f, 0.1f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-0.9f, 0f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(0f, -0.1f, 0f), Vector3f(), Vector2f())
-        ))
-
-        val sin45 = kotlin.math.sqrt(2f) / 40f
-        val octagon = Shape(listOf(
-            Vertex(Vector3f(0.05f, 0f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(sin45, sin45, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(0f, 0.05f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-sin45, sin45, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-0.05f, 0f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-sin45, -sin45, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(0f, -0.05f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(sin45, -sin45, 0f), Vector3f(), Vector2f())
-        ))
-
-        val reversedRectangle = Shape(listOf(
-            Vertex(Vector3f(0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(-0.1f, -0.8f, 0f), Vector3f(), Vector2f()),
-            Vertex(Vector3f(0.1f, -0.8f, 0f), Vector3f(), Vector2f())
-        ))
         /*
         In the following lines of code(144-211), we build a curve for each secondary structure. How does this work, step
         by step? First, we iterate through the guide points. A guide point represents a residue, therefore, it can be
@@ -181,7 +164,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         val coils = Mesh("coil")
 
         //exclude dummy points for spline calculation
-        val ssSections = getSecondaryStructureLengths(guidePointList.drop(1).dropLast(1), splinePoints, sectionVerticesCount)
+        val ssSections = getSecondaryStructureLengths(guidePointList.drop(1).dropLast(1), splinePoints, verticesPerSection)
         //configure offset for helix computation below
         var guidePointOffset = 1
         //iterate through all secondary structure sections
@@ -199,7 +182,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                 }
                 val axis = Axis(caList)
                 val axisLine = PositionDirection(axis.position, axis.direction)
-                val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { listOf(rectangle) }
+                val helixCurve = Helix(axisLine, DummySpline(subSpline, verticesPerSection)) { listOf(Shape.makeRectangle()) }
                 if (showSecondaryStructures) {
                     alphas.addChild(helixCurve)
                 } else {
@@ -207,7 +190,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                 }
             }
             else {
-                val ssSubList = ArrayList<Shape>(sectionVerticesCount * length)
+                val ssSubList = ArrayList<Shape>(verticesPerSection * length)
 
                 val iterationLength = subSpline.size
 
@@ -216,7 +199,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                 if (type.isBetaStrand) {
                     val seventyPercent = (iterationLength * 0.70).toInt()
                     for (j in 0 until seventyPercent) {
-                        ssSubList.add(reversedRectangle)
+                        ssSubList.add(Shape.makeReversedRectangle())
                     }
                     val thirtyPercent = iterationLength - seventyPercent
                     for (j in thirtyPercent downTo 1) {
@@ -232,7 +215,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                         )
                     }
                     val betaCurve = DefaultCurve(
-                        DummySpline(subSpline, sectionVerticesCount), { ssSubList })
+                        DummySpline(subSpline, verticesPerSection), { ssSubList })
                     if (showSecondaryStructures) {
                         betas.addChild(betaCurve)
                     } else {
@@ -240,10 +223,10 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                     }
                 } else {
                     for (j in 0 until iterationLength) {
-                        ssSubList.add(octagon)
+                        ssSubList.add(Shape.makeOctagon())
                     }
                     val coilCurve =
-                        DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { ssSubList })
+                        DefaultCurve(DummySpline(subSpline, verticesPerSection), { ssSubList })
                     if (showSecondaryStructures) {
                         coils.addChild(coilCurve)
                     } else {
@@ -303,24 +286,27 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
      * (a spline which list of controlPoints is equal to its guidePoints)
      */
     private fun ribbonSpline(guidePoints: ArrayList<GuidePoint>): Spline {
-        val finalSpline = ArrayList<Vector3f>(guidePoints.size * sectionVerticesCount)
+        val finalSpline = ArrayList<Vector3f>(guidePoints.size * verticesPerSection)
         val skeleton = splineSkeleton(guidePoints)
-        val spline1 = UniformBSpline(skeleton.splineSkeleton1, sectionVerticesCount).splinePoints()
-        val spline2 = UniformBSpline(skeleton.splineSkeleton2, sectionVerticesCount).splinePoints()
+        val spline1 = UniformBSpline(skeleton.splineSkeleton1, verticesPerSection).splinePoints()
+        val spline2 = UniformBSpline(skeleton.splineSkeleton2, verticesPerSection).splinePoints()
         spline1.forEachIndexed { i, _ ->
             val splinePoint = Vector3f()
             spline1[i].add(spline2[i], splinePoint)
             splinePoint.mul(0.5f)
             finalSpline.add(splinePoint)
         }
-        return DummySpline(finalSpline, sectionVerticesCount)
+        return DummySpline(finalSpline, verticesPerSection)
     }
 
-    companion object GuidePointCalculation {
+    companion object {
+
+
 
         /**
          * Calculates the GuidePoints from the list of amino acids.
          */
+        @JvmStatic
         fun calculateGuidePoints(aminoList: List<Group>, ssList: List<SecStrucElement>): ArrayList<GuidePoint> {
             //To include all points in the visualization, dummy points need to be made.
             //First, a list without these dummy points is calculated.
@@ -510,6 +496,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
          * Extension function to make a Vector out of an atom position. We do not
          * need any information about an atom besides its name and its position.
          */
+        @JvmStatic
         fun Atom.getVector(): Vector3f {
             return Vector3f(this.x.toFloat(), this.y.toFloat(), this.z.toFloat())
         }

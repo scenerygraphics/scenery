@@ -5,10 +5,55 @@ import org.joml.Vector2f
 import org.joml.Vector3f
 
 data class Vertex(val v: Vector3f, val n: Vector3f, val uv: Vector2f)
-data class Shape(val vertices: List<Vertex>)
+data class Shape(val vertices: List<Vertex>) {
+    companion object {
+        /**
+         * Returns the vertices for a rectangle.
+         */
+        fun makeRectangle() = Shape(listOf(
+            Vertex(Vector3f(0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.1f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.1f, 0f), Vector3f(), Vector2f())
+        ))
+
+        private val sin45 = kotlin.math.sqrt(2f) / 40f
+
+        /**
+         * Returns the vertices for an octogon.
+         */
+        fun makeOctagon() = Shape(listOf(
+            Vertex(Vector3f(0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, -sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, -sin45, 0f), Vector3f(), Vector2f())
+        ))
+
+        /**
+         * Returns vertices for a reversed rectangle.
+         */
+        fun makeReversedRectangle() = Shape(listOf(
+            Vertex(Vector3f(0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, -0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0.1f, -0.8f, 0f), Vector3f(), Vector2f())
+        ))
+
+
+    }
+}
+
 typealias SegmentedShapeList = List<Shape>
 
-fun List<Vector3f>.toShape(): Shape = Shape(this.map { Vertex(it, it, Vector2f()) })
+/**
+ * Helper function to turn a list of [Vector3f]'s into a [Shape]. The resulting shape will use the normalised
+ * vertex as normal, and have empty UV coordinates.
+ */
+fun List<Vector3f>.toShape(): Shape = Shape(this.map { Vertex(it, it.normalize(), Vector2f()) })
 
 /**
  * Interface providing the functionality of creating a geometry which evolves along a spline object.

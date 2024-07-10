@@ -11,6 +11,8 @@ import org.biojava.nbio.structure.io.PDBFileReader
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.InvalidPathException
+import java.nio.file.Paths
+import kotlin.io.path.createDirectories
 
 /**
  * Constructs a protein from a pdb-file.
@@ -23,6 +25,20 @@ class Protein(val structure: Structure): Mesh("Protein") {
 
     companion object MyProtein {
         private val proteinLogger by lazyLogger()
+
+        init {
+            val pdbDirectoryProperty = System.getProperty("scenery.Proteins.PDBDirectory", System.getProperty("user.home") + "/.scenery/pdb")
+            val pdbCacheDirectoryProperty = System.getProperty("scenery.Proteins.PDBCacheDirectory", System.getProperty("user.home") + "/.scenery/pdb-cache")
+
+            val pdbDir = Paths.get(pdbDirectoryProperty)
+            pdbDir.createDirectories()
+
+            val pdbCacheDir = Paths.get(pdbCacheDirectoryProperty)
+            pdbCacheDir.createDirectories()
+
+            System.setProperty("PDB_DIR", pdbDir.toAbsolutePath().toString())
+            System.setProperty("PDB_CACHE_DIR", pdbCacheDir.toAbsolutePath().toString())
+        }
 
         fun fromID(id: String): Protein {
             try {

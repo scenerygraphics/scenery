@@ -7,7 +7,6 @@ import graphics.scenery.geometry.curve.FrenetCurve.Companion.computeFrenetFrames
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.plusAssign
-import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f
 import org.joml.Vector3f
 import java.nio.FloatBuffer
@@ -58,10 +57,18 @@ open class DefaultCurve(
                 //default behaviour: if the last section is a single shape,
                 // it will be added to the last window of the shapes
                 if (index == subShapes.lastIndex - 1 && subShapes.last().size == 1) {
+                    // if there is only a single shape, we need to add a cover for both sides,
+                    // so we override the default cover variable here
+                    val cv = if(subShapes.size == 2) {
+                        CurveCover.Both
+                    } else {
+                        cover
+                    }
+
                     val arrayListShapes = listShapes as ArrayList
                     arrayListShapes.add(transformedBaseShapes.last())
                     val (vertices, normals) = calculateTriangles(arrayListShapes,
-                                                                 cover = CurveCover.Bottom)
+                                                                 cover = cv)
                     val partialCurve = PartialCurve(vertices, normals)
                     this.addChild(partialCurve)
                 } else {
@@ -77,18 +84,13 @@ open class DefaultCurve(
         v1: graphics.scenery.geometry.curve.Vertex,
         v2: graphics.scenery.geometry.curve.Vertex,
         v3: graphics.scenery.geometry.curve.Vertex,
-        vertices: FloatBuffer,
-        normals: MutableList<Vector3f>?
+        vertices: FloatBuffer
     ): Vector3f {
         vertices += v1.v
         vertices += v3.v
         vertices += v2.v
 
-        val normal = ((v3.v - v1.v).cross(v2.v - v1.v)).normalize()
-        normals?.add(normal)
-        normals?.add(normal)
-        normals?.add(normal)
-        return normal
+        return ((v3.v - v1.v).cross(v2.v - v1.v)).normalize()
     }
 
     /**
@@ -130,7 +132,6 @@ open class DefaultCurve(
                         v2 = currentShape.vertices[vertexIndex + 1],
                         v3 = nextShape.vertices[vertexIndex],
                         vertices = verticesWithoutCoverBuffer,
-                        normals = null
                     )
 
                     val n2 = addVN(
@@ -138,7 +139,6 @@ open class DefaultCurve(
                         v2 = nextShape.vertices[vertexIndex + 1],
                         v3 = nextShape.vertices[vertexIndex],
                         vertices = verticesWithoutCoverBuffer,
-                        normals = null
                     )
 
                     val faceNormal = (n1 + n2).normalize()
@@ -155,7 +155,6 @@ open class DefaultCurve(
                     v2 = currentShape.vertices[0],
                     v3 = nextShape.vertices[shape.vertices.lastIndex],
                     vertices = verticesWithoutCoverBuffer,
-                    normals = null
                 )
 
                 val n2 = addVN(
@@ -163,7 +162,6 @@ open class DefaultCurve(
                     v2 = nextShape.vertices[0],
                     v3 = nextShape.vertices[shape.vertices.lastIndex],
                     vertices = verticesWithoutCoverBuffer,
-                    normals = null
                 )
                 val faceNormal = (n1 + n2).normalize()
                 intermediateNormalSection.add(faceNormal)
