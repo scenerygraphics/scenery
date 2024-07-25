@@ -51,11 +51,13 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         val vdiDirectory = System.getProperty("VDIBenchmark.VDI_DIRECTORY", "")
 
         //Step 2: read files
-        val filePrefix = if(vdiDirectory == "") {
-            dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
-        } else {
-            vdiDirectory + "/" + dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
-        }
+
+        val regularPrefix = dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
+
+        val specificPrefix = vdiDirectory + "/" + dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
+
+
+        logger.info("Reading file with prefix regular $regularPrefix and specific $specificPrefix")
 
         when(vo){
             0 -> num = 0
@@ -65,9 +67,9 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         }
 
         val file = if (applyTo != null && applyTo.contains("all")) {
-            FileInputStream(File("${filePrefix}_${num}${additionalParams}.vdi-metadata"))
+            FileInputStream(File("${specificPrefix}_${num}${additionalParams}.vdi-metadata"))
         } else {
-            FileInputStream(File("${filePrefix}_${num}.vdi-metadata"))
+            FileInputStream(File("${regularPrefix}_${num}.vdi-metadata"))
         }
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
@@ -75,25 +77,25 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
         val colorArray: ByteArray = if (applyTo != null && (applyTo.contains("color") || applyTo.contains("all"))) {
-            File("${filePrefix}_${num}${additionalParams}.vdi-color").readBytes()
+            File("${specificPrefix}_${num}${additionalParams}.vdi-color").readBytes()
         } else {
-            File("${filePrefix}_${num}.vdi-color").readBytes()
+            File("${regularPrefix}_${num}.vdi-color").readBytes()
         }
         val alphaArray: ByteArray = if (applyTo != null && (applyTo.contains("alpha") || applyTo.contains("all"))) {
-            File("${filePrefix}_${num}${additionalParams}.vdi-alpha").readBytes()
+            File("${specificPrefix}_${num}${additionalParams}.vdi-alpha").readBytes()
         } else {
-            File("${filePrefix}_${num}.vdi-alpha").readBytes()
+            File("${regularPrefix}_${num}.vdi-alpha").readBytes()
         }
 
         val depthArray: ByteArray = if (applyTo != null && (applyTo.contains("depth") || applyTo.contains("all"))) {
-            File("${filePrefix}_${num}${additionalParams}.vdi-depth").readBytes()
+            File("${specificPrefix}_${num}${additionalParams}.vdi-depth").readBytes()
         } else {
-            File("${filePrefix}_${num}.vdi-depth").readBytes()
+            File("${regularPrefix}_${num}.vdi-depth").readBytes()
         }
         val octArray: ByteArray = if (applyTo != null && (applyTo.contains("grid") || applyTo.contains("all"))) {
-            File("${filePrefix}_${num}${additionalParams}.vdi-grid").readBytes()
+            File("${specificPrefix}_${num}${additionalParams}.vdi-grid").readBytes()
         } else {
-            File("${filePrefix}_${num}.vdi-grid").readBytes()
+            File("${regularPrefix}_${num}.vdi-grid").readBytes()
         }
 
         //Step  3: assigning buffer values
@@ -153,7 +155,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Rayleigh_Taylor, 20, 0).main()
+            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Kingsnake, 20, 0).main()
         }
     }
 }
