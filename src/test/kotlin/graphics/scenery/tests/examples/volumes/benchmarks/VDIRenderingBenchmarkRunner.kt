@@ -19,11 +19,24 @@ class VDIRenderingBenchmarkRunner {
 
     lateinit var screenshotDirectory: String
 
+    private val isTestMode: Boolean = System.getenv("TEST_MODE")?.toBoolean() ?: false
+    val overwriteFiles = System.getenv("OVERWRITE_FILES")?.toBoolean() ?: false
+
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false, additionalParameters: String = "") {
 
         Thread.sleep(2000) //allow the rotation to take place
 
-        renderer.screenshot(screenshotDirectory + "/VDI_${dataset}${additionalParameters}_${viewpoint}_${skipEmpty}.png")
+        val screenshotPath = "$screenshotDirectory/VDI_${dataset}${additionalParameters}_${viewpoint}_${skipEmpty}.png"
+        val screenshotFile = File(screenshotPath)
+
+        if(!isTestMode) {
+            if(overwriteFiles && screenshotFile.exists()) {
+                screenshotFile.delete() // Delete the existing file if overwriting is enabled
+            }
+            renderer.screenshot(screenshotPath)
+        } else {
+            println("Skipping screenshot for $dataset with viewpoint $viewpoint")
+        }
 
         Thread.sleep(1000)
     }
