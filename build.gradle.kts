@@ -2,6 +2,7 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
@@ -15,7 +16,7 @@ plugins {
     scenery.sign
 //    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") apply false
+    id("com.github.johnrengelman.shadow") version "7.1.0"
 }
 
 repositories {
@@ -404,6 +405,17 @@ tasks {
             isZip64 = true
         }
     }
+
+    task<Jar>("testJar") {
+        archiveClassifier.set("tests")
+        from(sourceSets.test.get().output)
+        dependsOn("assemble")
+    }
+
+    named<ShadowJar>("shadowJar") {
+        isZip64 = true
+    }
+
 }
 
 jacoco.toolVersion = "0.8.11"
