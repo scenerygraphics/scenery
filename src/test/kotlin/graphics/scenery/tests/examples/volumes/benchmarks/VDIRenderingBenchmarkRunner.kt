@@ -22,11 +22,17 @@ class VDIRenderingBenchmarkRunner {
     private val isTestMode: Boolean = System.getenv("TEST_MODE")?.toBoolean() ?: false
     val overwriteFiles = System.getenv("OVERWRITE_FILES")?.toBoolean() ?: false
 
-    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false, additionalParameters: String = "") {
+    fun vdiRenderingBenchmarks(vdiProperties: String, datasetName: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false, additionalParameters: String = "") {
 
         Thread.sleep(2000) //allow the rotation to take place
 
-        val screenshotPath = "$screenshotDirectory/VDI_${dataset}${additionalParameters}_${viewpoint}_${skipEmpty}.png"
+
+        val datasetDirectory = File("$screenshotDirectory/$datasetName")
+        if (!datasetDirectory.exists()) {
+            datasetDirectory.mkdirs()
+        }
+
+        val screenshotPath = "$datasetDirectory/VDI_${vdiProperties}${additionalParameters}_${viewpoint}_${skipEmpty}.png"
         val screenshotFile = File(screenshotPath)
 
         if(!isTestMode) {
@@ -35,14 +41,14 @@ class VDIRenderingBenchmarkRunner {
             }
             renderer.screenshot(screenshotPath)
         } else {
-            println("Skipping screenshot for $dataset with viewpoint $viewpoint")
+            println("Skipping screenshot for $vdiProperties with viewpoint $viewpoint")
         }
 
         Thread.sleep(1000)
     }
 
-    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
-    additionalParameters: String = "", applyTo: List<String>? = null) {
+    fun runTest(vdiProperties: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
+                additionalParameters: String = "", applyTo: List<String>? = null) {
         val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo, additionalParameters, applyTo)
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
@@ -83,7 +89,7 @@ class VDIRenderingBenchmarkRunner {
                     instance.cam.spatial().updateWorld(false, true)
                 }
 
-                vdiRenderingBenchmarks(dataset, viewpoint, renderer, false, additionalParameters)
+                vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
             }
 
             renderer.shouldClose = true
@@ -150,7 +156,7 @@ class VDIRenderingBenchmarkRunner {
         benchmarkVos!!.forEach { vo ->
             benchmarkSupersegments!!.forEach { ns ->
                 benchmarkDatasets!!.forEach { dataName ->
-                    val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
+                    val vdiProperties = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
                     System.setProperty("VDIBenchmark.Dataset", dataName.name)
                     System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
                     System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
@@ -161,12 +167,12 @@ class VDIRenderingBenchmarkRunner {
                         for (combination in combinations) {
                             var additionalParameters = combination.joinToString("_")
                             additionalParameters = "_$additionalParameters"
-                            println("Running test for $dataset with additional parameters $additionalParameters")
-                            runTest(dataset, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo)
+                            println("Running test for $vdiProperties with additional parameters $additionalParameters")
+                            runTest(vdiProperties, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo)
                             println("Got the control back")
                         }
                     } else {
-                        runTest(dataset, vo, windowWidth, windowHeight, dataName, ns)
+                        runTest(vdiProperties, vo, windowWidth, windowHeight, dataName, ns)
                         println("Got the control back")
                     }
                 }
