@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.volumes.benchmarks
 
 import java.io.File
 import graphics.scenery.Camera
+import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
@@ -49,55 +50,66 @@ class VDIRenderingBenchmarkRunner {
 
     fun runTest(vdiProperties: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
                 additionalParameters: String = "", applyTo: List<String>? = null) {
-        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo, additionalParameters, applyTo)
-        thread {
-            while (instance.hub.get(SceneryElement.Renderer)==null) {
-                Thread.sleep(50)
-            }
+        var success = false
+        while(!success) {
+            try {
+                // Pass the Renderer and Scene to VDIRenderingBenchmark
+                val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo, additionalParameters, applyTo)
+                thread {
+                    while (instance.hub.get(SceneryElement.Renderer)==null) {
+                        Thread.sleep(50)
+                    }
 
-            val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+                    val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
 
-            while (!renderer.firstImageReady) {
-                Thread.sleep(50)
-            }
+                    while (!renderer.firstImageReady) {
+                        Thread.sleep(50)
+                    }
 
-            val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
-            val pixelToWorld = (0.0075f * 512f) / volumeDims.x
+                    val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
+                    val pixelToWorld = (0.0075f * 512f) / volumeDims.x
 
-            val target = volumeDims * pixelToWorld * 0.5f
-            target.y *= -1
+                    val target = volumeDims * pixelToWorld * 0.5f
+                    target.y *= -1
 
-            if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
-                rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
-                instance.cam.spatial().updateWorld(false, true)
-            } else {
-                rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
-                instance.cam.spatial().updateWorld(false, true)
-            }
-            Thread.sleep(2000)
+                    if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                        rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                        instance.cam.spatial().updateWorld(false, true)
+                    } else {
+                        rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                        instance.cam.spatial().updateWorld(false, true)
+                    }
+                    Thread.sleep(2000)
 
-            var previousViewpoint = 0
-            benchmarkViewpoints!!.forEach { viewpoint->
-                val rotation = viewpoint - previousViewpoint
-                previousViewpoint = viewpoint
+                    var previousViewpoint = 0
+                    benchmarkViewpoints!!.forEach { viewpoint->
+                        val rotation = viewpoint - previousViewpoint
+                        previousViewpoint = viewpoint
 
-                if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
-                    rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
-                    instance.cam.spatial().updateWorld(false, true)
-                } else {
-                    rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
-                    instance.cam.spatial().updateWorld(false, true)
+                        if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                            rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                            instance.cam.spatial().updateWorld(false, true)
+                        } else {
+                            rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                            instance.cam.spatial().updateWorld(false, true)
+                        }
+
+                        vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
+                    }
+
+                    renderer.shouldClose = true
+
+                    instance.close()
                 }
 
-                vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
+                instance.main()
+                success = true
+            } catch (e: Exception) {
+                println("Exception occurred: ${e.message}")
+                e.printStackTrace()
             }
-
-            renderer.shouldClose = true
-
-            instance.close()
         }
 
-        instance.main()
     }
 
 
