@@ -168,6 +168,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         scene.children.forEach {
             scene.removeChild(it)
         }
+        vdiNode.close()
     }
 
     private fun initScene() {
