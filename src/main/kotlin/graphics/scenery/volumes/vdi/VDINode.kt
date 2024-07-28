@@ -4,12 +4,15 @@ import graphics.scenery.RichNode
 import graphics.scenery.ShaderMaterial
 import graphics.scenery.ShaderProperty
 import graphics.scenery.backends.Shaders
+import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
@@ -106,6 +109,32 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     @ShaderProperty
     var skip_empty = true
 
+    // Texture properties for the VDINode class
+
+    /**
+     * The color texture of the VDINode.
+     * This property retrieves the color texture from the material's textures map.
+     * The color texture is cast to Texture before being returned.
+     */
+    private val colorTexture: Texture
+        get() = material().textures[inputColorTexture] as Texture
+
+    /**
+     * The depth texture of the VDINode.
+     * This property retrieves the depth texture from the material's textures map.
+     * The depth texture is cast to Texture before being returned.
+     */
+    private val depthTexture: Texture
+        get() = material().textures[inputDepthTexture] as Texture
+
+    /**
+     * The acceleration texture of the VDINode.
+     * This property retrieves the acceleration texture from the material's textures map.
+     * The acceleration texture is cast to Texture before being returned.
+     */
+    private val accelerationTexture: Texture
+        get() = material().textures[inputAccelerationTexture] as Texture
+
     /**
      * Enum class recording which of the two VDIs is currently being rendered.
      *
@@ -157,26 +186,37 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
     }
 
+    private fun getColorTextureType(): NumericType<*> {
+        return UnsignedByteType()
+    }
+
+    private fun getDepthTextureType(): NumericType<*> {
+        val intDepths = false
+        return if (intDepths) {
+            UnsignedShortType()
+        } else {
+            FloatType()
+        }
+    }
+
+    private fun getColorTextureChannels(): Int {
+        return 4
+    }
+
     private fun generateColorTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
         val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
         return Texture(dimensions, 4, contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = FloatType(),
-            mipmap = false,
+            , type = getColorTextureType(),
+//            mipmap = false,
             minFilter = Texture.FilteringMode.NearestNeighbour,
             maxFilter = Texture.FilteringMode.NearestNeighbour
         )
     }
 
     private fun generateDepthTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
-        val intDepths = false
         val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
-        return if(intDepths) {
-            Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        } else {
-            Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        }
+        return Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = getDepthTextureType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
     }
 
     private fun generateAccelerationTexture(buffer: ByteBuffer, dimensions: Vector3i? = null) : Texture {
@@ -198,7 +238,6 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      * Defaults to [DoubleBuffer.First]
      */
     fun attachTextures(colBuffer: ByteBuffer, depthBuffer: ByteBuffer, gridBuffer: ByteBuffer, toBuffer: DoubleBuffer = DoubleBuffer.First) {
-
 
         if(toBuffer == DoubleBuffer.First) {
             material().textures[inputColorTexture] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
@@ -335,6 +374,18 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             useSecondBuffer = true
             //The next buffer to which data should be uploaded is the first one
             currentBuffer = DoubleBuffer.First
+        }
+    }
+
+    /**
+     * Closes the VDINode by releasing the GPU resources associated with the textures used in the node.
+     * This function is typically called when the VDINode is no longer needed, to free up GPU memory.
+     * It iterates over all textures in the material of the node, retrieves the VulkanTexture reference
+     * for each texture, and calls the close() method on it to release the GPU resources.
+     */
+    override fun close() {
+        material().textures.forEach {
+            VulkanTexture.getReference(it.value)!!.close()
         }
     }
 
