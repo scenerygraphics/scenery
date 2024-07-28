@@ -48,61 +48,47 @@ class VDIRenderingBenchmarkRunner {
         Thread.sleep(1000)
     }
 
-    fun runTest(vdiProperties: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
+    fun runTest(instance: VDIRenderingBenchmark, vdiProperties: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
                 additionalParameters: String = "", applyTo: List<String>? = null) {
         var success = false
         while(!success) {
             try {
-                // Pass the Renderer and Scene to VDIRenderingBenchmark
-                val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo, additionalParameters, applyTo)
-                thread {
-                    while (instance.hub.get(SceneryElement.Renderer)==null) {
-                        Thread.sleep(50)
-                    }
+                instance.updateParameters(dataName, ns, vo, additionalParameters, applyTo)
+                instance.cam.spatial().updateWorld(false, true)
 
-                    val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+                val renderer = instance.hub.get(SceneryElement.Renderer)!! as Renderer
 
-                    while (!renderer.firstImageReady) {
-                        Thread.sleep(50)
-                    }
+                val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
+                val pixelToWorld = (0.0075f * 512f) / volumeDims.x
 
-                    val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
-                    val pixelToWorld = (0.0075f * 512f) / volumeDims.x
+                val target = volumeDims * pixelToWorld * 0.5f
+                target.y *= -1
 
-                    val target = volumeDims * pixelToWorld * 0.5f
-                    target.y *= -1
+                if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                    rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
+                } else {
+                    rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
+                }
+                Thread.sleep(2000)
+
+                var previousViewpoint = 0
+                benchmarkViewpoints!!.forEach { viewpoint->
+                    val rotation = viewpoint - previousViewpoint
+                    previousViewpoint = viewpoint
 
                     if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
-                        rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                        rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
                         instance.cam.spatial().updateWorld(false, true)
                     } else {
-                        rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                        rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
                         instance.cam.spatial().updateWorld(false, true)
                     }
-                    Thread.sleep(2000)
 
-                    var previousViewpoint = 0
-                    benchmarkViewpoints!!.forEach { viewpoint->
-                        val rotation = viewpoint - previousViewpoint
-                        previousViewpoint = viewpoint
-
-                        if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
-                            rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
-                            instance.cam.spatial().updateWorld(false, true)
-                        } else {
-                            rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
-                            instance.cam.spatial().updateWorld(false, true)
-                        }
-
-                        vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
-                    }
-
-                    renderer.shouldClose = true
-
-                    instance.close()
+                    vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
                 }
 
-                instance.main()
                 success = true
             } catch (e: Exception) {
                 println("Exception occurred: ${e.message}")
@@ -165,31 +151,51 @@ class VDIRenderingBenchmarkRunner {
         // Generate all possible combinations of parameter values
         val combinations = parametersList?.let { generateCombinations(it) }
 
-        benchmarkVos!!.forEach { vo ->
-            benchmarkSupersegments!!.forEach { ns ->
-                benchmarkDatasets!!.forEach { dataName ->
-                    val vdiProperties = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
-                    System.setProperty("VDIBenchmark.Dataset", dataName.name)
-                    System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
-                    System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
-                    System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
-                    System.setProperty("VDIBenchmark.Vo", vo.toString())
+        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, benchmarkDatasets!!.first(), benchmarkSupersegments!!.first(), benchmarkVos!!.first())
 
-                    if(combinations != null) {
-                        for (combination in combinations) {
-                            var additionalParameters = combination.joinToString("_")
-                            additionalParameters = "_$additionalParameters"
-                            println("Running test for $vdiProperties with additional parameters $additionalParameters")
-                            runTest(vdiProperties, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo)
+        thread {
+
+            while (instance.hub.get(SceneryElement.Renderer)==null) {
+                Thread.sleep(50)
+            }
+
+            val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+
+            while (!renderer.firstImageReady) {
+                Thread.sleep(50)
+            }
+
+            benchmarkVos!!.forEach { vo ->
+                benchmarkSupersegments!!.forEach { ns ->
+                    benchmarkDatasets!!.forEach { dataName ->
+                        val vdiProperties = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
+                        System.setProperty("VDIBenchmark.Dataset", dataName.name)
+                        System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
+                        System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
+                        System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
+                        System.setProperty("VDIBenchmark.Vo", vo.toString())
+
+                        if(combinations != null) {
+                            for (combination in combinations) {
+                                var additionalParameters = combination.joinToString("_")
+                                additionalParameters = "_$additionalParameters"
+                                println("Running test for $vdiProperties with additional parameters $additionalParameters")
+                                runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo)
+                                println("Got the control back")
+                            }
+                        } else {
+                            runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns)
                             println("Got the control back")
                         }
-                    } else {
-                        runTest(vdiProperties, vo, windowWidth, windowHeight, dataName, ns)
-                        println("Got the control back")
                     }
                 }
             }
+
+            renderer.close()
+            instance.close()
         }
+
+        instance.main()
     }
 
     private fun generateCombinations(parameters: List<Pair<String, List<String>>>, index: Int = 0): List<List<String>> {
