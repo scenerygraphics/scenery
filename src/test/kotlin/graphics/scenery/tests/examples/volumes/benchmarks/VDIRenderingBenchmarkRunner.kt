@@ -21,12 +21,8 @@ class VDIRenderingBenchmarkRunner {
     lateinit var screenshotDirectory: String
 
     private val isTestMode: Boolean = System.getenv("TEST_MODE")?.toBoolean() ?: false
-    val overwriteFiles = System.getenv("OVERWRITE_FILES")?.toBoolean() ?: false
 
-    fun vdiRenderingBenchmarks(vdiProperties: String, datasetName: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false, additionalParameters: String = "") {
-
-        Thread.sleep(2000) //allow the rotation to take place
-
+    fun vdiRenderingBenchmarks(vdiProperties: String, datasetName: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false, additionalParameters: String = "", overwriteFiles: Boolean): Int {
 
         val datasetDirectory = File("$screenshotDirectory/$datasetName")
         if (!datasetDirectory.exists()) {
@@ -45,25 +41,33 @@ class VDIRenderingBenchmarkRunner {
             println("Skipping screenshot for $vdiProperties with viewpoint $viewpoint")
         }
 
-        Thread.sleep(1000)
+        Thread.sleep(2000)
+
+        if(!screenshotFile.exists()) {
+            println("Screenshot for $vdiProperties with viewpoint $viewpoint was not created. This test needs to be run again")
+            return -1
+        } else {
+            return 0
+        }
     }
 
     fun runTest(instance: VDIRenderingBenchmark, vdiProperties: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int,
-                additionalParameters: String = "", applyTo: List<String>? = null) {
-        var success = false
-        while(!success) {
-            try {
-                instance.updateParameters(dataName, ns, vo, additionalParameters, applyTo)
-                instance.cam.spatial().updateWorld(false, true)
+                additionalParameters: String = "", applyTo: List<String>? = null, overwrite: Boolean): Int {
 
-                val renderer = instance.hub.get(SceneryElement.Renderer)!! as Renderer
+        try {
+            instance.updateParameters(dataName, ns, vo, additionalParameters, applyTo)
+            instance.cam.spatial().updateWorld(false, true)
+            Thread.sleep(2000)
 
-                val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
-                val pixelToWorld = (0.0075f * 512f) / volumeDims.x
+            val renderer = instance.hub.get(SceneryElement.Renderer)!! as Renderer
 
-                val target = volumeDims * pixelToWorld * 0.5f
-                target.y *= -1
+            val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
+            val pixelToWorld = (0.0075f * 512f) / volumeDims.x
 
+            val target = volumeDims * pixelToWorld * 0.5f
+            target.y *= -1
+
+            if(vo != 0) {
                 if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                     rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
                     instance.cam.spatial().updateWorld(false, true)
@@ -72,30 +76,48 @@ class VDIRenderingBenchmarkRunner {
                     instance.cam.spatial().updateWorld(false, true)
                 }
                 Thread.sleep(2000)
+            }
 
-                var previousViewpoint = 0
-                benchmarkViewpoints!!.forEach { viewpoint->
-                    val rotation = viewpoint - previousViewpoint
-                    previousViewpoint = viewpoint
+            var previousViewpoint = 0
+            benchmarkViewpoints!!.forEach { viewpoint->
+                val rotation = viewpoint - previousViewpoint
+                println("Rotating camera by $rotation degrees")
+                previousViewpoint = viewpoint
 
-                    if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
-                        rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
-                        instance.cam.spatial().updateWorld(false, true)
-                    } else {
-                        rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
-                        instance.cam.spatial().updateWorld(false, true)
-                    }
 
-                    vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters)
+                val startPosition = instance.cam.spatial().position
+
+                if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                    rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
+                } else {
+                    rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
+                }
+                // wait for the rotation to take place
+                Thread.sleep(2000)
+
+                val endPosition = instance.cam.spatial().position
+
+                if (startPosition == endPosition) {
+                    println("Camera did not rotate. This test needs to be run again")
+                    return -1
                 }
 
-                success = true
-            } catch (e: Exception) {
-                println("Exception occurred: ${e.message}")
-                e.printStackTrace()
+                val success = vdiRenderingBenchmarks(vdiProperties, dataName.toString(), viewpoint, renderer, false, additionalParameters, overwrite)
+                if(success < 0) {
+                    println("Test failed for $vdiProperties with viewpoint $viewpoint. This test needs to be run again")
+                    return -1
+                }
             }
+        } catch (e: Exception) {
+            println("Exception occurred: ${e.message}")
+            e.printStackTrace()
+            println("Test failed for $vdiProperties with additional parameters $additionalParameters. This test needs to be run again")
+            return -1
         }
 
+        return 0
     }
 
 
@@ -105,6 +127,7 @@ class VDIRenderingBenchmarkRunner {
 
         // Parse the JSON file
         val config = Json.parseToJsonElement(File(System.getenv("BENCHMARK_CONFIG_FILE")).readText()).jsonObject
+        val overwriteFiles = System.getenv("OVERWRITE_FILES")?.toBoolean() ?: false
 
         // Retrieve the directories from the config file
         val inputDirectory = config["inputDirectory"]?.jsonPrimitive?.content
@@ -165,6 +188,8 @@ class VDIRenderingBenchmarkRunner {
                 Thread.sleep(50)
             }
 
+            Thread.sleep(1000)
+
             benchmarkVos!!.forEach { vo ->
                 benchmarkSupersegments!!.forEach { ns ->
                     benchmarkDatasets!!.forEach { dataName ->
@@ -180,11 +205,23 @@ class VDIRenderingBenchmarkRunner {
                                 var additionalParameters = combination.joinToString("_")
                                 additionalParameters = "_$additionalParameters"
                                 println("Running test for $vdiProperties with additional parameters $additionalParameters")
-                                runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo)
+
+                                var overwrite = overwriteFiles
+
+                                var success = false
+                                while (!success) {
+                                    val ret = runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns, additionalParameters, applyTo, overwrite)
+                                    if(ret < 0) {
+                                        println("Test failed for params: $additionalParameters. Retrying...")
+                                        overwrite = true
+                                    } else {
+                                        success = true
+                                    }
+                                }
                                 println("Got the control back")
                             }
                         } else {
-                            runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns)
+                            runTest(instance, vdiProperties, vo, windowWidth, windowHeight, dataName, ns, overwrite = overwriteFiles)
                             println("Got the control back")
                         }
                     }
