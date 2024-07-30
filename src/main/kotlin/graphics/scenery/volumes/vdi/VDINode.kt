@@ -111,36 +111,52 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     // Texture properties for the VDINode class
 
     /**
-     * The color texture of the VDINode.
-     * This property retrieves the color texture from the material's textures map.
-     * The color texture is cast to Texture before being returned.
+     * The color texture of the VDINode for the first buffer.
+     * This property is initially set to null and is expected to be set later.
      */
-    private val colorTexture: Texture
-        get() = material().textures[inputColorTexture] as Texture
+    private var colorTexture: Texture? = null
 
     /**
-     * The alpha texture of the VDINode.
-     * This property retrieves the alpha texture from the material's textures map.
-     * The alpha texture is cast to Texture before being returned.
+     * The color texture of the VDINode for the second buffer.
+     * This property is initially set to null and is expected to be set later.
      */
-    private val alphaTexture: Texture
-        get() = material().textures[inputAlphaTexture] as Texture
+    private var colorTexture2: Texture? = null
 
     /**
-     * The depth texture of the VDINode.
-     * This property retrieves the depth texture from the material's textures map.
-     * The depth texture is cast to Texture before being returned.
+     * The alpha texture of the VDINode for the first buffer.
+     * This property is initially set to null and is expected to be set later.
      */
-    private val depthTexture: Texture
-        get() = material().textures[inputDepthTexture] as Texture
+    private var alphaTexture: Texture? = null
 
     /**
-     * The acceleration texture of the VDINode.
-     * This property retrieves the acceleration texture from the material's textures map.
-     * The acceleration texture is cast to Texture before being returned.
+     * The alpha texture of the VDINode for the second buffer.
+     * This property is initially set to null and is expected to be set later.
      */
-    private val accelerationTexture: Texture
-        get() = material().textures[inputAccelerationTexture] as Texture
+    private var alphaTexture2: Texture? = null
+
+    /**
+     * The depth texture of the VDINode for the first buffer.
+     * This property is initially set to null and is expected to be set later.
+     */
+    private var depthTexture: Texture? = null
+
+    /**
+     * The depth texture of the VDINode for the second buffer.
+     * This property is initially set to null and is expected to be set later.
+     */
+    private var depthTexture2: Texture? = null
+
+    /**
+     * The acceleration texture of the VDINode for the first buffer.
+     * This property is initially set to null and is expected to be set later.
+     */
+    private var accelerationTexture: Texture? = null
+
+    /**
+     * The acceleration texture of the VDINode for the second buffer.
+     * This property is initially set to null and is expected to be set later.
+     */
+    private var accelerationTexture2: Texture? = null
 
     /**
      * Enum class recording which of the two VDIs is currently being rendered.
@@ -270,17 +286,29 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     fun attachTextures(colBuffer: ByteBuffer, alphaBuffer: ByteBuffer, depthBuffer: ByteBuffer, gridBuffer: ByteBuffer, toBuffer: DoubleBuffer = DoubleBuffer.First) {
 
         if(toBuffer == DoubleBuffer.First) {
-            material().textures[inputColorTexture] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
-            material().textures[inputAlphaTexture] = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
-            material().textures[inputDepthTexture] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
 
-            material().textures[inputAccelerationTexture] = generateAccelerationTexture(gridBuffer)
+            colorTexture = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            alphaTexture = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
+            depthTexture = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
+            accelerationTexture = generateAccelerationTexture(gridBuffer)
+
+            material().textures[inputColorTexture] = colorTexture!!
+            material().textures[inputAlphaTexture] = alphaTexture!!
+            material().textures[inputDepthTexture] = depthTexture!!
+
+            material().textures[inputAccelerationTexture] = accelerationTexture!!
         } else {
-            material().textures["${inputColorTexture}2"] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
-            material().textures["${inputAlphaTexture}2"] = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
-            material().textures["${inputDepthTexture}2"] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
 
-            material().textures["${inputAccelerationTexture}2"] = generateAccelerationTexture(gridBuffer)
+            colorTexture2 = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            alphaTexture2 = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
+            depthTexture2 = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
+            accelerationTexture2 = generateAccelerationTexture(gridBuffer)
+
+            material().textures["${inputColorTexture}2"] = colorTexture2!!
+            material().textures["${inputAlphaTexture}2"] = alphaTexture2!!
+            material().textures["${inputDepthTexture}2"] = depthTexture2!!
+
+            material().textures["${inputAccelerationTexture}2"] = accelerationTexture2!!
         }
     }
 
@@ -302,11 +330,23 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         val emptyAccelTexture = generateAccelerationTexture(emptyAccel, Vector3i(1, 1, 1))
 
         if (toBuffer == DoubleBuffer.First ) {
+
+            colorTexture = emptyColorTexture
+            alphaTexture = emptyAlphaTexture
+            depthTexture = emptyDepthTexture
+            accelerationTexture = emptyAccelTexture
+
             material().textures[inputColorTexture] = emptyColorTexture
             material().textures[inputAlphaTexture] = emptyAlphaTexture
             material().textures[inputDepthTexture] = emptyDepthTexture
             material().textures[inputAccelerationTexture] = emptyAccelTexture
         } else {
+
+            colorTexture2 = emptyColorTexture
+            alphaTexture2 = emptyAlphaTexture
+            depthTexture2 = emptyDepthTexture
+            accelerationTexture2 = emptyAccelTexture
+
             material().textures["${inputColorTexture}2"] = emptyColorTexture
             material().textures["${inputAlphaTexture}2"] = emptyAlphaTexture
             material().textures["${inputDepthTexture}2"] = emptyDepthTexture
@@ -425,8 +465,10 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      * for each texture, and calls the close() method on it to release the GPU resources.
      */
     override fun close() {
-        material().textures.forEach {
-            VulkanTexture.getReference(it.value)!!.close()
+        material().textures.forEach { (name, texture) ->
+            logger.debug("For VDINode: closing texture $name.")
+            VulkanTexture.getReference(texture)?.close()
+            MemoryUtil.memFree(texture.contents)
         }
     }
 
