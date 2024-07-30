@@ -24,6 +24,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     val numSupersegments = ns
 
     lateinit var vdiNode: VDINode
+    var previousVDINode: VDINode? = null
     val numLayers = 1
 
     val cam: Camera = DetachedHeadCamera()
@@ -152,7 +153,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     }
 
     fun updateParameters(newDataset: BenchmarkSetup.Dataset, newNs: Int, newVo: Int, newAdditionalParams: String = "", applyTo: List<String>? = null) {
-        // Assuming these are the main parameters that might change between runs
+
         this.dataset = newDataset
         this.ns = newNs
         this.vo = newVo
@@ -165,10 +166,13 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
 
     private fun resetScene() {
         // Clean up the current scene
+        vdiNode.visible = false
         scene.children.forEach {
             scene.removeChild(it)
         }
-        vdiNode.close()
+        previousVDINode?.close()
+
+        previousVDINode = vdiNode
     }
 
     private fun initScene() {
@@ -186,6 +190,8 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         val plane = FullscreenObject()
         plane.material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
         scene.addChild(plane)
+
+        vdiNode.visible = true
     }
 
     override fun inputSetup() {
@@ -213,21 +219,6 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         fun main(args: Array<String>) {
 
             val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Richtmyer_Meshkov, 20, 0)
-            thread {
-                println("in the thread")
-
-                while (instance.hub.get(SceneryElement.Renderer)==null) {
-                    Thread.sleep(50)
-                }
-                val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
-
-                println("sleeping for 5 seconds")
-                Thread.sleep(5000)
-
-                println("Switching to Rayleigh-Taylor")
-                instance.updateParameters(BenchmarkSetup.Dataset.Kingsnake, 20, 0)
-            }
-
             instance.main()
         }
     }
