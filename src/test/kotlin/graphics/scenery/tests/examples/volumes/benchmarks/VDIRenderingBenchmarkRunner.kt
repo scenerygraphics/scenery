@@ -121,24 +121,20 @@ class VDIRenderingBenchmarkRunner {
     }
 
 
-    fun runVDIRendering() {
+    fun runVDIRendering(datasetNames: List<String>) {
         val windowWidth = 1920
         val windowHeight = 1080
 
-        // Parse the JSON file
         val config = Json.parseToJsonElement(File(System.getenv("BENCHMARK_CONFIG_FILE")).readText()).jsonObject
         val overwriteFiles = System.getenv("OVERWRITE_FILES")?.toBoolean() ?: false
 
-        // Retrieve the directories from the config file
-        val inputDirectory = config["inputDirectory"]?.jsonPrimitive?.content
-        screenshotDirectory = config["screenshotDirectory"]?.jsonPrimitive?.content ?: run {
-            "."
-        }
+        val inputDirectory = System.getenv("INPUT_DIRECTORY")
+        screenshotDirectory = System.getenv("SCREENSHOT_DIRECTORY") ?: "."
 
         System.setProperty("VDIBenchmark.VDI_DIRECTORY", inputDirectory)
 
         // Retrieve the benchmark parameters from the config file
-        benchmarkDatasets = config["datasets"]?.jsonArray?.map { BenchmarkSetup.Dataset.valueOf(it.jsonPrimitive.content) }
+        benchmarkDatasets = datasetNames.map { BenchmarkSetup.Dataset.valueOf(it) }
         benchmarkViewpoints = config["viewpoints"]?.jsonArray?.map { it.jsonPrimitive.int }
         benchmarkSupersegments = config["supersegments"]?.jsonArray?.map { it.jsonPrimitive.int }
         benchmarkVos = config["vos"]?.jsonArray?.map { it.jsonPrimitive.int }
@@ -262,7 +258,11 @@ class VDIRenderingBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmarkRunner().runVDIRendering()
+            if (args.isEmpty()) {
+                println("Please provide dataset names as command line arguments.")
+                return
+            }
+            VDIRenderingBenchmarkRunner().runVDIRendering(args.toList())
         }
     }
 }

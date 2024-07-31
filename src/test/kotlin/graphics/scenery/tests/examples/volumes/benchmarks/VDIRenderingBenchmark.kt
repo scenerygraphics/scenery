@@ -58,7 +58,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         val specificPrefix = vdiDirectory + "/" + dataset.toString() + "/" + dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
 
 
-        logger.info("Reading file with prefix regular $regularPrefix and specific $specificPrefix")
+        logger.info("Reading file with prefix regular $regularPrefix and specific $specificPrefix. Additional params: $additionalParams")
 
         when(vo){
             0 -> num = 0
