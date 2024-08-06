@@ -9,10 +9,7 @@ import bdv.viewer.state.SourceState
 import bvv.core.backend.Texture
 import bvv.core.backend.Texture3D
 import bvv.core.cache.*
-import bvv.core.multires.MultiResolutionStack3D
-import bvv.core.multires.SimpleStack3D
-import bvv.core.multires.SourceStacks
-import bvv.core.multires.Stack3D
+import bvv.core.multires.*
 import bvv.core.render.MultiVolumeShaderMip
 import bvv.core.render.VolumeBlocks
 import bvv.core.render.VolumeShaderSignature
@@ -20,15 +17,15 @@ import bvv.core.shadergen.generate.Segment
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
 import graphics.scenery.*
-import graphics.scenery.geometry.GeometryType
-import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.geometry.DefaultGeometry
+import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.geometry.GeometryType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
@@ -39,8 +36,8 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
-import org.joml.Matrix4f
-import org.joml.Vector2f
+import org.joml.*
+import java.lang.Runtime
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -48,9 +45,7 @@ import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.coroutines.CoroutineContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -68,13 +63,6 @@ class VolumeManager(
     val customBindings: MultiVolumeShaderMip.SegmentConsumer? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
-    /**
-     *  The rendering method used in the shader, can be
-     *
-     *  0 -- Local Maximum Intensity Projection
-     *  1 -- Maximum Intensity Projection
-     *  2 -- Alpha compositing
-     */
 
     /** BDV shader context for this volume */
     var context = SceneryContext(this, useCompute)
@@ -93,7 +81,7 @@ class VolumeManager(
     var shaderProperties = hashMapOf<String, Any>()
 
     /** Set of [VolumeBlocks]. */
-    protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
+    protected var outOfCoreVolumes = ArrayList<CustomVolumeBlocks>()
     var nodes = CopyOnWriteArrayList<Volume>()
         protected set
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
@@ -276,7 +264,7 @@ class VolumeManager(
         }
 
         while (outOfCoreVolumes.size < n) {
-            outOfCoreVolumes.add(VolumeBlocks(textureCache))
+            outOfCoreVolumes.add(CustomVolumeBlocks(textureCache))
         }
 
         val signatures = renderStacksStates.map {
