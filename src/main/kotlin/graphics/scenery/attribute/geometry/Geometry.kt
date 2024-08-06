@@ -1,6 +1,7 @@
 package graphics.scenery.attribute.geometry
 
 import graphics.scenery.*
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
@@ -15,7 +16,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface Geometry : Serializable {
+interface Geometry : Buffers, Serializable {
     /** How many elements does a vertex store? */
     var vertexSize: Int
     /** How many elements does a texture coordinate store? */
@@ -23,6 +24,7 @@ interface Geometry : Serializable {
     /** The [GeometryType] of the [Node] */
     var geometryType: GeometryType
 
+    //vertices should be renamed to positions!
     /** Array of the vertices. This buffer is _required_, but may empty. */
     var vertices: FloatBuffer
     /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
@@ -33,6 +35,9 @@ interface Geometry : Serializable {
     var indices: IntBuffer
     /** Whether the object is dirty and somehow needs to be updated. Used by renderers. */
     var dirty: Boolean
+    /** Whether the [vertices]/[normals]/[indices] content is generated inside a compute shader. (Currently has no check. If this is true, vertex data gets ignored!)*/
+    // TODO: should this lead to exclusive geometry generation or should the user still be able to predefine a vertex+index buffer in there class?
+    var shaderSourced: Boolean
 
     fun generateBoundingBox(children: List<Node>): OrientedBoundingBox?
 
