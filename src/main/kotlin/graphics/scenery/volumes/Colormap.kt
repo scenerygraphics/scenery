@@ -26,37 +26,42 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
     @Suppress("unused")
     private constructor() : this(ByteBuffer.allocate(0), 0, 0)
 
+    private fun ByteArray.toRGBAColor() = Vector4f(
+            this[0].toUByte().toFloat() / 255f,
+            this[1].toUByte().toFloat() / 255f,
+            this[2].toUByte().toFloat() / 255f,
+            this[3].toUByte().toFloat() / 255f
+        )
+
     /**
      * Returns the value of the color map sampled at the normalized position.
      *
      * position: A floating point value between 0 and 1.
      */
-    @OptIn(ExperimentalUnsignedTypes::class)
     fun sample(position: Float): Vector4f {
         val bufferPosition: Float = position.coerceIn(0.0f, 1.0f) * (width - 1)
         val previous = bufferPosition.toInt()
 
         val band = height/2
 
-        //The number of bytes per pixel are fixed at 4.
+        // The number of bytes per pixel are fixed at 4.
         val globalOffset = width * band * 4
 
         val b = buffer.duplicate()
-        b.position(globalOffset + previous * 4);
+        b.position(globalOffset + previous * 4)
         val color = ByteArray(4)
         b.get(color)
-        //Add to "Image" utility class?
-        val c1 = Vector4f(color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
+        // Add to "Image" utility class?
+        val c1 = color.toRGBAColor()
 
-        if (bufferPosition > previous){
+        if(bufferPosition > previous) {
             //interpolate fraction part.
-            b.get(color);
-            val c2 = Vector4f( color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
+            b.get(color)
+            val c2 = color.toRGBAColor()
             return c1.lerp(c2, bufferPosition - previous.toFloat())
         } else {
             return c1
         }
-
     }
 
     companion object {
