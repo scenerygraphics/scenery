@@ -49,7 +49,7 @@ dependencies {
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
@@ -148,7 +148,7 @@ dependencies {
     testImplementation("net.imglib2:imglib2-ij")
 
     implementation("org.jfree:jfreechart:1.5.4")
-    implementation("net.imagej:imagej-ops:0.45.5")
+    implementation("net.imagej:imagej-ops:2.1.0")
 }
 
 val isRelease: Boolean
