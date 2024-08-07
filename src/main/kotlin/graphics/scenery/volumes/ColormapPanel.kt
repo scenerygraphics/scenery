@@ -299,7 +299,8 @@ class ColormapPanel(val target:Volume?): JPanel() {
             repaint()
 
             if(width > 0 && height > 0) {
-                target?.colormap = Colormap.fromBuffer(toBuffer(), width, height)
+                val bi = toImage()
+                target?.colormap = Colormap.fromBuffer(Image.bufferedImageToRGBABuffer(bi), bi.width, bi.height)
             }
         }
 
@@ -308,10 +309,6 @@ class ColormapPanel(val target:Volume?): JPanel() {
             val bufferedImage = BufferedImage(rec.width, rec.height - markerSpace, BufferedImage.TYPE_INT_ARGB)
             paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.createGraphics())
             return bufferedImage
-        }
-
-        private fun toBuffer(): ByteBuffer {
-            return Image.bufferedImageToRGBABuffer(toImage())
         }
 
         private fun pointAtMouse(e: MouseEvent) =
@@ -325,9 +322,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
             val h = height
             val pointList = colorPoints.sortedBy { it.position }
 
-
             // background Gradient
-            //paintBackgroundGradient(pointList, g2d)
             val img = toImage()
             g2d.drawImage(img, 0, 0, this)
 
