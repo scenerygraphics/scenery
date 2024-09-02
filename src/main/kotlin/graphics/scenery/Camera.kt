@@ -350,10 +350,9 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
         tb.text = message
-        // Calculate the offset for text centering based on message length.
-        // The second divisor was eyeballed and might need adjustment.
+        // Calculate the offset for text centering based on message length
         val offset = if (centered) {
-            size * message.length.toFloat() / 2f / 5f
+            tb.spatial().scale.x / 2f
         } else {
             0f
         }
