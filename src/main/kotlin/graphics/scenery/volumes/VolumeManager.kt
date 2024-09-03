@@ -126,18 +126,13 @@ class VolumeManager(
     /** Amount of randomisation for ray start and ray steps. 0.0 turns this off, 1.0 is the default,
      *  values larger than 1.0 might lead to noisy renderings.  */
     var shuffleDegree = 1.0f
-        set(value) {
-            field = value
-            shaderProperties["shuffleDegree"] = value
-        }
-
     var maxOcclusionDistance = 4.0f
         set(value) {
             field = value
             shaderProperties["maxOcclusionDistance"] = value
         }
 
-    var kernelSize = 8.0f
+    var kernelSize = 5.0f
         set(value) {
             field = value
             shaderProperties["kernelSize"] = value
@@ -147,6 +142,20 @@ class VolumeManager(
         set(value) {
             field = value
             shaderProperties["occlusionSteps"] = value
+        }
+
+    // how strongly to blend the light falloff pass over the volume. Range 0-1
+    var falloffBlend = 1f
+        set(value) {
+            field = value
+            shaderProperties["falloffBlend"] = value
+        }
+
+    // the alpha value at which to register the ray hit to calculate the light falloff gradient
+    var falloffHitThreshold = 0.02f
+        set(value) {
+            field = value
+            shaderProperties["falloffHitThreshold"] = value
         }
 
     var aoDebug = 0
@@ -213,6 +222,13 @@ class VolumeManager(
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
         shaderProperties["shuffleDegree"] = shuffleDegree
+        shaderProperties["maxOcclusionDistance"] = maxOcclusionDistance
+        shaderProperties["aoDebug"] = aoDebug
+        shaderProperties["kernelSize"] = kernelSize
+        shaderProperties["occlusionSteps"] = occlusionSteps
+        shaderProperties["falloffBlend"] = falloffBlend
+        shaderProperties["falloffHitThreshold"] = falloffHitThreshold
+
         val oldKeys = material().textures.filter { it.key !in customTextures }.keys
         val texturesToKeep = material().textures.filter { it.key in customTextures }
         oldKeys.forEach {
