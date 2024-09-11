@@ -9,12 +9,15 @@ import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.toFloatArray
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -44,10 +47,18 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
+        val scale = Vector3f(1.0f)
+        firstSource()?.let { s ->
+            val transform = AffineTransform3D()
+            s.spimSource.getSourceTransform(0, 0, transform)
+            scale.set(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        }
+
         return OrientedBoundingBox(this,
             Vector3f(-0.0f, -0.0f, -0.0f),
-            Vector3f(getDimensions()))
+            scale * Vector3f(getDimensions()))
     }
+
 
     override fun localScale(): Vector3f {
         return Vector3f(pixelToWorldRatio, -pixelToWorldRatio, pixelToWorldRatio)
@@ -115,8 +126,8 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val start = rayStart
-        val end = rayEnd
+        val start = rayStart / dimensions
+        val end = rayEnd / dimensions
 
         if (start.x !in 0.0f..1.0f || start.y !in 0.0f..1.0f || start.z !in 0.0f..1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -156,6 +167,71 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         is UnsignedShortType -> 65536.0f
         is FloatType -> 1.0f
         else -> 1.0f
+    }
+
+
+    override fun sampleRayGridTraversal(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, List<Vector3f?>> {
+        val d = getDimensions()
+        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
+        val voxelSize = Vector3f(1f / dimensions.x, 1f / dimensions.y, 1f / dimensions.z)
+
+        val ray = rayEnd - rayStart
+        val rayDir = ray.normalize()
+        val rayLength = ray.length()
+
+        // determine the initial grid direction
+        val stepX = if (rayDir.x >= 0) 1 else -1
+        val stepY = if (rayDir.y >= 0) 1 else -1
+        val stepZ = if (rayDir.z >= 0) 1 else -1
+
+        val tDeltaX = abs(voxelSize.x / rayDir.x)
+        val tDeltaY = abs(voxelSize.y / rayDir.y)
+        val tDeltaZ = abs(voxelSize.z / rayDir.z)
+
+        val voxelPos = Vector3f(
+            floor(rayStart.x),
+            floor(rayStart.y),
+            floor(rayStart.z)
+        )
+
+        val tMax = Vector3f(
+            if (stepX > 0) ((voxelPos.x + 1) * voxelSize.x - rayStart.x) / rayDir.x
+            else (voxelPos.x * voxelSize.x - rayStart.x) / rayDir.x,
+            if (stepY > 0) ((voxelPos.y + 1) * voxelSize.y - rayStart.y) / rayDir.y
+            else (voxelPos.y * voxelSize.y - rayStart.y) / rayDir.y,
+            if (stepZ > 0) ((voxelPos.z + 1) * voxelSize.z - rayStart.z) / rayDir.z
+            else (voxelPos.z * voxelSize.z - rayStart.z) / rayDir.z
+        )
+
+        val samplesList = mutableListOf<Float?>()
+        val samplesPosList = mutableListOf<Vector3f>()
+
+        // Start traversing the grid, with t being the already traversed length
+        var t = 0f
+        while (t < rayLength) {
+            val samplePos = voxelPos.add(Vector3f(0.5f)) * voxelSize
+
+            val sampleValue = sample(samplePos, false)
+            samplesList.add(sampleValue)
+            samplesPosList.add(samplePos)
+
+            // decide the voxel direction to travel to next
+            if (tMax.x < tMax.y && tMax.x < tMax.z) {
+                t = tMax.x
+                voxelPos.x += stepX
+                tMax.x += tDeltaX
+            } else if (tMax.y < tMax.z) {
+                t = tMax.y
+                voxelPos.y += stepY
+                tMax.y += tDeltaY
+            } else {
+                t = tMax.z
+                voxelPos.z += stepZ
+                tMax.z += tDeltaZ
+            }
+        }
+
+        return Pair(samplesList, samplesPosList)
     }
 
     /**

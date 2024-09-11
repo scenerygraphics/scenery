@@ -636,6 +636,12 @@ open class Volume(
         return null
     }
 
+    /** This method traverses the grid voxel to voxel, using the algorithm by Amanatides and Woo.
+     * It returns a pair of two lists with the volume samples as [Float] and positions as [Vector3f] each. */
+    open fun sampleRayGridTraversal(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, List<Vector3f?>>? {
+        return null
+    }
+
     /**
      * Returns the volume's physical (voxel) dimensions.
      */
