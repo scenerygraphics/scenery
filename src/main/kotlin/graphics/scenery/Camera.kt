@@ -336,23 +336,60 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      *
      * It will be shown for [duration] milliseconds, with a default of 3000.
      */
-    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: Vector4f = Vector4f(1.0f), backgroundColor: Vector4f = Vector4f(0.0f), duration: Int = 3000) {
+    @JvmOverloads
+    fun showMessage(
+        message: String,
+        distance: Float = 0.75f,
+        size: Float = 0.05f,
+        messageColor: Vector4f = Vector4f(1.0f),
+        backgroundColor: Vector4f = Vector4f(0.0f),
+        duration: Int = 3000,
+        centered: Boolean = false
+    ) {
         val tb = TextBoard()
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
         tb.text = message
+        var textGeom = tb.geometry().vertices
+
+        // get biggest X value, then move the text board along negative X to center it
+        fun centerMessage() {
+            if (textGeom != tb.geometry().vertices) {
+                val bv = tb.geometry().vertices.duplicate().clear()
+                var maxX = 0f
+                while (bv.hasRemaining()) {
+                    maxX = java.lang.Float.max(bv.get(), maxX)
+                    bv.get()
+                    bv.get()
+                }
+                maxX *= tb.spatial().scale.x
+
+                tb.spatial {
+                    position.x -= maxX / 2f
+                    needsUpdate = true
+                }
+                textGeom = tb.geometry().vertices
+            }
+        }
+
         tb.spatial {
             scale = Vector3f(size, size, size)
             position = Vector3f(0.0f, 0.0f, -1.0f * distance)
+        }
+        if (centered) {
+            centerMessage()
         }
 
         @Suppress("UNCHECKED_CAST")
         val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>?
         messages?.forEach { this.removeChild(it) }
         messages?.clear()
-
         messages?.add(tb)
+
         this.addChild(tb)
+        if (centered) {
+            this.update += { centerMessage() }
+        }
 
         thread {
             Thread.sleep(duration.toLong())
