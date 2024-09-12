@@ -209,7 +209,8 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         // Start traversing the grid, with t being the already traversed length
         var t = 0f
         while (t < rayLength) {
-            val samplePos = voxelPos.add(Vector3f(0.5f)) * voxelSize
+
+            val samplePos = voxelPos * voxelSize
 
             val sampleValue = sample(samplePos, false)
             samplesList.add(sampleValue)
