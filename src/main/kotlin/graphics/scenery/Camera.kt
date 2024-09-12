@@ -359,8 +359,8 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
                 var maxX = 0f
                 while (bv.hasRemaining()) {
                     maxX = java.lang.Float.max(bv.get(), maxX)
-                    bv.get()
-                    bv.get()
+                    bv.get() // skip Y
+                    bv.get() // skip Z
                 }
                 maxX *= tb.spatial().scale.x
 
