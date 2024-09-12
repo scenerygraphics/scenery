@@ -252,13 +252,13 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 		 */
         if (e is MouseEvent) {
             if (modifiers and InputEvent.BUTTON1_DOWN_MASK != 0) {
-                mask = mask or (1 shl 10)
+                mask = mask or InputEvent.BUTTON1_DOWN_MASK
             }
             if (modifiers and InputEvent.BUTTON2_DOWN_MASK != 0) {
-                mask = mask or (1 shl 11)
+                mask = mask or InputEvent.BUTTON2_DOWN_MASK
             }
             if (modifiers and InputEvent.BUTTON3_DOWN_MASK != 0) {
-                mask = mask or (1 shl 12)
+                mask = mask or InputEvent.BUTTON3_DOWN_MASK
             }
         }
 
@@ -418,7 +418,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     fun mousePressed(e: MouseEvent) {
         update()
 
-        val mask = getMask(e, initial = 1024)
+        val mask = getMask(e, initial = 0)
         val x = e.x
         val y = e.y
 
