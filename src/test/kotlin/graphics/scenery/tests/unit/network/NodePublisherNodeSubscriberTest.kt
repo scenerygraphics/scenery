@@ -74,7 +74,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(box)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
@@ -91,13 +91,13 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(box)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         box.spatial().position = Vector3f(0f, 0f, 3f)
         box.material().diffuse = Vector3f(0f, 0f, 3f)
         pub.scanForChanges()
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         val box2 = scene2.find("box")
@@ -128,7 +128,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(volume)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         // assert initial sync
@@ -142,7 +142,7 @@ class NodePublisherNodeSubscriberTest {
         volume.transferFunction = TransferFunction.ramp(0.75f)
 
         pub.scanForChanges()
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
 
@@ -162,7 +162,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.name = "lol"
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         assertEquals("lol", scene2.name)
