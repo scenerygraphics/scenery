@@ -45,7 +45,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         }
     }
 
-    private fun Int.glfwToSwingMods(): Int {
+    private fun Int.glfwToSwingMods(buttonKey: Int): Int {
         var mask = 0
 
         if(this and GLFW_MOD_ALT != 0) {
@@ -59,6 +59,15 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         }
         if(this and GLFW_MOD_SUPER != 0) {
             mask = mask or KeyEvent.META_DOWN_MASK
+        }
+        if(buttonKey == GLFW_MOUSE_BUTTON_LEFT) {
+            mask = mask or InputEvent.BUTTON1_DOWN_MASK
+        }
+        if(buttonKey == GLFW_MOUSE_BUTTON_RIGHT) {
+            mask = mask or InputEvent.BUTTON2_DOWN_MASK
+        }
+        if(buttonKey == GLFW_MOUSE_BUTTON_MIDDLE) {
+            mask = mask or InputEvent.BUTTON3_DOWN_MASK
         }
 
         return mask
@@ -106,7 +115,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 fakeComponent,
                 type,
                 System.nanoTime(),
-                mods.glfwToSwingMods(),
+                mods.glfwToSwingMods(key),
                 mappedKey,
                 KeyEvent.CHAR_UNDEFINED
             )
@@ -146,7 +155,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 fakeComponent,
                 type,
                 System.nanoTime(),
-                mods.glfwToSwingMods(),
+                mods.glfwToSwingMods(key),
                 mouseX,
                 mouseY,
                 clickCount,
@@ -172,7 +181,8 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 0,
                 0,
                 0, false, 0,
-                (xoffset.toFloat()*scrollSpeedMultiplier).toInt(), 0)
+                (yoffset.toFloat()*-scrollSpeedMultiplier).toInt(),
+                (yoffset.toFloat()*-scrollSpeedMultiplier).toInt())
             )
         }
 
