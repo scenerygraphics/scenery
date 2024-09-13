@@ -456,7 +456,6 @@ class GLFWMouseAndKeyHandlerTests {
             glfwHandler.mousePressed(clickEvent)
             moveEvents.forEach { move ->
                 glfwHandler.mouseMoved(move)
-                glfwHandler.mouseDragged(move)
             }
             glfwHandler.mouseReleased(releaseEvent)
 
@@ -466,7 +465,7 @@ class GLFWMouseAndKeyHandlerTests {
 
             assertEquals(start, dragStart, "Expected dragging start to be")
             assertEquals(end, dragEnd, "Expected dragging end to be")
-            assertEquals(dragCount * 2, actualDrags, "Expected $dragCount events to have happened")
+            assertEquals(dragCount, actualDrags, "Expected $dragCount events to have happened")
         }
     }
 

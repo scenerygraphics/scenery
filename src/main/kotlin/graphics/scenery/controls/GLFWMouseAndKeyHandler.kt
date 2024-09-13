@@ -385,22 +385,6 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     }
 
     /**
-     * Called when the mouse is dragged, evaluates current drag behaviours
-     *
-     * @param[e] The incoming mouse event
-     */
-    fun mouseDragged(e: MouseEvent) {
-        update()
-
-        val x = e.x
-        val y = e.y
-
-        for (drag in activeButtonDrags) {
-            drag.behaviour.drag(x, y)
-        }
-    }
-
-    /**
      * Called when the mouse is exiting, updates state
      *
      * @param[e] The incoming mouse event
