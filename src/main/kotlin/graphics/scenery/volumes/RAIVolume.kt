@@ -173,10 +173,10 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     override fun sampleRayGridTraversal(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, List<Vector3f?>> {
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
-        val voxelSize = Vector3f(1f / dimensions.x, 1f / dimensions.y, 1f / dimensions.z)
-
+        val voxelSize = Vector3f(1f)
         val ray = rayEnd - rayStart
-        val rayDir = ray.normalize()
+        val rayDir = Vector3f(ray).normalize()
+
         val rayLength = ray.length()
 
         // determine the initial grid direction
@@ -188,12 +188,13 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val tDeltaY = abs(voxelSize.y / rayDir.y)
         val tDeltaZ = abs(voxelSize.z / rayDir.z)
 
+        // this is where it all started
         val voxelPos = Vector3f(
             floor(rayStart.x),
             floor(rayStart.y),
             floor(rayStart.z)
         )
-
+        logger.info("starting with voxel pos $voxelPos")
         val tMax = Vector3f(
             if (stepX > 0) ((voxelPos.x + 1) * voxelSize.x - rayStart.x) / rayDir.x
             else (voxelPos.x * voxelSize.x - rayStart.x) / rayDir.x,
@@ -208,24 +209,30 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
         // Start traversing the grid, with t being the already traversed length
         var t = 0f
-        while (t < rayLength) {
-
+        while (true) {
+            val currentPos = rayStart + rayDir * t
             val samplePos = voxelPos * voxelSize
-
-            val sampleValue = sample(samplePos, false)
+            logger.info("sampled pos $samplePos at t $t")
+            // For sampling, we need coordinates in UV space, so we normaliye
+            val sampleValue = sample(samplePos / dimensions, false)
+            logger.info("got sample value $sampleValue")
             samplesList.add(sampleValue)
             samplesPosList.add(samplePos)
 
+            if ((currentPos - rayStart).length() > rayLength) break
+
             // decide the voxel direction to travel to next
-            if (tMax.x < tMax.y && tMax.x < tMax.z) {
+            if (tMax.x <= tMax.y && tMax.x <= tMax.z) {
                 t = tMax.x
                 voxelPos.x += stepX
                 tMax.x += tDeltaX
-            } else if (tMax.y < tMax.z) {
+            }
+            if (tMax.y <= tMax.z && tMax.y <= tMax.x) {
                 t = tMax.y
                 voxelPos.y += stepY
                 tMax.y += tDeltaY
-            } else {
+            }
+            if (tMax.z <= tMax.x && tMax.z <= tMax.y) {
                 t = tMax.z
                 voxelPos.z += stepZ
                 tMax.z += tDeltaZ
@@ -260,7 +267,6 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         r.setPosition(absoluteCoordsD.z(),2)
 
         val value = r.get()
-
         val finalresult = when(value) {
             is UnsignedShortType -> value.realFloat
             else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
