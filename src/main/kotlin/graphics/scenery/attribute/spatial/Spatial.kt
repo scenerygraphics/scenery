@@ -68,7 +68,7 @@ interface Spatial: RealLocalizable, RealPositionable, Networkable {
      */
     fun worldRotation(): Quaternionf
 
-    fun intersectAABB(origin: Vector3f, dir: Vector3f): MaybeIntersects
+    fun intersectAABB(origin: Vector3f, dir: Vector3f, ignoreChildren: Boolean = false): MaybeIntersects
 
     /**
      * Returns the [Node]'s world position
