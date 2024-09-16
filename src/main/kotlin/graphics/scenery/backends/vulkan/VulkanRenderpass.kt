@@ -954,27 +954,29 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                                 shouldClear = !passConfig.blitInputs,
                                 sRGB = config.sRGB)
 
+                            val samples = pass.passConfig.samples
+
                             rt.value.attachments.forEach { att ->
                                 logger.info(" + attachment ${att.key}, ${att.value.name}")
 
                                 when (att.value) {
-                                    RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32, samples = samples)
+                                    RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16, samples = samples)
 
-                                    RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32, samples = samples)
+                                    RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16, samples = samples)
 
-                                    RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32, samples = samples)
+                                    RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16, samples = samples)
 
-                                    RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
-                                    RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
-                                    RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
-                                    RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
+                                    RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16, samples = samples)
+                                    RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8, samples = samples)
+                                    RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16, samples = samples)
+                                    RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8, samples = samples)
 
-                                    RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
-                                    RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32, samples = samples)
+                                    RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24, samples = samples)
+                                    RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16, samples = samples)
                                 }
 
                             }
@@ -1000,8 +1002,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                             val fb = VulkanFramebuffer(device, commandPools.Standard,
                                 width, height, this@with, sRGB = config.sRGB)
 
-                            fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
-                            fb.addDepthBuffer("swapchain-$i-depth", 32)
+                            fb.addSwapchainAttachment("swapchain-$i", swapchain, i, passConfig.samples)
+                            fb.addDepthBuffer("swapchain-$i-depth", 32, samples = passConfig.samples)
                             fb.createRenderpassAndFramebuffer()
                             device.tag(fb.framebuffer.get(0), VulkanDevice.VulkanObjectType.Framebuffer, "Framebuffer for swapchain image $i")
 
