@@ -12,7 +12,6 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil.memAlloc
@@ -78,7 +77,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
-                position = Vector3f(0.0f, 0.5f, 5.0f)
+                position = Vector3f(0.0f, 2f, 5.0f)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
@@ -98,12 +97,12 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         scene.addChild(shell)
 
         val p1 = Icosphere(0.2f, 2)
-        p1.spatial().position = Vector3f(-0.5f, 0.5f, -3.0f)
+        p1.spatial().position = Vector3f(-0.5f, 4f, -3.0f)
         p1.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
         val p2 = Icosphere(0.2f, 2)
-        p2.spatial().position = Vector3f(-0.5f, 0.5f, 3.0f)
+        p2.spatial().position = Vector3f(-0.5f, 4f, 3.0f)
         p2.material().diffuse = Vector3f(0.3f, 0.8f, 0.3f)
 
         scene.addChild(p2)
@@ -137,6 +136,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
         volume.metadata["animating"] = true
         scene.addChild(volume)
+        cam.target = volume.spatial().position
 
         val bb = BoundingGrid()
         bb.node = volume
@@ -148,7 +148,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         lights.mapIndexed { i, light ->
             light.spatial().position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            light.intensity = 0.5f
+            light.intensity = 2f
             scene.addChild(light)
         }
 
@@ -195,7 +195,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                         }
                 }
 
-                val intersection = volume.spatial().intersectAABB(p1.spatial().position, (p2.spatial().position - p1.spatial().position).normalize())
+                val intersection = volume.spatial().intersectAABB(
+                    p1.spatial().position,
+                    (p2.spatial().position - p1.spatial().position).normalize()
+                )
                 if(intersection is MaybeIntersects.Intersection) {
                     val scale = volume.localScale()
                     val localEntry = (intersection.relativeEntry)// + Vector3f(1.0f)) * (1.0f/2.0f)
@@ -222,8 +225,8 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     diagram.clearPoints()
                     diagram.name = "diagram"
                     diagram.edgeWidth = 0.005f
-                    diagram.material().diffuse = Vector3f(0.05f, 0.05f, 0.05f)
-                    diagram.spatial().position = Vector3f(0.0f, 0.0f, -0.5f)
+                    diagram.material().diffuse = Vector3f(1f, 1f, 1f)
+                    diagram.spatial().position = Vector3f(0.0f, 0.0f, .5f)
                     diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
                     var point = Vector3f(0.0f)
                     samples.filterNotNull().forEachIndexed { i, sample ->
@@ -233,7 +236,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     diagram.addPoint(point)
                 }
 
-                Thread.sleep(20)
+                Thread.sleep(500)
             }
         }
     }

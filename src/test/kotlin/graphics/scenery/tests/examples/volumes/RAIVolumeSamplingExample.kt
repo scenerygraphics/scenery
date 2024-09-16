@@ -14,7 +14,6 @@ import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import java.nio.file.Paths
 import java.text.DecimalFormat
-import java.util.*
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
@@ -78,13 +77,13 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         tf.clear()
         tf.addControlPoint(0.00f, 0.0f)
         tf.addControlPoint(0.001f, 0.0f)
-        tf.addControlPoint(0.05f,1.0f)
+        tf.addControlPoint(0.01f,1.0f)
         tf.addControlPoint(1.00f, 1.0f)
 
         scene.addChild(volume)
 
 
-        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
+        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 2f)
             .forEach { scene.addChild(it) }
 
         val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
@@ -140,6 +139,20 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         connector.addChild(l)
                         l
                     }
+
+                    diagram.clearPoints()
+                    diagram.name = "diagram"
+                    diagram.edgeWidth = 0.005f
+                    diagram.material().diffuse = Vector3f(1f, 1f, 1f)
+                    diagram.spatial().position = Vector3f(0.0f, 0.0f, -1f)
+                    diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
+                    var point = Vector3f(0.0f)
+                    samples.filterNotNull().forEachIndexed { i, sample ->
+                        // we stretch the sampled value with a large value, because T1-heads' samples are really small
+                        point = Vector3f(0.0f, i.toFloat()/samples.size, -sample * 10000f)
+                        diagram.addPoint(point)
+                    }
+                    diagram.addPoint(point)
                 }
                 Thread.sleep(200)
             }
