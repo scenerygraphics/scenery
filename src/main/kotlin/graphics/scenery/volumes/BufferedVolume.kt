@@ -207,7 +207,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             val transferRangeMax = range.second
 
             val final = transferFunction.evaluate(s / transferRangeMax)
-            logger.info("Sample at $index is $s, final is $final $transferRangeMax")
+            logger.debug("Sample at $index is $s, final is $final $transferRangeMax")
             return final
         }
 
