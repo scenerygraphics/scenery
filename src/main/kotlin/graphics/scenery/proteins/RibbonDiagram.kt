@@ -434,7 +434,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                     guidePointsWithoutDummy[3].widthFactor != 0f) {
                 guidePointsWithoutDummy[0].widthFactor = guidePointsWithoutDummy[1].widthFactor
             }
-            //if there is a width factor is still assigned at the and, also assign it to the last point
+            //if there is a width factor is still assigned at the end, also assign it to the last point
             if (guidePointsWithoutDummy.dropLast(1).last().widthFactor != 0f &&
                     guidePointsWithoutDummy.dropLast(2).last().widthFactor != 0f &&
                     guidePointsWithoutDummy.dropLast(3).last().widthFactor != 0f) {
@@ -448,7 +448,11 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             for (i in 0..count) {
                 guidePointsWithoutDummy[i].ssLength++
             }
-            val dummyVecBeg = caBegin.randomFromVector()
+            // spline calculation needs a beginning point. In this case, we simply take the vector from the second to
+            // the first point and add it to the first curve point. Thus, we create a new starting point of the curve
+            val dummyVecBeg = Vector3f(caBegin)
+            dummyVecBeg.add((Vector3f(caBegin).min(aminoList[1].getAtom("CA").getVector()))
+                .normalize().mul(0.1f))
             guidePoints.add(
                 GuidePoint(dummyVecBeg, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
                     guidePointsWithoutDummy[0].offset, guidePointsWithoutDummy[0].widthFactor, aminoList[0], aminoList[0],
@@ -470,7 +474,11 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                     aminoList.last(), aminoList.last(), SecStrucType.bend,
                     guidePointsWithoutDummy.last().ssLength)
             )
-            val dummyVecEnd = caEnd.randomFromVector()
+            // spline calculation needs a finishing point. In this case, we simply take the vector from the second last
+            // to the last point and add it to the end curve point. Thus, we create a new ending point of the curve
+            val dummyVecEnd = Vector3f(caEnd)
+            dummyVecEnd.add((aminoList.dropLast(1).last().getAtom("CA").getVector().min(caEnd))
+                .normalize().mul(0.5f))
             guidePoints.add(
                 GuidePoint(dummyVecEnd,
                     guidePointsWithoutDummy.last().cVec, guidePointsWithoutDummy.last().dVec,
@@ -510,17 +518,6 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
          */
         fun Atom.getVector(): Vector3f {
             return Vector3f(this.x.toFloat(), this.y.toFloat(), this.z.toFloat())
-        }
-
-        /**
-         * Extension Function to make Dummy Points not too far away from the original points - the spline
-         * doesn't include the first and the last controlpoint, which in our case would mean to lose the first
-         * and the last residue, hence, this function.
-         */
-        private fun Vector3f.randomFromVector(): Vector3f {
-            return Vector3f(Random.randomFromRange(this.x() - 0.1f, this.x() + 0.1f),
-                    Random.randomFromRange(this.y() - 0.1f, this.y() + 0.1f),
-                    Random.randomFromRange(this.z() - 0.1f, this.z() + 0.1f))
         }
     }
 
