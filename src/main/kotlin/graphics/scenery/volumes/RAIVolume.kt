@@ -173,10 +173,28 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     override fun sampleRayGridTraversal(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, List<Vector3f?>> {
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
+        val voxelDimArray = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
+        val voxelDims = Vector3f(
+            voxelDimArray[0].toFloat(),
+            voxelDimArray[1].toFloat(),
+            voxelDimArray[2].toFloat()
+        )
         val voxelSize = Vector3f(1f)
-        val ray = rayEnd - rayStart
-        val rayDir = Vector3f(ray).normalize()
 
+        val startClamped = Vector3f(
+            rayStart.x.coerceIn(0.0f, dimensions.x),
+            rayStart.y.coerceIn(0.0f, dimensions.y),
+            rayStart.z.coerceIn(0.0f, dimensions.z),
+        )
+
+        val endClamped = Vector3f(
+            rayEnd.x.coerceIn(0.0f, dimensions.x),
+            rayEnd.y.coerceIn(0.0f, dimensions.y),
+            rayEnd.z.coerceIn(0.0f, dimensions.z),
+        )
+
+        val ray = endClamped - startClamped
+        val rayDir = Vector3f(ray).normalize()
         val rayLength = ray.length()
 
         // determine the initial grid direction
@@ -190,9 +208,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
         // this is where it all started
         val voxelPos = Vector3f(
-            floor(rayStart.x),
-            floor(rayStart.y),
-            floor(rayStart.z)
+            floor(startClamped.x),
+            floor(startClamped.y),
+            floor(startClamped.z)
         )
         logger.info("starting with voxel pos $voxelPos")
         val tMax = Vector3f(
@@ -210,14 +228,14 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         // Start traversing the grid, with t being the already traversed length
         var t = 0f
         while (true) {
-            val currentPos = rayStart + rayDir * t
-            val samplePos = voxelPos * voxelSize
-            logger.info("sampled pos $samplePos at t $t")
-            // For sampling, we need coordinates in UV space, so we normaliye
-            val sampleValue = sample(samplePos / dimensions, false)
-            logger.info("got sample value $sampleValue")
+            val currentPos = startClamped + rayDir * t
+//            val samplePos = voxelPos * voxelSize
+//            logger.info("sampled pos $samplePos at t $t with uv pos ${Vector3f(samplePos).div(dimensions)}")
+            // For sampling, we need coordinates in UV space, so we normalize
+            val sampleValue = sample(Vector3f(currentPos).div(dimensions * voxelDims), false)
+//            logger.info("got sample value $sampleValue")
             samplesList.add(sampleValue)
-            samplesPosList.add(samplePos)
+            samplesPosList.add(currentPos)
 
             if ((currentPos - rayStart).length() > rayLength) break
 
