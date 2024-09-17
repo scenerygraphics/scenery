@@ -8,6 +8,7 @@ import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
@@ -125,36 +126,48 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         } local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}"
                     )
 
-                    val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
-                    logger.debug("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+                    val (samples, _) = volume.sampleRayGridTraversal(localEntry, localExit) ?: (null to null)
+                    logger.debug("${samples?.size} samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if (samples == null) {
                         continue
                     }
 
-                    val diagram = if (connector.getChildrenByName("diagram").isNotEmpty()) {
-                        connector.getChildrenByName("diagram").first() as Line
+                    val diagram = if (scene.getChildrenByName("diagram").isNotEmpty()) {
+                        scene.getChildrenByName("diagram").first() as Line
                     } else {
                         val l = Line(capacity = (volume.getDimensions().length() * 2).roundToInt())
-                        connector.addChild(l)
+                        scene.addChild(l)
                         l
                     }
 
+                    val offset = 1f
                     diagram.clearPoints()
                     diagram.name = "diagram"
                     diagram.edgeWidth = 0.005f
                     diagram.material().diffuse = Vector3f(1f, 1f, 1f)
-                    diagram.spatial().position = Vector3f(0.0f, 0.0f, -1f)
-                    diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
-                    var point = Vector3f(0.0f)
+                    diagram.spatial().position = Vector3f(0.0f, offset, 0f)
+//                    diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
+                    val p4p3 = p4.spatial().position - p3.spatial().position
+                    p4p3.absolute()
+                    diagram.addPoint(p1.spatial().position)
+                    diagram.addPoint(p3.spatial().position)
+                    var point: Vector3f
+                    var z: Float
                     samples.filterNotNull().forEachIndexed { i, sample ->
-                        // we stretch the sampled value with a large value, because T1-heads' samples are really small
-                        point = Vector3f(0.0f, i.toFloat()/samples.size, -sample * 10000f)
+                        // scale the Z value to fit into p3 and p4
+                        z = i.toFloat()/samples.size * p4p3.z + p3.spatial().position.z
+                        // stretch the sampled value with a large value, because the samples are really small
+                        point = Vector3f(0.0f, sample * 100f + offset/2f, z)
                         diagram.addPoint(point)
                     }
-                    diagram.addPoint(point)
+                    diagram.addPoints(p4.spatial().position)
+                    diagram.addPoint(p2.spatial().position)
+                    diagram.addPoint(Vector3f(0f))
+                    diagram.addPoints(Vector3f(0f))
+
                 }
-                Thread.sleep(200)
+                Thread.sleep(5000)
             }
         }
     }
