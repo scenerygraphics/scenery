@@ -126,7 +126,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         } local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}"
                     )
 
-                    val (samples, _) = volume.sampleRayGridTraversal(localEntry, localExit) ?: (null to null)
+                    val (samples, _) = volume.sampleRay(localEntry, localExit) ?: (null to null)
                     logger.debug("${samples?.size} samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if (samples == null) {
@@ -155,7 +155,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                     var point: Vector3f
                     var z: Float
                     samples.filterNotNull().forEachIndexed { i, sample ->
-                        // scale the Z value to fit into p3 and p4
+                        // scale the Z value to fit between p3 and p4
                         z = i.toFloat()/samples.size * p4p3.z + p3.spatial().position.z
                         // stretch the sampled value with a large value, because the samples are really small
                         point = Vector3f(0.0f, sample * 100f + offset/2f, z)
@@ -163,11 +163,12 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                     }
                     diagram.addPoints(p4.spatial().position)
                     diagram.addPoint(p2.spatial().position)
+                    // Adding two more points because Line never renders the last two points
                     diagram.addPoint(Vector3f(0f))
                     diagram.addPoints(Vector3f(0f))
 
                 }
-                Thread.sleep(5000)
+                Thread.sleep(500)
             }
         }
     }
