@@ -126,8 +126,15 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val start = rayStart / dimensions
-        val end = rayEnd / dimensions
+        val voxelDimArray = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
+        val voxelDims = Vector3f(
+            voxelDimArray[0].toFloat(),
+            voxelDimArray[1].toFloat(),
+            voxelDimArray[2].toFloat()
+        )
+
+        val start = rayStart / (dimensions * voxelDims )
+        val end = rayEnd / (dimensions * voxelDims )
 
         if (start.x !in 0.0f..1.0f || start.y !in 0.0f..1.0f || start.z !in 0.0f..1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -174,23 +181,31 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
         val voxelDimArray = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
+        // this contains the anisotropic scaling factors
         val voxelDims = Vector3f(
             voxelDimArray[0].toFloat(),
             voxelDimArray[1].toFloat(),
             voxelDimArray[2].toFloat()
         )
+        // for the traversal we assume that every voxel has identical dimensions
         val voxelSize = Vector3f(1f)
 
+        // the start and end points handed over by the AABB test assume isotropic scaling,
+        // so we need to scale it down to the actual dimensions (start and end points would exceed the domain otherwise)
+        val start = rayStart / voxelDims
+        val end = rayEnd / voxelDims
+
+        // clamp it just in case
         val startClamped = Vector3f(
-            rayStart.x.coerceIn(0.0f, dimensions.x),
-            rayStart.y.coerceIn(0.0f, dimensions.y),
-            rayStart.z.coerceIn(0.0f, dimensions.z),
+            start.x.coerceIn(0.0f, dimensions.x),
+            start.y.coerceIn(0.0f, dimensions.y),
+            start.z.coerceIn(0.0f, dimensions.z),
         )
 
         val endClamped = Vector3f(
-            rayEnd.x.coerceIn(0.0f, dimensions.x),
-            rayEnd.y.coerceIn(0.0f, dimensions.y),
-            rayEnd.z.coerceIn(0.0f, dimensions.z),
+            end.x.coerceIn(0.0f, dimensions.x),
+            end.y.coerceIn(0.0f, dimensions.y),
+            end.z.coerceIn(0.0f, dimensions.z),
         )
 
         val ray = endClamped - startClamped
@@ -212,7 +227,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             floor(startClamped.y),
             floor(startClamped.z)
         )
-        logger.info("starting with voxel pos $voxelPos")
+        logger.debug("starting with voxel pos $voxelPos")
         val tMax = Vector3f(
             if (stepX > 0) ((voxelPos.x + 1) * voxelSize.x - rayStart.x) / rayDir.x
             else (voxelPos.x * voxelSize.x - rayStart.x) / rayDir.x,
@@ -229,14 +244,12 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         var t = 0f
         while (true) {
             val currentPos = startClamped + rayDir * t
-//            val samplePos = voxelPos * voxelSize
-//            logger.info("sampled pos $samplePos at t $t with uv pos ${Vector3f(samplePos).div(dimensions)}")
             // For sampling, we need coordinates in UV space, so we normalize
-            val sampleValue = sample(Vector3f(currentPos).div(dimensions * voxelDims), false)
-//            logger.info("got sample value $sampleValue")
+            val sampleValue = sample(Vector3f(currentPos).div(dimensions), false)
             samplesList.add(sampleValue)
             samplesPosList.add(currentPos)
 
+            // traversal has finished if the accumulated length exceeds the total ray length
             if ((currentPos - rayStart).length() > rayLength) break
 
             // decide the voxel direction to travel to next
