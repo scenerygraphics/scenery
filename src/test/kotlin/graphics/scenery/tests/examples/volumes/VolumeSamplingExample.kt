@@ -84,7 +84,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        val shell = Box(Vector3f(12.0f, 12.0f, 12.0f), insideNormals = true)
         shell.material {
             cullingMode = Material.CullingMode.None
             diffuse = Vector3f(0.2f, 0.2f, 0.2f)
@@ -204,10 +204,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val localEntry = (intersection.relativeEntry)// + Vector3f(1.0f)) * (1.0f/2.0f)
                     val localExit = (intersection.relativeExit)// + Vector3f(1.0f)) * (1.0f/2.0f)
                     val nf = DecimalFormat("0.0000")
-                    logger.info("Ray intersects volume at world=${intersection.entry.toString(nf)}/${intersection.exit.toString(nf)} local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}")
+                    logger.debug("Ray intersects volume at world=${intersection.entry.toString(nf)}/${intersection.exit.toString(nf)} local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}")
 
                     val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
-                    logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+                    logger.debug("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if(samples == null) {
                         continue
@@ -226,7 +226,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     diagram.name = "diagram"
                     diagram.edgeWidth = 0.005f
                     diagram.material().diffuse = Vector3f(1f, 1f, 1f)
-                    diagram.spatial().position = Vector3f(0.0f, 0.0f, .5f)
+                    diagram.spatial().position = Vector3f(0.0f, 0.0f, 1f)
                     diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
                     var point = Vector3f(0.0f)
                     samples.filterNotNull().forEachIndexed { i, sample ->
