@@ -87,6 +87,19 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         }
     }
 
+    fun getVoxelScale(): Vector3f? {
+        if (firstSource() != null) {
+            val v = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
+            return Vector3f(
+                v[0].toFloat(),
+                v[1].toFloat(),
+                v[2].toFloat()
+            )
+        } else {
+            return null
+        }
+    }
+
     override fun createSpatial(): VolumeSpatial {
         return RAIVolumeSpatial(this)
     }
@@ -126,12 +139,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val voxelDimArray = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
-        val voxelDims = Vector3f(
-            voxelDimArray[0].toFloat(),
-            voxelDimArray[1].toFloat(),
-            voxelDimArray[2].toFloat()
-        )
+        val voxelDims = getVoxelScale() ?: return null
 
         val start = rayStart / (dimensions * voxelDims )
         val end = rayEnd / (dimensions * voxelDims )
@@ -277,9 +285,13 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     This sample function is not finished yet, transferRangeMax function should be improved to fit different data type
      **/
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
-         val d = getDimensions()
-
-        val absoluteCoords = Vector3f(uv.x() * d.x(), uv.y() * d.y(), uv.z() * d.z())
+        val d = getDimensions()
+        val clampedUV = Vector3f(
+            uv.x.coerceIn(0f, 1f),
+            uv.y.coerceIn(0f, 1f),
+            uv.z.coerceIn(0f, 1f)
+        )
+        val absoluteCoords = Vector3f(clampedUV.x() * d.x(), clampedUV.y() * d.y(), clampedUV.z() * d.z())
         val absoluteCoordsD = Vector3i(floor(absoluteCoords.x()).toInt(), floor(absoluteCoords.y()).toInt(), floor(absoluteCoords.z()).toInt())
 
         val r = when(ds) {
@@ -298,9 +310,14 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         r.setPosition(absoluteCoordsD.z(),2)
 
         val value = r.get()
-        val finalresult = when(value) {
-            is UnsignedShortType -> value.realFloat
-            else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
+        val finalresult: Any
+        try {
+            finalresult = when (value) {
+                is UnsignedShortType -> value.realFloat
+                else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
+            }
+        } catch (e: Exception) {
+            throw e
         }
 
         val transferRangeMax = when(ds)
