@@ -165,19 +165,21 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
 
         val absoluteCoords = Vector3f(uv.x() * dimensions.x(), uv.y() * dimensions.y(), uv.z() * dimensions.z())
-//        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
-//            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
-//            + floor(absoluteCoords.x()).toInt())
         val absoluteCoordsD = Vector3f(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
         val diff = absoluteCoords - absoluteCoordsD
 
-        fun toIndex(absoluteCoords: Vector3f): Int = (
-            absoluteCoords.x().roundToInt().dec()
-                + (dimensions.x() * absoluteCoords.y()).roundToInt().dec()
-                + (dimensions.x() * dimensions.y() * absoluteCoords.z()).roundToInt().dec()
-            )
+        // Turn the absolute volume coordinates into a sampling index,
+        // clamping the value to 1 below the maximum dimension to prevent overflow conditions.
+        fun clampedToIndex(absoluteCoords: Vector3f): Int {
+            val x = absoluteCoords.x().coerceIn(0f, dimensions.x() - 1f)
+            val y = absoluteCoords.y().coerceIn(0f, dimensions.y() - 1f)
+            val z = absoluteCoords.z().coerceIn(0f, dimensions.z() - 1f)
+            return (x.roundToInt() +
+                (dimensions.x() * y).roundToInt() +
+                (dimensions.x() * dimensions.y() * z).roundToInt())
+        }
 
-        val index = toIndex(absoluteCoordsD)
+        val index = clampedToIndex(absoluteCoordsD)
 
         val contents = texture.contents.duplicate().order(ByteOrder.LITTLE_ENDIAN)
 
@@ -185,7 +187,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             logger.warn("Absolute index ${index * bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")
             return 0.0f
         }
-
 
         fun density(index: Int): Float {
             if (index * bpp >= contents.limit()) {
@@ -213,31 +214,36 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
         return if (interpolate) {
             val offset = 1.0f
-
-            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, 0.0f))))
+            // first step: interpolate between the four parallel sides of the voxel
+            val d00 = lerp(
+                diff.x(),
+                density(index),
+                density(clampedToIndex(absoluteCoordsD + Vector3f(offset, 0.0f, 0.0f)))
+            )
             val d10 = lerp(
                 diff.x(),
-                density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, 0.0f))),
-                density(toIndex(absoluteCoordsD + Vector3f(offset, offset, 0.0f)))
+                density(clampedToIndex(absoluteCoordsD + Vector3f(0.0f, offset, 0.0f))),
+                density(clampedToIndex(absoluteCoordsD + Vector3f(offset, offset, 0.0f)))
             )
             val d01 = lerp(
                 diff.x(),
-                density(toIndex(absoluteCoordsD + Vector3f(0.0f, 0.0f, offset))),
-                density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, offset)))
+                density(clampedToIndex(absoluteCoordsD + Vector3f(0.0f, 0.0f, offset))),
+                density(clampedToIndex(absoluteCoordsD + Vector3f(offset, 0.0f, offset)))
             )
             val d11 = lerp(
                 diff.x(),
-                density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, offset))),
-                density(toIndex(absoluteCoordsD + Vector3f(offset, offset, offset)))
+                density(clampedToIndex(absoluteCoordsD + Vector3f(0.0f, offset, offset))),
+                density(clampedToIndex(absoluteCoordsD + Vector3f(offset, offset, offset)))
             )
+            // then interpolate between the two calculated lines
             val d0 = lerp(diff.y(), d00, d10)
             val d1 = lerp(diff.y(), d01, d11)
+            // lastly, interpolate along the single remaining line
             lerp(diff.z(), d0, d1)
         } else {
             density(index)
         }
     }
-
 
     private fun lerp(t: Float, v0: Float, v1: Float): Float {
         return (1.0f - t) * v0 + t * v1
@@ -250,9 +256,10 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-
     override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         val dimensions = Vector3f(getDimensions())
+        val rayStart = start / dimensions
+        val rayEnd = end / dimensions
         if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
         }
@@ -262,15 +269,15 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
 
         val startClamped = Vector3f(
-                min(max(start.x(), 0.0f), 1.0f),
-                min(max(start.y(), 0.0f), 1.0f),
-                min(max(start.z(), 0.0f), 1.0f)
+                min(max(rayStart.x(), 0.0f), 1.0f),
+                min(max(rayStart.y(), 0.0f), 1.0f),
+                min(max(rayStart.z(), 0.0f), 1.0f)
         )
 
         val endClamped = Vector3f(
-                min(max(end.x(), 0.0f), 1.0f),
-                min(max(end.y(), 0.0f), 1.0f),
-                min(max(end.z(), 0.0f), 1.0f)
+                min(max(rayEnd.x(), 0.0f), 1.0f),
+                min(max(rayEnd.y(), 0.0f), 1.0f),
+                min(max(rayEnd.z(), 0.0f), 1.0f)
         )
 
         val direction = (endClamped - startClamped)
