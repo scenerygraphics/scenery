@@ -308,14 +308,12 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
         val value = r.get()
         val finalresult: Any
-        try {
-            finalresult = when (value) {
-                is UnsignedShortType -> value.realFloat
-                else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
-            }
-        } catch (e: Exception) {
-            throw e
+
+        finalresult = when (value) {
+            is UnsignedShortType -> value.realFloat
+            else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
         }
+
 
         val transferRangeMax = when(ds)
         {
