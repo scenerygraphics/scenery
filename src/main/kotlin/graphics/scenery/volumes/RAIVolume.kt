@@ -47,18 +47,12 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
-        val scale = Vector3f(1.0f)
-        firstSource()?.let { s ->
-            val transform = AffineTransform3D()
-            s.spimSource.getSourceTransform(0, 0, transform)
-            scale.set(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
-        }
-
-        return OrientedBoundingBox(this,
-            Vector3f(-0.0f, -0.0f, -0.0f),
-            scale * Vector3f(getDimensions()))
+        val scale = getVoxelScale() ?: Vector3f(0f,0f,0f)
+        return OrientedBoundingBox(
+            this, Vector3f(-0.0f, -0.0f, -0.0f),
+            Vector3f(getDimensions()) * scale
+        )
     }
-
 
     override fun localScale(): Vector3f {
         return Vector3f(pixelToWorldRatio, -pixelToWorldRatio, pixelToWorldRatio)
@@ -87,6 +81,8 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         }
     }
 
+    /** Return the dimensions of a voxel as [Vector3f]. Anisotropic volumes will return Vector3f(1.0f),
+     * anisotropic volumes will return their scaling factors. */
     fun getVoxelScale(): Vector3f? {
         if (firstSource() != null) {
             val v = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
