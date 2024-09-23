@@ -171,13 +171,20 @@ class NodePublisher(
 
     override fun onLoop() {
 
-        val event = eventQueue.poll()
-        event?.let { processNextNetworkEvent(it) }
-        val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
-        payload?.let { listenToControlChannel(it) }
+        try {
+            val event = eventQueue.poll()
+            event?.let { processNextNetworkEvent(it) }
+            val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
+            payload?.let { listenToControlChannel(it) }
 
-        if (event == null && payload == null) {
-            Thread.sleep(timeout.toLong())
+            if (event == null && payload == null) {
+                Thread.sleep(timeout.toLong())
+            }
+        } catch (t: ZMQException){
+            if (t.errorCode != 4) {//Errno 4 : Interrupted function
+                // Interrupted exceptions are expected when closing the publisher and no need to worry
+                throw t
+            }
         }
     }
 
@@ -274,7 +281,7 @@ class NodePublisher(
             kryo.register(tmp.javaClass, ByteBufferSerializer())
             kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
             kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
-            kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
+            kryo.register(Inflater::class.java, IgnoreSerializer<Inflater>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 

@@ -29,11 +29,14 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
+    private val sleepTime = 500L
+
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and waits a bit to let everything setup.
      */
     @Before
     fun init() {
+        Thread.sleep(300)
         hub1 = Hub()
         hub2 = Hub()
 
@@ -49,7 +52,6 @@ class NodePublisherNodeSubscriberTest {
         sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = zContext)
         hub2.add(sub)
 
-        Thread.sleep(300)
     }
 
     /**
@@ -74,7 +76,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(box)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
@@ -91,13 +93,13 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(box)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
         box.spatial().position = Vector3f(0f, 0f, 3f)
         box.material().diffuse = Vector3f(0f, 0f, 3f)
         pub.scanForChanges()
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
         val box2 = scene2.find("box")
@@ -128,7 +130,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.addChild(volume)
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
         // assert initial sync
@@ -142,7 +144,7 @@ class NodePublisherNodeSubscriberTest {
         volume.transferFunction = TransferFunction.ramp(0.75f)
 
         pub.scanForChanges()
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
 
@@ -162,7 +164,7 @@ class NodePublisherNodeSubscriberTest {
         scene1.name = "lol"
 
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime)
         sub.networkUpdate(scene2)
 
         assertEquals("lol", scene2.name)
