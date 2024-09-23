@@ -35,6 +35,7 @@ abstract class Agent(val isDaemon: Boolean = true) {
                         onLoop()
                     }
                 } catch (_: InterruptedException) {
+                    // stackoverflow said I have to do this
                     Thread.currentThread().interrupt()
                 }
                 onClose()
