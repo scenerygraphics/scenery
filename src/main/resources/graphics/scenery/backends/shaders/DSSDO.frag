@@ -11,8 +11,8 @@
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 3, binding = 3) uniform sampler2D InputEmission;
+layout(set = 3, binding = 2) uniform sampler2D InputEmission;
+layout(set = 3, binding = 3) uniform sampler2D InputZBuffer;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in VertexData {
