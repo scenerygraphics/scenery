@@ -11,8 +11,8 @@
 
 layout(set = 1, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 1, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 1, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 1, binding = 3) uniform sampler2D InputEmission;
+layout(set = 1, binding = 2) uniform sampler2D InputEmission;
+layout(set = 1, binding = 3) uniform sampler2D InputZBuffer;
 layout(set = 2, binding = 0) uniform sampler2D InputOcclusion;
 
 layout(location = 0) out vec4 FragColor;
