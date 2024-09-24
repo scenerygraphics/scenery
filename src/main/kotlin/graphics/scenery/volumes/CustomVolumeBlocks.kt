@@ -125,7 +125,7 @@ class CustomVolumeBlocks(private val textureCache: TextureCache) : VolumeBlocks(
     override fun makeLut(timestamp: Int): Boolean {
         val rmin = requiredBlocks!!.min
         val rmax = requiredBlocks!!.max
-        lut!!.init(rmin, rmax, baseLevel)
+        lut.init(rmin, rmax, baseLevel)
 
         var complete = true
         val maxLevel = multiResolutionStack!!.resolutions().size - 1
@@ -216,7 +216,7 @@ class CustomVolumeBlocks(private val textureCache: TextureCache) : VolumeBlocks(
         val gridMin = LongArray(3)
         val gridMax = LongArray(3)
         getGridMinMax(baseLevel, gridMin, gridMax)
-        return FindRequiredBlocks.getRequiredLevelBlocksFrustum(pvms, cacheSpec!!.blockSize(), gridMin, gridMax)
+        return FindRequiredBlocks.getRequiredLevelBlocksFrustum(pvms, cacheSpec.blockSize(), gridMin, gridMax)
     }
 
     /**
@@ -322,7 +322,7 @@ class CustomVolumeBlocks(private val textureCache: TextureCache) : VolumeBlocks(
         for(d in 0..2) {
             val lbbmin = lbb.min(d).toFloat() // TODO -0.5 offset?
             val lbbmax = lbb.max(d).toFloat() // TODO -0.5 offset?
-            gridMin[d] = (max(fbbmin[d].toDouble(), lbbmin.toDouble()) / cacheSpec!!.blockSize()[d]).toLong()
+            gridMin[d] = (max(fbbmin[d].toDouble(), lbbmin.toDouble()) / cacheSpec.blockSize()[d]).toLong()
             gridMax[d] = (min(fbbmax[d].toDouble(), lbbmax.toDouble()) / cacheSpec.blockSize()[d]).toLong()
         }
     }

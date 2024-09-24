@@ -521,13 +521,16 @@ class VolumeManager(
         }
 
         // TODO: is repaint necessary?
-        // var repaint = false
+        var repaint = false
         val durationLutUpdate = measureTimeMillis {
             renderStacksStates.forEachIndexed { i, state ->
                 if (state.stack is MultiResolutionStack3D) {
                     val volumeBlocks = outOfCoreVolumes[i]
                     val timestamp = textureCache.nextTimestamp()
-                    volumeBlocks.makeLut(timestamp)
+                    val complete = volumeBlocks.makeLut(timestamp)
+                    if(!complete) {
+                        repaint = true
+                    }
                     //val complete = volumeBlocks.makeLut(timestamp)
                     // if (!complete) {
                     //    repaint = true
@@ -597,7 +600,7 @@ class VolumeManager(
             durationBinding
         )
         // TODO: check if repaint can be made sufficient for triggering rendering
-        return true
+        return repaint
     }
 
     class SimpleTexture2D(
@@ -708,7 +711,7 @@ class VolumeManager(
                         val blockUpdateDuration = measureTimeMillis {
                             if(!freezeRequiredBlocks) {
                                 try {
-                                    updateBlocks(context)
+                                    repaint = updateBlocks(context)
                                 } catch(e: RuntimeException) {
                                     logger.warn("Probably ran out of data, corrupt BDV file? $e")
                                     e.printStackTrace()
@@ -719,7 +722,7 @@ class VolumeManager(
                         logger.debug("Block updates took {}ms", blockUpdateDuration)
 
                         context.runDeferredBindings()
-                        if(repaint) {
+                        if(!repaint) {
                             context.runTextureUpdates()
                         }
                     }

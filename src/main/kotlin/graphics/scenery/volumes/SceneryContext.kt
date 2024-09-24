@@ -542,17 +542,19 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
             if(texture != null && name != null) {
                 val material = node.material()
-                var gt = material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
+                val gt = material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
 
-                logger.debug("Running {} texture updates for {}", updates.size, texture)
+                if(updates.size > 1) {
+                    logger.info("Running {} texture updates for {}", updates.size, texture)
+                }
                 updates.forEach { update ->
                     if (texture.reallocate) {
-                        val newDimensions = Vector3i(update.width, update.height, update.depth)
+                        val newDimensions: Vector3i = Vector3i(update.width, update.height, update.depth)
                         val dimensionsChanged = Vector3i(newDimensions).sub(gt.dimensions).length() > 0.0001f
 
                         if(dimensionsChanged) {
                             logger.warn("*** SIZE CHANGE FOR $name ***")
-                            logger.debug("Reallocating for size change {} -> {}", gt.dimensions, newDimensions)
+                            logger.warn("Reallocating for size change {} -> {}", gt.dimensions, newDimensions)
 
                             gt.clearUpdates()
                             val nt = UpdatableTexture(
@@ -569,7 +571,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                                 gt.usageType
                             )
                             nt.clearUpdates()
-                            nt.usageType += Texture.UsageType.AsyncLoad
+//                            nt.usageType += Texture.UsageType.AsyncLoad
 
                             if (t is LookupTextureARGB) {
                                 nt.normalized = false
@@ -593,14 +595,14 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                             nt.addUpdate(textureUpdate)
                             texture.reallocate = false
 
-                            thread {
-                                while(!nt.availableOnGPU() && nt.hasConsumableUpdates()) {
-                                    Thread.sleep(1)
-                                }
-
-                                material.textures[name] = nt
-                                material.textures.remove(timestampedName)
-                            }
+//                            thread {
+//                                while(!nt.availableOnGPU() && nt.hasConsumableUpdates()) {
+//                                    Thread.sleep(1)
+//                                }
+//
+//                            }
+                            material.textures[name] = nt
+                            material.textures.remove(timestampedName)
                         } else {
                             val textureUpdate = TextureUpdate(
                                 TextureExtents(

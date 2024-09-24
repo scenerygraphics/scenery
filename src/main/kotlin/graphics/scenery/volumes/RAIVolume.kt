@@ -9,6 +9,7 @@ import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
@@ -44,9 +45,16 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
+        val scale = Vector3f(1.0f)
+        firstSource()?.let { s ->
+            val transform = AffineTransform3D()
+            s.spimSource.getSourceTransform(0, 0, transform)
+            scale.set(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        }
+
         return OrientedBoundingBox(this,
             Vector3f(-0.0f, -0.0f, -0.0f),
-            Vector3f(getDimensions()))
+            scale * Vector3f(getDimensions()))
     }
 
     override fun localScale(): Vector3f {
@@ -66,6 +74,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
         return if(source != null) {
             val s = source.spimSource.getSource(0, 0)
+
             val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
             val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
             val d = max.sub(min)

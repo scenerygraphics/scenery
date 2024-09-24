@@ -112,7 +112,7 @@ class CustomMipmapSizes : MipmapSizes() {
         }
 
         baseLevel = bestLevel(drelClosestSourcePoint)
-        logger.info("Base level=$baseLevel")
+//        logger.info("Base level=$baseLevel")
     }
     private val logger by lazyLogger()
 
