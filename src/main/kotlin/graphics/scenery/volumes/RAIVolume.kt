@@ -9,6 +9,7 @@ import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
@@ -23,9 +24,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     options,
     hub
 ) {
-    private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
-
-    }
+    // Empty secondary constructor is necessary for network serialisation
+    @Suppress("unused")
+    private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub())
 
     init {
         name = "Volume (RAI source)"
@@ -44,9 +45,18 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
+        val preScale = Vector3f(1.0f)
+        val source = firstSource()
+
+        if(source != null) {
+            val tr = AffineTransform3D()
+            source.spimSource.getSourceTransform(0, 0, tr)
+            preScale.set(tr.get(0, 0), tr.get(1,1), tr.get(2, 2))
+        }
+
         return OrientedBoundingBox(this,
-            Vector3f(-0.0f, -0.0f, -0.0f),
-            Vector3f(getDimensions()))
+            Vector3f(0.0f),
+            Vector3f(getDimensions()) * preScale)
     }
 
     override fun localScale(): Vector3f {
@@ -69,7 +79,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
             val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
             val d = max.sub(min)
-            logger.debug("Dimensions are $d")
+            logger.debug("Dimensions are {}", d)
             d
         } else {
             Vector3i(1, 1, 1)
@@ -81,7 +91,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     /**
-    *   Extension of [VolumeSpatial] for RAI volumes
+    *   Extension of [Volume.VolumeSpatial] for RAI volumes
      */
     class RAIVolumeSpatial(volume: RAIVolume): VolumeSpatial(volume) {
         override fun composeModel() {
@@ -90,20 +100,20 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
                 val volume = (node as? RAIVolume) ?: return
                 val source = volume.firstSource()
 
-                val shift = if (source != null) {
-                    val s = source.spimSource.getSource(0, 0)
-                    val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                    val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                    (max - min) * (-0.5f)
-                } else {
-                    Vector3f(0.0f, 0.0f, 0.0f)
-                }
-
                 model.translation(position)
                 model.mul(Matrix4f().set(this.rotation))
                 model.scale(scale)
                 model.scale(volume.localScale())
                 if (volume.origin == Origin.Center) {
+                    val shift = if (source != null) {
+                        val s = source.spimSource.getSource(0, 0)
+                        val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                        val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                        (max - min) * (-0.5f)
+                    } else {
+                        Vector3f(0.0f, 0.0f, 0.0f)
+                    }
+
                     model.translate(shift)
                 }
             }
