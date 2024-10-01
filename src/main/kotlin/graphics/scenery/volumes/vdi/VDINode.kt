@@ -218,7 +218,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     }
 
     private fun getDepthTextureType(): NumericType<*> {
-        val intDepths = false
+        val intDepths = true
         return if (intDepths) {
             UnsignedShortType()
         } else {
@@ -323,7 +323,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         val emptyColorTexture = generateColorTexture(1, 1, 1, emptyColor)
         val emptyAlpha = MemoryUtil.memCalloc(4 * 1)
         val emptyAlphaTexture = generateAlphaTexture(1, 1, 1, emptyAlpha)
-        val emptyDepth = MemoryUtil.memCalloc(1 * 8)
+        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
         val emptyDepthTexture = generateDepthTexture(1, 1, 1, emptyDepth)
 
         val emptyAccel = MemoryUtil.memCalloc(4)

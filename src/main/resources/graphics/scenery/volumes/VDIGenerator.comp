@@ -37,7 +37,7 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-#define INT_DEPTHS 0
+#define INT_DEPTHS 1
 #define USE_PRINTF 1
 
 #if USE_PRINTF

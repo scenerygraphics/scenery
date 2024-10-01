@@ -1,7 +1,7 @@
 #version 450
 #define USE_PRINTF 1
 #define DOUBLE_BUFFER 1
-#define INT_DEPTHS 0
+#define INT_DEPTHS 1
 
 #extension GL_EXT_debug_printf : disable
 #if USE_PRINTF

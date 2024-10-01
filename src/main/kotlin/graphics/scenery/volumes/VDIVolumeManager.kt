@@ -81,7 +81,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
     private fun vdiFull(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager {
 
-        val intDepths = false
+        val intDepths = true
 
         val raycastShader = "VDIGenerator.comp"
         val accumulateShader = "AccumulateVDI.comp"
