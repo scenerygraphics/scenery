@@ -36,17 +36,16 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
-import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
+import net.imagej.ops.OpService
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.histogram.Histogram1d
-import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -69,9 +68,17 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
 import kotlin.properties.Delegates
-import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import net.imglib2.type.volatiles.VolatileByteType
+import net.imglib2.type.volatiles.VolatileFloatType
+import net.imglib2.type.volatiles.VolatileShortType
+import net.imglib2.type.volatiles.VolatileUnsignedByteType
+import net.imglib2.type.volatiles.VolatileUnsignedShortType
+import org.jfree.data.statistics.SimpleHistogramBin
+import org.jfree.data.statistics.SimpleHistogramDataset
+import org.scijava.Context
 import kotlin.math.*
+import kotlin.time.measureTimedValue
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -159,7 +166,7 @@ open class Volume(
     }
 
     /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
-    var origin = Origin.Center
+    var origin: Origin = Origin.Center
 
     /** Rendering method */
     var renderingMethod = RenderingMethod.AlphaBlending
@@ -212,6 +219,15 @@ open class Volume(
             field = value
         }
 
+    val bytesPerVoxel: Int
+        get() {
+            return when(dataSource){
+                VolumeDataSource.NullSource -> 1
+                is VolumeDataSource.RAISource<*> -> dataSource.type.toBytesPerValue()
+                is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toBytesPerValue()
+            }
+        }
+
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(
             @Transient
@@ -219,7 +235,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<*>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int
             ) : VolumeDataSource()
         class RAISource<T: NumericType<T>>(
@@ -228,7 +244,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<T>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int,
             @Transient
             val cacheControl: CacheControl? = null,
@@ -358,11 +374,33 @@ open class Volume(
     private fun NumericType<*>.toRange(): Pair<Float, Float> {
         return when(this) {
             is UnsignedByteType -> 0.0f to 255.0f
+            is VolatileUnsignedByteType -> 0.0f to 255.0f
             is ByteType -> -127.0f to 128.0f
+            is VolatileByteType -> -127.0f to 128.0f
             is UnsignedShortType -> 0.0f to 65535.0f
+            is VolatileUnsignedShortType -> 0.0f to 65535.0f
             is ShortType -> -32768.0f to 32767.0f
+            is VolatileShortType -> -32768.0f to 32767.0f
             is FloatType -> 0.0f to 1.0f
+            is VolatileFloatType -> 0.0f to 1.0f
             else -> 0.0f to 1.0f
+        }
+    }
+
+
+    private fun NumericType<*>.toBytesPerValue(): Int {
+        return when(this) {
+            is UnsignedByteType -> 1
+            is VolatileUnsignedByteType -> 1
+            is ByteType -> 1
+            is VolatileByteType -> 1
+            is UnsignedShortType -> 2
+            is VolatileUnsignedShortType -> 2
+            is ShortType -> 2
+            is VolatileShortType -> 2
+            is FloatType -> 4
+            is VolatileFloatType -> 4
+            else -> 4
         }
     }
 
@@ -403,18 +441,84 @@ open class Volume(
         return VolumeSpatial(this)
     }
 
-    /**
-     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource)
-     */
-    override fun generateHistogram(): Histogram1d<*>? {
-        var histogram : Histogram1d<*>? = null
 
-        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
-            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
-            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+    /**
+     *  Calculates the histogram on the CPU.
+     */
+    override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int? {
+        volumeHistogramData.removeAllBins()
+        val bins = 1024
+        // This generates a histogram over the whole volume ignoring the display range.
+        val absoluteHistogram = generateHistogramSPIMSourceOnCPU(512, bins)
+        if (absoluteHistogram != null) {
+            // We now need to select only the bins we care about.
+            val absoluteBinSize = absoluteHistogram.max() / bins.toDouble()
+            val minDisplayRange = minDisplayRange.toDouble()
+            val maxDisplayRange = maxDisplayRange.toDouble()
+
+            var max = 100
+            absoluteHistogram.forEachIndexed { index, longType ->
+                val startOfAbsoluteBin = index * absoluteBinSize
+                val endOfAbsoluteBin = (index+1) * absoluteBinSize
+                if (minDisplayRange <= startOfAbsoluteBin && endOfAbsoluteBin < maxDisplayRange) {
+
+                    val bin = SimpleHistogramBin(
+                        startOfAbsoluteBin,
+                        endOfAbsoluteBin,
+                        true,
+                        false
+                    )
+                    bin.itemCount = longType.get().toInt()
+                    max = max(bin.itemCount, max)
+                    volumeHistogramData.addBin(bin)
+                }
+            }
+            return max
+        }
+        return null
+    }
+
+    /**
+     * Return a histogram over the whole volume ignoring the display range. Uses the volumes viewState source (currently only using spimSource).
+     * The function will select a miplevel which has less then [maximumResolution] voxels in side lengths and divide the results into [bins]
+     * different bins.
+     */
+    private fun generateHistogramSPIMSourceOnCPU(maximumResolution: Int, bins: Int): Histogram1d<*>? {
+        val type = viewerState.sources.firstOrNull()?.spimSource?.type ?: return null
+        logger.info("Volume type is ${type.javaClass.simpleName}")
+        val context = if(volumeManager.hub?.getApplication()?.scijavaContext != null) {
+            volumeManager.hub?.getApplication()?.scijavaContext!!
+        } else {
+            Context(OpService::class.java)
+        }
+        val ops = context.getService(OpService::class.java)
+
+        if(ops == null) {
+            logger.warn("Could not create OpService from scijava context, returning null histogram.")
+            return null
         }
 
-        return histogram
+        val miplevels = viewerState.sources.firstOrNull()?.spimSource?.numMipmapLevels ?: 0
+        logger.info("Dataset has $miplevels miplevels")
+
+        val reducedResolutionRAI = (0 until miplevels)
+            .map { it to viewerState.sources.first().spimSource.getSource(0, it) }
+            .firstOrNull { it.second.dimensionsAsLongArray().all { size -> size < maximumResolution } }
+
+        val rai = if(reducedResolutionRAI == null) {
+            val r = viewerState.sources.first().spimSource.getSource(0, 0)
+            logger.info("Using default miplevel with dimensions ${r.dimensionsAsLongArray().joinToString("/")} for histogram calculation.")
+            r
+        } else {
+            logger.info("Using miplevel ${reducedResolutionRAI.first} with dimensions ${reducedResolutionRAI.second.dimensionsAsLongArray().joinToString("/")} for histogram calculation.")
+            reducedResolutionRAI.second
+        }
+
+        val histogram = measureTimedValue { ops.run("image.histogram", rai, bins) as Histogram1d<*> }
+
+        logger.info("Histogram creation took ${histogram.duration.inWholeMilliseconds}ms")
+
+        return histogram.value
     }
 
     private var slicingArray = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
@@ -1119,14 +1223,17 @@ open class Volume(
          * into account.
          */
         override fun composeModel() {
-            val shift = Vector3f(volume.getDimensions()) * (-0.5f)
-
             model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
             model.scale(scale)
             model.scale(volume.localScale())
-            if (volume.origin == Origin.Center) {
-                model.translate(shift)
+            when(val o = volume.origin) {
+                is Origin.Center -> {
+                    val shift = Vector3f(volume.getDimensions()) * (-0.5f)
+                    model.translate(shift)
+                }
+                is Origin.Custom -> model.translate(o.origin)
+                else -> {}
             }
         }
     }

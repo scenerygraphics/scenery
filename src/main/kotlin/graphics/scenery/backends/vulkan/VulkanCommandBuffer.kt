@@ -84,7 +84,7 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
                             0,
                             2,
                             timingArray,
-                            0,
+                            8,
                             VK_QUERY_RESULT_64_BIT
                         )
                     })

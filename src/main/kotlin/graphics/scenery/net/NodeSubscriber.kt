@@ -9,6 +9,7 @@ import graphics.scenery.utils.lazyLogger
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
+import org.zeromq.ZMQException
 import java.io.ByteArrayInputStream
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -64,8 +65,11 @@ class NodeSubscriber(
             val event = kryo.readClassAndObject(input) as? NetworkEvent
                 ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
             eventQueue.add(event)
-        } catch (t: Throwable) {
-            t.printStackTrace()
+        } catch (t: ZMQException) {
+            if (t.errorCode != 4) {//Errno 4 : Interrupted function
+                // Interrupted exceptions are expected when closing the Subscriber and no need to worry
+                throw t
+            }
         }
     }
 
@@ -95,7 +99,12 @@ class NodeSubscriber(
                 is NetworkEvent.NewRelation -> {
                     processNewRelationEvent(event)
                 }
-                NetworkEvent.RequestInitialization -> {} // should not arrive at subscriber
+                is NetworkEvent.RequestInitialization -> {
+                    logger.error("received ${event::class.java.simpleName} and it should not arrive at the subscriber.")
+                }
+                else -> {
+                    logger.error("received ${event::class.java.simpleName} and dont know what to do with it.")
+                }
             }
         }
     }

@@ -104,7 +104,6 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
     val headOrientation: Quaternionf by HeadOrientationDelegate()
 
     init {
-        this.nodeType = "Camera"
         this.name = "DetachedHeadCamera-${tracker ?: "${counter.getAndIncrement()}"}"
     }
 
@@ -130,9 +129,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
          */
         override fun getTransformation(): Matrix4f {
             val tr = Matrix4f().translate(this.position * (-1.0f))
-//        val r = Matrix4f.fromQuaternion(this.rotation)
-//        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-            return cam.tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: Matrix4f().set(this.rotation) * tr
+            return cam.tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: (Matrix4f().set(this.rotation) * tr)
         }
 
         /**
@@ -141,9 +138,8 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
          */
         override fun getTransformationForEye(eye: Int): Matrix4f {
             val tr = Matrix4f().translate(this.position * (-1.0f))
-//        val r = Matrix4f.fromQuaternion(this.rotation)
-//        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-            return cam.tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: Matrix4f().set(this.rotation) * tr
+            return cam.tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr)
+                ?: (Matrix4f().set(this.rotation) * tr)
         }
 
         /**

@@ -8,8 +8,10 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
+import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.Image
 import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.TransferFunctionEditor
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import ij.IJ
@@ -18,6 +20,7 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.lwjgl.system.MemoryUtil
+import java.io.File
 
 /**
  * Example showing using a custom [graphics.scenery.volumes.VolumeManager] with
@@ -46,11 +49,20 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
 
         hub.add(volumeManager)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val imp: ImagePlus = IJ.openImage(getDemoFilesPath() + "/volumes/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+
+        //transfer function and display range chosen empirically
+        volume.minDisplayRange = 0f
+        volume.maxDisplayRange = 1128.0f
+        volume.transferFunction.addControlPoint(0.0f, 0.0f)
+        volume.transferFunction.addControlPoint(0.12f, 0.3f)
+        volume.transferFunction.addControlPoint(0.30f, 0.0f)
+        volume.transferFunction.addControlPoint(1.0f, 0.0f)
+        volume.spatial().scale = Vector3f(10.0f)
+
         scene.addChild(volume)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))

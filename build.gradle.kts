@@ -48,10 +48,10 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.97.1")
+    annotationProcessor("org.scijava:scijava-common:2.98.0")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
@@ -97,30 +97,30 @@ dependencies {
             }
         }
     }
-    implementation("org.xerial.snappy:snappy-java:1.1.8.4")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
-    implementation("org.zeromq:jeromq:0.5.4")
-    implementation("com.esotericsoftware:kryo:5.5.0")
+    implementation("org.xerial.snappy:snappy-java:1.1.10.5")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
+    implementation("org.zeromq:jeromq:0.6.0")
+    implementation("com.esotericsoftware:kryo:5.6.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.165")
+    implementation("io.github.classgraph:classgraph:4.8.172")
 
-    implementation("info.picocli:picocli:4.7.5")
+    implementation("info.picocli:picocli:4.7.6")
 
-    api("sc.fiji:bigdataviewer-core:10.4.13")
+    api("sc.fiji:bigdataviewer-core:10.4.14")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.lwjglx:lwjgl3-awt:bc8daf5") {
+    implementation("com.github.skalarproduktraum:lwjgl3-awt:c034a77") {
         // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
         // Maven properties for natives, which is not supported by Gradle
         exclude("org.lwjgl", "lwjgl-bom")
@@ -137,7 +137,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.22")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:2.0.0")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -151,7 +151,7 @@ dependencies {
     testImplementation("net.imglib2:imglib2-ij")
 
     implementation("org.jfree:jfreechart:1.5.4")
-    implementation("net.imagej:imagej-ops:0.45.5")
+    implementation("net.imagej:imagej-ops:2.1.0")
 }
 
 val isRelease: Boolean
@@ -305,7 +305,8 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
-                "bigvolumeviewer"
+                "bigvolumeviewer",
+                "snappy-java"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
@@ -426,10 +427,7 @@ plugins.withType<JacocoPlugin> {
     tasks.test { finalizedBy("jacocoTestReport") }
 }
 
-// disable Gradle metadata file creation on Jitpack, as jitpack modifies
-// the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
-    tasks.withType<GenerateModuleMetadata> {
-        enabled = false
-    }
+// disable Gradle metadata file in general, as Maven artifacts are our main publication.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }

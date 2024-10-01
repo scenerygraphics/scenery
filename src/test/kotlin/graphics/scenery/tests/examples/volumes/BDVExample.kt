@@ -11,6 +11,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import net.imagej.lut.LUTService
 import net.imagej.ops.OpService
 import net.imglib2.histogram.Histogram1d
 import org.scijava.Context
@@ -73,20 +74,22 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-        v.colormap = Colormap.get("hot")
+        v.colormap = Colormap.get("jet")
 
         // we set some known properties here for the T1 head example dataset
         if(files.first().endsWith("t1-head.xml")) {
             cam.spatial().position = Vector3f(0.3f, -0.6f, 2.0f)
             v.transferFunction = TransferFunction.ramp(0.01f, 0.8f)
-            v.spatial().scale = Vector3f(0.2f)
+            v.spatial().scale = Vector3f(5.0f)
             v.setTransferFunctionRange(0.0f, 2000.0f)
         }
+        v.transferFunction = TransferFunction.ramp(0.2f, 0.15f)
+        v.multiResolutionLevelLimits = 0 to 1
 
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any?
             val duration = measureTimeMillis {
-                h = ops.run("image.histogram", rai, 1024)
+                h = ops.run("image.histogram", rai, 32)
             }
 
             val histogram = h as? Histogram1d<*> ?: return@let

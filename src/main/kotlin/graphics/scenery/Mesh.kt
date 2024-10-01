@@ -33,7 +33,7 @@ import java.nio.file.Files
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial, HasSpatial,
+open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial, HasSpatial,
     HasGeometry {
 
     init {

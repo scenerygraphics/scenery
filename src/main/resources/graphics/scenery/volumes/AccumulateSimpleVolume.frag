@@ -1,3 +1,8 @@
+// sceneGraphVisibility should be in main BDVVolume.frag but doing per
+// volume uniforms there is wonky and doing them here in a shader segment works better
+uniform int sceneGraphVisibility;
+
+vis = vis && bool(sceneGraphVisibility);
 if (vis && step > localNear && step < localFar)
 {
     vec4 x = sampleVolume(wpos);
@@ -40,26 +45,12 @@ if (vis && step > localNear && step < localFar)
     float newAlpha = x.a;
     vec3 newColor = x.rgb;
 
+    float adjusted_alpha = adjustOpacity(newAlpha, (distance(wpos, wprev)/standardStepSize));
 
-    float w = adjustOpacity(newAlpha, length(wpos - wprev));
-
-    v.rgb = v.rgb + (1.0f - v.a) * newColor * w;
-    v.a = v.a + (1.0f - v.a) * w;
-
-    //        #if USE_PRINTF
-    //        if(pixel_coords.xy == debug_pixel) {
-    //            debugPrintfEXT("Accumulated color so far: (%f, %f, %f, %f)", v);
-    //        }
-    //        #endif
+    v.rgb = v.rgb + (1.0f - v.a) * newColor * adjusted_alpha;
+    v.a = v.a + (1.0f - v.a) * adjusted_alpha;
 
     if(v.a >= 1.0f) {
         break;
     }
-    //    } else {
-    //        #if USE_PRINTF
-    //        if(pixel_coords.xy == debug_pixel) {
-    //            debugPrintfEXT("This is an error! -1 has been returned!");
-    //        }
-    //        #endif
-    //    }
 }

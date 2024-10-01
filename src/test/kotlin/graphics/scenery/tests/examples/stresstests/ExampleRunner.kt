@@ -18,9 +18,7 @@ import kotlin.system.exitProcess
 import kotlin.test.assertFalse
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
 @RunWith(Parameterized::class)
 class ExampleRunner(
     private val clazz: Class<*>,
@@ -45,63 +43,59 @@ class ExampleRunner(
         val instance: SceneryBase = clazz.getConstructor().newInstance() as SceneryBase
         var failure = false
 
-        try {
-            val handler = CoroutineExceptionHandler { _, e ->
-                logger.error("${clazz.simpleName}: Received exception $e")
-                logger.error("Stack trace: ${e.stackTraceToString()}")
+        val handler = CoroutineExceptionHandler { _, e ->
+            logger.error("${clazz.simpleName}: Received exception $e")
+            logger.error("Stack trace: ${e.stackTraceToString()}")
 
-                failure = true
-                // we fail very hard here to prevent process clogging the CI
-                exitProcess(-1)
-            }
+            failure = true
+            // we fail very hard here to prevent process clogging the CI
+            exitProcess(-1)
+        }
 
-            // re-seed scenery's PRNG to the seed given via system property
-            Random.reseed()
+        // re-seed scenery's PRNG to the seed given via system property
+        Random.reseed()
 
-            val exampleRunnable = GlobalScope.launch(handler) {
-                instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
-                    it.invoke()
-                }
-                instance.main()
-            }
-
-            while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
-                delay(200)
-            }
-            val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
-
-            while(!r.firstImageReady) {
-                delay(200)
-            }
-
-            delay(3000)
-            r.screenshot("$rendererDirectory/${clazz.simpleName}.png", overwrite = true)
-            Thread.sleep(2000)
-
-            logger.info("Sending close to ${clazz.simpleName}")
-            instance.close()
-            instance.assertions[SceneryBase.AssertionCheckPoint.AfterClose]?.forEach {
+        val exampleRunnable = GlobalScope.launch(handler) {
+            instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
                 it.invoke()
             }
+            instance.main()
+        }
 
-            while (instance.running && !failure) {
-                if (runtime > maxRuntimePerTest) {
-                    exampleRunnable.cancelAndJoin()
-                    logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
-                    failure = true
-                }
+        while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
+            delay(200)
+        }
+        val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
 
-                runtime += 200.milliseconds
-                delay(200)
-            }
+        while(!r.firstImageReady) {
+            delay(200)
+        }
 
-            if(failure) {
+        delay(3000)
+        r.screenshot("$rendererDirectory/${clazz.simpleName}.png", overwrite = true)
+        Thread.sleep(2000)
+
+        logger.info("Sending close to ${clazz.simpleName}")
+        instance.close()
+        instance.assertions[SceneryBase.AssertionCheckPoint.AfterClose]?.forEach {
+            it.invoke()
+        }
+
+        while (instance.running && !failure) {
+            if (runtime > maxRuntimePerTest) {
                 exampleRunnable.cancelAndJoin()
-            } else {
-                exampleRunnable.join()
+                logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
+                failure = true
             }
-        } catch (e: ThreadDeath) {
-            logger.info("JOGL threw ThreadDeath")
+
+            runtime += 200.milliseconds
+            delay(200)
+        }
+
+        if(failure) {
+            exampleRunnable.cancelAndJoin()
+        } else {
+            exampleRunnable.join()
         }
 
         logger.info("${clazz.simpleName} closed.")

@@ -11,7 +11,6 @@ import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.java.games.input.Component
 import org.joml.Vector3f
 import java.nio.file.Paths
@@ -95,7 +94,7 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
 
         val croc = true
         if(croc) {
-            volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+            volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub)
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
@@ -115,7 +114,7 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
             scene.addChild(volume)
             volume.origin = Origin.FrontBottomLeft
         } else {
-            volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+            volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub)
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays

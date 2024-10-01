@@ -12,14 +12,12 @@ import graphics.scenery.tests.unit.backends.FauxRenderer
 import graphics.scenery.utils.extensions.toBinaryString
 import graphics.scenery.utils.lazyLogger
 import org.junit.Test
-import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
-import java.lang.Math.pow
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -365,8 +363,7 @@ class GLFWMouseAndKeyHandlerTests {
         val (inputHandler, _, glfwHandler) = prepareInputHandler()
 
         repeat(100) { i ->
-            // FIXME: Why does button 2 not work?
-            val button = Random.nextInt(1, 2)
+            val button = Random.nextInt(0, 3)
             var dragStart = Pair(0, 0)
             var dragEnd = Pair(0, 0)
 
@@ -380,8 +377,7 @@ class GLFWMouseAndKeyHandlerTests {
 //                "alt",
                 "shift").random()
 
-            val modifiersFull = pow(2.0, 4.0+button).toInt() or modifiers.toMask()
-            val modifiersRelease = modifiers.toMask()
+            val modifiersFull = 2.0.pow(10.0 + button).toInt() or modifiers.toMask()
             val modifierEvents = modifiers.toEvents()
 
             // we create a press and release event here, otherwise
@@ -431,8 +427,8 @@ class GLFWMouseAndKeyHandlerTests {
             )
 
             val buttonString = when(button) {
-                1 -> "button1"
-                2 -> "button2"
+                0 -> "button1"
+                1 -> "button2"
                 else -> "button3"
             }
 
@@ -460,7 +456,6 @@ class GLFWMouseAndKeyHandlerTests {
             glfwHandler.mousePressed(clickEvent)
             moveEvents.forEach { move ->
                 glfwHandler.mouseMoved(move)
-                glfwHandler.mouseDragged(move)
             }
             glfwHandler.mouseReleased(releaseEvent)
 
@@ -470,7 +465,7 @@ class GLFWMouseAndKeyHandlerTests {
 
             assertEquals(start, dragStart, "Expected dragging start to be")
             assertEquals(end, dragEnd, "Expected dragging end to be")
-            assertEquals(dragCount * 2, actualDrags, "Expected $dragCount events to have happened")
+            assertEquals(dragCount, actualDrags, "Expected $dragCount events to have happened")
         }
     }
 

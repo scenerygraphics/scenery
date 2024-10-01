@@ -36,7 +36,7 @@ import org.joml.Vector3f
  *
  * @author Lenz Fiedler <l.fiedler@hzdr.de>
  */
-open class AtomicSimulation(override var name: String = "DFTSimulation", private val scalingFactor: Float,
+open class AtomicSimulation(name: String = "DFTSimulation", private val scalingFactor: Float,
                             private var atomicRadius: Float, private val normalizeVolumetricDataTo: Float=-1.0f,
                             private var cubeStyle: String = "unknown", private val rootFolder: String = "") : Mesh(name) {
     init {

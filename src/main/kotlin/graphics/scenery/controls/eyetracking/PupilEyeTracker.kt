@@ -226,7 +226,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType = CalibrationType.Wor
 
                                 "gaze.2d.0.",
                                 "gaze.2d.1." -> {
-                                    TODO("2D gaze mapping needs a revamp")
+                                    logger.warn("2D gaze mapping needs a revamp and is not supported at the moment.")
                                 }
 
                                 "gaze.3d.0.",

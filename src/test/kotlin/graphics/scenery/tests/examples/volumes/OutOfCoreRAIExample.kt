@@ -43,7 +43,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         scene.addChild(cam)
 
         // download example TIFF stack, T1 head example from NIH
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val imp: ImagePlus = IJ.openImage(getDemoFilesPath() + "/volumes/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         // create multiresolution N5 dataset from the T1 head example dataset
@@ -71,7 +71,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         )
         volume.converterSetups.first().setDisplayRange(25.0, 512.0)
         volume.transferFunction = TransferFunction.ramp(0.01f, 0.03f)
-        volume.spatial().scale = Vector3f(1.0f, 1.0f, 3.0f)
+        volume.spatial().scale = Vector3f(20.0f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {

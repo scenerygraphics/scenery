@@ -62,13 +62,14 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
         origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
 
-        val volumeInitializer = IJVolumeInitializer("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val volumeInitializer = IJVolumeInitializer(getDemoFilesPath() + "/volumes/t1-head.zip")
 
         volume = Volume.forNetwork(volumeInitializer, hub)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-        scene.addChild(volume)
-
         volume.slicingMode = Volume.SlicingMode.Cropping
+        volume.spatial().scale = Vector3f(20.0f)
+
+        scene.addChild(volume)
         addAnimatedSlicingPlane()
 
         if (additionalVolumes) {

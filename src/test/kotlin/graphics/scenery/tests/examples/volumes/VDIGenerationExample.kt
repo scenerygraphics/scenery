@@ -136,7 +136,8 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
-        while (count<6) { //TODO: convert VDI storage also to postRenderLambda
+        // TODO: convert VDI storage also to postRenderLambda
+        while (count < 6) {
 
             tGeneration.start = System.nanoTime()
 
@@ -183,7 +184,6 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             }
             count++
         }
-        this.close()
     }
 
 
