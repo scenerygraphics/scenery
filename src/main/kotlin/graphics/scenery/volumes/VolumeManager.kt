@@ -29,6 +29,9 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.renderable.Renderable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.newFixedThreadPoolContext
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -44,6 +47,10 @@ import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -682,46 +689,53 @@ class VolumeManager(
 
     override fun createRenderable(): Renderable {
         return object: DefaultRenderable(this) {
+            val updateLock: ReentrantLock = ReentrantLock()
+            private val VolumeManagerDispatcher = newFixedThreadPoolContext(1, "VolumeManagerWorker")
+
             /**
              * Pre-draw routine to be called by the rendered just before drawing.
              * Updates texture cache and used blocks.
              */
+            @Synchronized
             override fun preDraw(): Boolean {
-                logger.debug("Running predraw")
-                context.bindTexture(textureCache)
+                CoroutineScope(VolumeManagerDispatcher).launch {
+                    updateLock.withLock {
+                        logger.debug("Running predraw")
+                        context.bindTexture(textureCache)
 
-                if (nodes.any { it.transferFunction.stale }) {
-                    transferFunctionTextures.clear()
-                    val keys = material().textures.filter { it.key.startsWith("transferFunction") }.keys
-                    keys.forEach { material().textures.remove(it) }
-                    renderStateUpdated = true
-                }
+                        if(nodes.any { it.transferFunction.stale }) {
+                            transferFunctionTextures.clear()
+                            val keys = material().textures.filter { it.key.startsWith("transferFunction") }.keys
+                            keys.forEach { material().textures.remove(it) }
+                            renderStateUpdated = true
+                        }
 
-                if (renderStateUpdated) {
-                    updateRenderState()
-                    needAtLeastNumVolumes(renderStacksStates.size)
-                    renderStateUpdated = false
-                }
+                        if(renderStateUpdated) {
+                            updateRenderState()
+                            needAtLeastNumVolumes(renderStacksStates.size)
+                            renderStateUpdated = false
+                        }
 
-                var repaint = true
-                val blockUpdateDuration = measureTimeMillis {
-                    if (!freezeRequiredBlocks) {
-                        try {
-                            updateBlocks(context)
-                        } catch (e: RuntimeException) {
-                            logger.warn("Probably ran out of data, corrupt BDV file? $e")
-                            e.printStackTrace()
+                        var repaint = true
+                        val blockUpdateDuration = measureTimeMillis {
+                            if(!freezeRequiredBlocks) {
+                                try {
+                                    updateBlocks(context)
+                                } catch(e: RuntimeException) {
+                                    logger.warn("Probably ran out of data, corrupt BDV file? $e")
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+
+                        logger.debug("Block updates took {}ms", blockUpdateDuration)
+
+                        context.runDeferredBindings()
+                        if(repaint) {
+                            context.runTextureUpdates()
                         }
                     }
                 }
-
-                logger.debug("Block updates took {}ms", blockUpdateDuration)
-
-                context.runDeferredBindings()
-                if (repaint) {
-                    context.runTextureUpdates()
-                }
-
                 return readyToRender()
             }
         }
@@ -911,6 +925,49 @@ class VolumeManager(
         renderStateUpdated = true
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)
+    }
+
+    class VolumeTextureCache {
+        private val cache = mutableMapOf<Volume.BlockKey, Texture>()
+
+        fun contains(key: Volume.BlockKey): Boolean = key in cache
+
+        fun put(key: Volume.BlockKey, texture: Texture) {
+            cache[key] = texture
+        }
+
+        fun get(key: Volume.BlockKey): Texture? = cache[key]
+
+        fun clear() {
+            cache.clear()
+        }
+    }
+
+    private val volumeTextureCache: VolumeTextureCache = VolumeTextureCache()
+
+    fun update(camera: Camera) {
+        children.filterIsInstance<Volume>().forEach { volume ->
+            val bestLevel = determineBestLevel(volume, camera)
+            volume.switchResolutionLevel(bestLevel, camera)
+            loadVisibleBlocks(volume)
+            updateShaderUniforms(volume)// TODO write this
+        }
+    }
+
+    private fun loadVisibleBlocks(volume: Volume) {
+        val resLevel = volume.resolutionLevels[volume.currentResolutionLevel]
+        volume.activeBlocks.forEach { blockKey ->
+            if (!volumeTextureCache.contains(blockKey)) {
+                val cellImg = resLevel.cellImg
+                val block = cellImg.getAt(blockKey.position.x, blockKey.position.y, blockKey.position.z)
+                val texture = Texture(block)// TODO no matching signature
+                volumeTextureCache.put(blockKey, texture)
+            }
+        }
+    }
+
+    private fun determineBestLevel(volume: Volume, camera: Camera): Int {
+        // Implement logic to choose the best resolution level
     }
 
     /**

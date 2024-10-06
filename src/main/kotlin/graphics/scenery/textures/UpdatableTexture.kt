@@ -5,6 +5,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
 
 class UpdatableTexture(
     dimensions: Vector3i,
@@ -26,7 +27,7 @@ class UpdatableTexture(
     data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
 
     /** List of [TextureUpdate]s for the currently active texture. */
-    private var updates: ArrayList<TextureUpdate> = ArrayList()
+    private var updates: CopyOnWriteArrayList<TextureUpdate> = CopyOnWriteArrayList()
 
     fun addUpdate(update: TextureUpdate) {
         updates.add(update)
