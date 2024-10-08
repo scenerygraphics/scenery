@@ -44,6 +44,24 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
     }
 
     /**
+     * Convenience method that sets all children's [Material.wireframe] property to [wireframe].
+     */
+    fun setWireframe(wireframe: Boolean) {
+        runRecursive {
+            it.materialOrNull()?.wireframe = wireframe
+        }
+    }
+
+    /**
+     * Convenience method that sets all children's [Material.cullingMode] property to [cullingMode].
+     */
+    fun setCullingMode(cullingMode: Material.CullingMode) {
+        runRecursive {
+            it.materialOrNull()?.cullingMode = cullingMode
+        }
+    }
+
+    /**
      * Reads geometry from a file given by [filename]. The extension of [filename] will determine
      * whether the file will be read by [readFromOBJ] or [readFromSTL].
      *

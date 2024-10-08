@@ -51,7 +51,6 @@ class VRSideChainsExample : SceneryBase(
 
         scene.addChild(cam)
 
-        //protein = Protein.fromFile("C:\\Users\\Justin\\Downloads\\7ch1_SLC26A9.pdb")
         protein = Protein.fromID("3nir")
         sideChains = AminoAcidsStickAndBall(protein)
         scene.addChild(sideChains)
