@@ -95,6 +95,14 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
     }
 
     /**
+     * Checks whether a [point] is inside the given [OrientedBoundingBox] or not.
+     */
+    fun isInside(point: Vector3f): Boolean {
+        return (point.x > min.x && point.y > min.y && point.z > min.z &&
+                point.x < max.x && point.y < max.y && point.z < max.z)
+    }
+
+    /**
      * Returns the hash code of this [OrientedBoundingBox], taking [min] and [max] into consideration.
      */
     override fun hashCode(): Int {

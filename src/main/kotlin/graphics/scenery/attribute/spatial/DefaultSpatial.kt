@@ -285,9 +285,9 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
      *
      * Code adapted from [zachamarz](http://gamedev.stackexchange.com/a/18459).
      */
-    override fun intersectAABB(origin: Vector3f, dir: Vector3f): MaybeIntersects {
-        val bbmin = node.getMaximumBoundingBox().min.xyzw()
-        val bbmax = node.getMaximumBoundingBox().max.xyzw()
+    override fun intersectAABB(origin: Vector3f, dir: Vector3f, ignoreChildren: Boolean): MaybeIntersects {
+        val bbmin = if (ignoreChildren) node.boundingBox!!.min.xyzw() else node.getMaximumBoundingBox().min.xyzw()
+        val bbmax = if (ignoreChildren) node.boundingBox!!.max.xyzw() else node.getMaximumBoundingBox().max.xyzw()
 
         val min = world.transform(bbmin)
         val max = world.transform(bbmax)
