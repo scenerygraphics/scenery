@@ -48,6 +48,34 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     var thresholdBuffer: ByteBuffer? = null
     var numGeneratedBuffer: ByteBuffer? = null
 
+    private var colorTexture: Texture? = null
+    private var depthTexture: Texture? = null
+
+
+    /**
+     * Returns the output VDI color texture, containing supersegment colors, if it exists, otherwise logs an error.
+     *
+     * @return The color texture or null if it does not exist.
+     */
+    fun getColorTextureOrNull(): Texture? {
+        if (colorTexture == null) {
+            logger.error("Color texture is null. Was VDIVolumeManager created?")
+        }
+        return colorTexture
+    }
+
+    /**
+     * Returns the output VDI depth texture, containing supersegment depths, if it exists, otherwise logs an error.
+     *
+     * @return The depth texture or null if it does not exist.
+     */
+    fun getDepthTextureOrNull(): Texture? {
+        if (depthTexture == null) {
+            logger.error("Depth texture is null. Was VDIVolumeManager created?")
+        }
+        return depthTexture
+    }
+
     /**
      * Creates a [VolumeManager] for generating VDIs
      *
@@ -113,6 +141,9 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         volumeManager.customUniforms.add("doGeneration")
         volumeManager.shaderProperties["doGeneration"] = true
+
+        colorTexture = volumeManager.material().textures[colorTextureName]
+        depthTexture = volumeManager.material().textures[depthTextureName]
 
         val compute = RichNode()
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("GridCellsToZero.comp"), this::class.java)))
@@ -210,6 +241,9 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         volumeManager.customUniforms.add("maxSupersegments")
         volumeManager.shaderProperties["maxSupersegments"] = maxSupersegments
+
+        colorTexture = volumeManager.material().textures[colorTextureName]
+        depthTexture = volumeManager.material().textures[depthTextureName]
 
         val compute = RichNode()
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("GridCellsToZero.comp"), this::class.java)))
