@@ -50,6 +50,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
     private var colorTexture: Texture? = null
     private var depthTexture: Texture? = null
+    private var numGeneratedTexture: Texture? = null
 
 
     /**
@@ -74,6 +75,19 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
             logger.error("Depth texture is null. Was VDIVolumeManager created?")
         }
         return depthTexture
+    }
+
+    /**
+     * Returns the output VDI numGenerated texture, containing the number of generated supersegments, if it exists, otherwise logs an error.
+     * This texture is generated in the first pass of the compact VDI generation.
+     *
+     * @return The numGenerated texture or null if it does not exist.
+     */
+    fun getNumGeneratedTextureOrNull(): Texture? {
+        if (numGeneratedTexture == null) {
+            logger.error("NumGenerated texture is null. Was VDIVolumeManager created?")
+        }
+        return numGeneratedTexture
     }
 
     /**
@@ -244,6 +258,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         colorTexture = volumeManager.material().textures[colorTextureName]
         depthTexture = volumeManager.material().textures[depthTextureName]
+        numGeneratedTexture = volumeManager.material().textures["SupersegmentsGenerated"]
 
         val compute = RichNode()
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("GridCellsToZero.comp"), this::class.java)))
