@@ -136,8 +136,19 @@ sealed class Shaders() {
 
                 null to f.readText()
             } else {
-                base.first.getResourceAsStream("$pathPrefix$spirvPath")?.readBytes() to
-                        base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
+                val b = base.first.getResourceAsStream("$pathPrefix$spirvPath")?.readBytes()
+                val bytes = if(b != null && b.isEmpty()) {
+                    null
+                } else {
+                    b
+                }
+
+                val code = base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
+                if(code != null && code.isEmpty() && bytes == null) {
+                    throw IllegalStateException("Neither shader bytecode nor shader code itself are available. Empty files?")
+                }
+
+                bytes to code
             }
 
             shaderPackage = ShaderPackage(base.first,
