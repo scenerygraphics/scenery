@@ -22,6 +22,7 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
+import kotlin.math.min
 
 /**
  * A class defining the properties and textures required to render a Volumetric Depth Image (VDI). Rendering a VDI requires generating
@@ -182,65 +183,6 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     }
 
     /**
-     * Returns the dimensions of the acceleration grid data structure of the VDI. These dimensions depend on the resolution of the VDI. When
-     * a parameter [vdiData] is supplied, the resolution of the VDI is inferred based on the metadata contained within. When the parameter is
-     * not provided, the resolution of the VDI represented by this object is used.
-     *
-     * @param[vdiData] Optional parameter containing the metadata ([VDIData]) associated with the VDI to which the acceleration grid belongs.
-     *
-     * @return The dimensions of the acceleration grid.
-     */
-    fun getAccelerationGridSize(vdiData: VDIData? = null) : Vector3f {
-        return if(vdiData == null) {
-            Vector3f(vdiWidth/8f, vdiHeight/8f, numSupersegments.toFloat())
-        } else {
-            Vector3f(vdiData.metadata.windowDimensions.x/8f, vdiData.metadata.windowDimensions.y/8f, numSupersegments.toFloat())
-        }
-    }
-
-    private fun getColorTextureType(): NumericType<*> {
-        return UnsignedByteType()
-    }
-
-    private fun getDepthTextureType(): NumericType<*> {
-        val intDepths = false
-        return if (intDepths) {
-            UnsignedShortType()
-        } else {
-            FloatType()
-        }
-    }
-
-    private fun getColorTextureChannels(): Int {
-        return 4
-    }
-
-    private fun generateColorTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
-        val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
-        return Texture(dimensions, 4, contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = getColorTextureType(),
-//            mipmap = false,
-            minFilter = Texture.FilteringMode.NearestNeighbour,
-            maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-    }
-
-    private fun generateDepthTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
-        val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
-        return Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = getDepthTextureType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-    }
-
-    private fun generateAccelerationTexture(buffer: ByteBuffer, dimensions: Vector3i? = null) : Texture {
-        val numGridCells = getAccelerationGridSize()
-        return if (dimensions == null) {
-            Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        } else {
-            Texture(dimensions, 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        }
-    }
-
-    /**
      * Attaches textures containing the VDI data for rendering.
      *
      * @param[colBuffer] A [ByteBuffer] containing the colors of the supsersegments in the VDI
@@ -254,7 +196,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         if(toBuffer == DoubleBuffer.First) {
             colorTexture = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
             depthTexture = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
-            accelerationTexture = generateAccelerationTexture(gridBuffer)
+            accelerationTexture = generateAccelerationTexture(vdiWidth, vdiHeight, numSupersegments, gridBuffer)
 
             material().textures[inputColorTexture] = colorTexture!!
             material().textures[inputDepthTexture] = depthTexture!!
@@ -263,7 +205,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         } else {
             colorTexture2 = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
             depthTexture2 = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
-            accelerationTexture2 = generateAccelerationTexture(gridBuffer)
+            accelerationTexture2 = generateAccelerationTexture(vdiWidth, vdiHeight, numSupersegments, gridBuffer)
 
             material().textures["${inputColorTexture}2"] = colorTexture2!!
             material().textures["${inputDepthTexture}2"] = depthTexture2!!
@@ -285,7 +227,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         val emptyDepthTexture = generateDepthTexture(1, 1, 1, emptyDepth)
 
         val emptyAccel = MemoryUtil.memCalloc(4)
-        val emptyAccelTexture = generateAccelerationTexture(emptyAccel, Vector3i(1, 1, 1))
+        val emptyAccelTexture = generateAccelerationTexture(1, 1, 1, emptyAccel)
 
         if (toBuffer == DoubleBuffer.First ) {
 
@@ -333,7 +275,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         depthTexture.addUpdate(depthUpdate)
 
 
-        val numGridCells = getAccelerationGridSize()
+        val numGridCells = getAccelerationGridSize(vdiWidth, vdiHeight, numSupersegments)
 
         val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, contents = null, usageType = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
@@ -430,6 +372,116 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
 
         fun getLinearizationOrder(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int) : Vector3i {
             return Vector3i(vdiWidth, vdiHeight, numSupersegments)
+        }
+
+        private fun getColorTextureType(): NumericType<*> {
+            return UnsignedByteType()
+        }
+
+        private fun getDepthTextureType(): NumericType<*> {
+            val intDepths = false
+            return if (intDepths) {
+                UnsignedShortType()
+            } else {
+                FloatType()
+            }
+        }
+
+        private fun getColorTextureChannels(): Int {
+            return 4
+        }
+
+        /**
+         * Calculates the size of the color buffer.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @return The size of the color buffer in bytes.
+         */
+        fun getColorBufferSize(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int): Int {
+            return vdiWidth * vdiHeight * numSupersegments * getColorTextureChannels() * if (getColorTextureType() is FloatType) {
+                4
+            } else {
+                //else we assume it is an unsigned byte
+                1
+            }
+        }
+
+        /**
+         * Calculates the size of the depth buffer.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @return The size of the depth buffer in bytes.
+         */
+        fun getDepthBufferSize(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int): Int {
+            return vdiWidth * vdiHeight * numSupersegments * 2 * if (getDepthTextureType() is FloatType) {
+                4
+            } else {
+                //else we assume it is an unsigned short
+                2
+            }
+        }
+
+        /**
+         * Calculates the size of the acceleration buffer, given the dimensions of the VDI.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @return The size of the acceleration buffer in bytes.
+         */
+        fun getAccelerationGridSize(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int) : Vector3f {
+            return Vector3f(min(vdiWidth/8f, 1f), min(vdiHeight/8f, 1f), min(numSupersegments.toFloat(), 1f))
+        }
+
+        /**
+         * Generates a color texture for the VDI.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @param buffer The buffer containing the color data.
+         * @return The generated color texture.
+         */
+        fun generateColorTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+            val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
+            return Texture(dimensions, 4, contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = getColorTextureType(),
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+        }
+
+        /**
+         * Generates a depth texture for the VDI.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @param buffer The buffer containing the depth data.
+         * @return The generated depth texture.
+         */
+        fun generateDepthTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+            val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
+            return Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = getDepthTextureType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        }
+
+        /**
+         * Generates an acceleration texture for the VDI.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @param buffer The buffer containing the acceleration data.
+         * @return The generated acceleration texture.
+         */
+        fun generateAccelerationTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+            val numGridCells = getAccelerationGridSize(vdiWidth, vdiHeight, numSupersegments)
+            return Texture(Vector3i(min(numGridCells.x.toInt(), 1), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
     }
 }
