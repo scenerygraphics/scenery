@@ -54,6 +54,32 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     private var depthTexture: Texture? = null
     private var numGeneratedTexture: Texture? = null
 
+    /**
+     * Returns the width of the VDI.
+     *
+     * @return The width of the VDI.
+     */
+    fun getVDIWidth(): Int {
+        return windowWidth
+    }
+
+    /**
+     * Returns the height of the VDI.
+     *
+     * @return The height of the VDI.
+     */
+    fun getVDIHeight(): Int {
+        return windowHeight
+    }
+
+    /**
+     * Returns the maximum number of supersegments.
+     *
+     * @return The maximum number of supersegments.
+     */
+    fun getMaxSupersegments(): Int {
+        return maxSupersegments
+    }
 
     /**
      * Returns the output VDI color texture, containing supersegment colors, if it exists, otherwise logs an error.
