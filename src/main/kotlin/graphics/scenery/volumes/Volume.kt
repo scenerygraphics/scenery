@@ -137,7 +137,7 @@ open class Volume(
         get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
         set(value) { setTransferFunctionRange(minDisplayRange, value) }
 
-    override var range: Pair<Float, Float>
+    override var displayRangeLimits: Pair<Float, Float>
         get() = when(dataSource) {
             VolumeDataSource.NullSource -> 0.0f to 0.0f
             is VolumeDataSource.RAISource<*> -> dataSource.type.toRange()
