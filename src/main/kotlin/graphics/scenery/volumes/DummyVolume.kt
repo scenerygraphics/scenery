@@ -40,8 +40,8 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"), HasT
             modifiedAt = System.nanoTime()
         }
 
-    /** A pair containing the min and max display range. */
-    override var range: Pair<Float, Float> = Pair<Float, Float>(minDisplayRange,maxDisplayRange)
+    /** A pair containing the min and max display range limits. */
+    override var displayRangeLimits: Pair<Float, Float> = Pair<Float, Float>(minDisplayRange,maxDisplayRange)
         get() = field
         set(m) {
             field = m

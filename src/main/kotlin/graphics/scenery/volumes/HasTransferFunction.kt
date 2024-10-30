@@ -16,7 +16,11 @@ interface HasTransferFunction {
     var transferFunction : TransferFunction
     var minDisplayRange : Float
     var maxDisplayRange : Float
-    var range: Pair<Float, Float>
+
+    /**
+     * The allowed value range for [minDisplayRange] and [maxDisplayRange]. Eg. 0 and Short.MAX_VALUE
+     */
+    var displayRangeLimits: Pair<Float, Float>
 
     /**
      * Load transfer function and display range from file that was written by [HasTransferFunction.saveTransferFunctionToFile]

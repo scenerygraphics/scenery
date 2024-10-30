@@ -46,16 +46,16 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
         // Range editor
         val initMinValue = max(tfContainer.minDisplayRange.toInt(), 100)
         minText = JTextField(initMinValue.toString())
-        minValueLabel = JLabel(String.format("%.1f", tfContainer.range.first))
+        minValueLabel = JLabel(String.format("%.1f", tfContainer.displayRangeLimits.first))
 
         val initMaxValue = max(tfContainer.maxDisplayRange.toInt(), 100)
         maxText = JTextField(initMaxValue.toString())
         maxText.horizontalAlignment = SwingConstants.RIGHT
-        maxValueLabel = JLabel(String.format("%.1f", tfContainer.range.second))
+        maxValueLabel = JLabel(String.format("%.1f", tfContainer.displayRangeLimits.second))
 
         rangeSlider = RangeSlider()
-        rangeSlider.minimum = tfContainer.range.first.roundToInt()
-        rangeSlider.maximum = tfContainer.range.second.roundToInt()
+        rangeSlider.minimum = tfContainer.displayRangeLimits.first.roundToInt()
+        rangeSlider.maximum = tfContainer.displayRangeLimits.second.roundToInt()
         rangeSlider.value = tfContainer.minDisplayRange.toInt()
         rangeSlider.upperValue = tfContainer.maxDisplayRange.toInt()
 
@@ -90,8 +90,8 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
     private fun updateConverter() {
         minText.text = rangeSlider.value.toString()
         maxText.text = rangeSlider.upperValue.toString()
-        minValueLabel.text = String.format("%.1f", tfContainer.range.first)
-        maxValueLabel.text = String.format("%.1f", tfContainer.range.second)
+        minValueLabel.text = String.format("%.1f", tfContainer.displayRangeLimits.first)
+        maxValueLabel.text = String.format("%.1f", tfContainer.displayRangeLimits.second)
 
         tfContainer.minDisplayRange = rangeSlider.value.toFloat()
         tfContainer.maxDisplayRange = rangeSlider.upperValue.toFloat()
