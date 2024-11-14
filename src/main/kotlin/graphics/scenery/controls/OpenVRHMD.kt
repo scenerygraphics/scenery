@@ -692,6 +692,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 if (errorLeft != EVRCompositorError_VRCompositorError_None
                     || errorRight != EVRCompositorError_VRCompositorError_None) {
                     logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+                    throw java.lang.Error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
                 }
             } catch (e: java.lang.Error) {
                 logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
@@ -766,6 +767,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 if (errorLeft != EVRCompositorError_VRCompositorError_None
                     || errorRight != EVRCompositorError_VRCompositorError_None) {
                     logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+                    throw java.lang.Error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
                 }
 
                 // transition source attachment
