@@ -81,7 +81,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         }
     }
 
-    /** Return the dimensions of a voxel as [Vector3f]. Anisotropic volumes will return Vector3f(1.0f),
+    /** Return the dimensions of a voxel as [Vector3f]. Isotropic volumes will return Vector3f(1.0f),
      * anisotropic volumes will return their scaling factors. */
     fun getVoxelScale(): Vector3f? {
         val d = firstSource()?.spimSource?.voxelDimensions
