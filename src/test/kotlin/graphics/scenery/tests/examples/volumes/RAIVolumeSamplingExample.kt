@@ -8,13 +8,13 @@ import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import java.nio.file.Paths
 import java.text.DecimalFormat
-import java.util.*
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
@@ -78,13 +78,13 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         tf.clear()
         tf.addControlPoint(0.00f, 0.0f)
         tf.addControlPoint(0.001f, 0.0f)
-        tf.addControlPoint(0.05f,1.0f)
+        tf.addControlPoint(0.01f,1.0f)
         tf.addControlPoint(1.00f, 1.0f)
 
         scene.addChild(volume)
 
 
-        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
+        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 2f)
             .forEach { scene.addChild(it) }
 
         val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
@@ -126,22 +126,49 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         } local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}"
                     )
 
-                    val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
-                    logger.debug("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+                    val (samples, _) = volume.sampleRay(localEntry, localExit) ?: (null to null)
+                    logger.debug("${samples?.size} samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if (samples == null) {
                         continue
                     }
 
-                    val diagram = if (connector.getChildrenByName("diagram").isNotEmpty()) {
-                        connector.getChildrenByName("diagram").first() as Line
+                    val diagram = if (scene.getChildrenByName("diagram").isNotEmpty()) {
+                        scene.getChildrenByName("diagram").first() as Line
                     } else {
                         val l = Line(capacity = (volume.getDimensions().length() * 2).roundToInt())
-                        connector.addChild(l)
+                        scene.addChild(l)
                         l
                     }
+
+                    val offset = 1f
+                    diagram.clearPoints()
+                    diagram.name = "diagram"
+                    diagram.edgeWidth = 0.005f
+                    diagram.material().diffuse = Vector3f(1f, 1f, 1f)
+                    diagram.spatial().position = Vector3f(0.0f, offset, 0f)
+//                    diagram.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
+                    val p4p3 = p4.spatial().position - p3.spatial().position
+                    p4p3.absolute()
+                    diagram.addPoint(p1.spatial().position)
+                    diagram.addPoint(p3.spatial().position)
+                    var point: Vector3f
+                    var z: Float
+                    samples.filterNotNull().forEachIndexed { i, sample ->
+                        // scale the Z value to fit between p3 and p4
+                        z = i.toFloat()/samples.size * p4p3.z + p3.spatial().position.z
+                        // stretch the sampled value with a large value, because the samples are really small
+                        point = Vector3f(0.0f, sample * 100f + offset/2f, z)
+                        diagram.addPoint(point)
+                    }
+                    diagram.addPoints(p4.spatial().position)
+                    diagram.addPoint(p2.spatial().position)
+                    // Adding two more points because Line never renders the last two points
+                    diagram.addPoint(Vector3f(0f))
+                    diagram.addPoints(Vector3f(0f))
+
                 }
-                Thread.sleep(200)
+                Thread.sleep(500)
             }
         }
     }

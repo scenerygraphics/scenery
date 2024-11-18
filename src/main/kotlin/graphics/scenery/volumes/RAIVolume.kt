@@ -9,12 +9,15 @@ import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.toFloatArray
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -44,9 +47,11 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
-        return OrientedBoundingBox(this,
-            Vector3f(-0.0f, -0.0f, -0.0f),
-            Vector3f(getDimensions()))
+        val scale = getVoxelScale() ?: Vector3f(0f,0f,0f)
+        return OrientedBoundingBox(
+            this, Vector3f(-0.0f, -0.0f, -0.0f),
+            Vector3f(getDimensions()) * scale
+        )
     }
 
     override fun localScale(): Vector3f {
@@ -73,6 +78,22 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             d
         } else {
             Vector3i(1, 1, 1)
+        }
+    }
+
+    /** Return the dimensions of a voxel as [Vector3f]. Isotropic volumes will return Vector3f(1.0f),
+     * anisotropic volumes will return their scaling factors. */
+    fun getVoxelScale(): Vector3f? {
+        val d = firstSource()?.spimSource?.voxelDimensions
+        if (d != null) {
+            val dims = d.dimensionsAsDoubleArray()
+            return Vector3f(
+                dims[0].toFloat(),
+                dims[1].toFloat(),
+                dims[2].toFloat()
+            )
+        } else {
+            return null
         }
     }
 
@@ -115,8 +136,10 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val start = rayStart
-        val end = rayEnd
+        val voxelDims = getVoxelScale() ?: return null
+
+        val start = rayStart / (dimensions * voxelDims )
+        val end = rayEnd / (dimensions * voxelDims )
 
         if (start.x !in 0.0f..1.0f || start.y !in 0.0f..1.0f || start.z !in 0.0f..1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -158,13 +181,114 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         else -> 1.0f
     }
 
+
+    override fun sampleRayGridTraversal(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, List<Vector3f?>> {
+        val d = getDimensions()
+        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
+        val voxelDimArray = firstSource()!!.spimSource.voxelDimensions.dimensionsAsDoubleArray()
+        // this contains the anisotropic scaling factors
+        val voxelDims = Vector3f(
+            voxelDimArray[0].toFloat(),
+            voxelDimArray[1].toFloat(),
+            voxelDimArray[2].toFloat()
+        )
+        // for the traversal we assume that every voxel has identical dimensions
+        val voxelSize = Vector3f(1f)
+
+        // the start and end points handed over by the AABB test assume isotropic scaling,
+        // so we need to scale it down to the actual dimensions (start and end points would exceed the domain otherwise)
+        val start = rayStart / voxelDims
+        val end = rayEnd / voxelDims
+
+        // clamp it just in case
+        val startClamped = Vector3f(
+            start.x.coerceIn(0.0f, dimensions.x),
+            start.y.coerceIn(0.0f, dimensions.y),
+            start.z.coerceIn(0.0f, dimensions.z),
+        )
+
+        val endClamped = Vector3f(
+            end.x.coerceIn(0.0f, dimensions.x),
+            end.y.coerceIn(0.0f, dimensions.y),
+            end.z.coerceIn(0.0f, dimensions.z),
+        )
+
+        val ray = endClamped - startClamped
+        val rayDir = Vector3f(ray).normalize()
+        val rayLength = ray.length()
+
+        // determine the initial grid direction
+        val stepX = if (rayDir.x >= 0) 1 else -1
+        val stepY = if (rayDir.y >= 0) 1 else -1
+        val stepZ = if (rayDir.z >= 0) 1 else -1
+
+        val tDeltaX = abs(voxelSize.x / rayDir.x)
+        val tDeltaY = abs(voxelSize.y / rayDir.y)
+        val tDeltaZ = abs(voxelSize.z / rayDir.z)
+
+        // this is where it all started
+        val voxelPos = Vector3f(
+            floor(startClamped.x),
+            floor(startClamped.y),
+            floor(startClamped.z)
+        )
+        logger.debug("starting with voxel pos $voxelPos")
+        val tMax = Vector3f(
+            if (stepX > 0) ((voxelPos.x + 1) * voxelSize.x - rayStart.x) / rayDir.x
+            else (voxelPos.x * voxelSize.x - rayStart.x) / rayDir.x,
+            if (stepY > 0) ((voxelPos.y + 1) * voxelSize.y - rayStart.y) / rayDir.y
+            else (voxelPos.y * voxelSize.y - rayStart.y) / rayDir.y,
+            if (stepZ > 0) ((voxelPos.z + 1) * voxelSize.z - rayStart.z) / rayDir.z
+            else (voxelPos.z * voxelSize.z - rayStart.z) / rayDir.z
+        )
+
+        val samplesList = mutableListOf<Float?>()
+        val samplesPosList = mutableListOf<Vector3f>()
+
+        // Start traversing the grid, with t being the already traversed length
+        var t = 0f
+        while (true) {
+            val currentPos = startClamped + rayDir * t
+            // For sampling, we need coordinates in UV space, so we normalize
+            val sampleValue = sample(Vector3f(currentPos).div(dimensions), false)
+            samplesList.add(sampleValue)
+            samplesPosList.add(currentPos)
+
+            // traversal has finished if the accumulated length exceeds the total ray length
+            if ((currentPos - rayStart).length() > rayLength) break
+
+            // decide the voxel direction to travel to next
+            if (tMax.x <= tMax.y && tMax.x <= tMax.z) {
+                t = tMax.x
+                voxelPos.x += stepX
+                tMax.x += tDeltaX
+            }
+            if (tMax.y <= tMax.z && tMax.y <= tMax.x) {
+                t = tMax.y
+                voxelPos.y += stepY
+                tMax.y += tDeltaY
+            }
+            if (tMax.z <= tMax.x && tMax.z <= tMax.y) {
+                t = tMax.z
+                voxelPos.z += stepZ
+                tMax.z += tDeltaZ
+            }
+        }
+
+        return Pair(samplesList, samplesPosList)
+    }
+
     /**
     This sample function is not finished yet, transferRangeMax function should be improved to fit different data type
      **/
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
-         val d = getDimensions()
-
-        val absoluteCoords = Vector3f(uv.x() * d.x(), uv.y() * d.y(), uv.z() * d.z())
+        val d = getDimensions()
+        val clampedUV = Vector3f(
+            uv.x.coerceIn(0f, 1f),
+            uv.y.coerceIn(0f, 1f),
+            uv.z.coerceIn(0f, 1f)
+        )
+        val absoluteCoords = Vector3f(clampedUV.x() * d.x(), clampedUV.y() * d.y(), clampedUV.z() * d.z())
         val absoluteCoordsD = Vector3i(floor(absoluteCoords.x()).toInt(), floor(absoluteCoords.y()).toInt(), floor(absoluteCoords.z()).toInt())
 
         val r = when(ds) {
@@ -183,11 +307,13 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         r.setPosition(absoluteCoordsD.z(),2)
 
         val value = r.get()
+        val finalresult: Any
 
-        val finalresult = when(value) {
+        finalresult = when (value) {
             is UnsignedShortType -> value.realFloat
             else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
         }
+
 
         val transferRangeMax = when(ds)
         {
