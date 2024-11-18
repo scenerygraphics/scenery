@@ -110,7 +110,7 @@ dependencies {
 
     implementation("info.picocli:picocli:4.7.6")
 
-    api("sc.fiji:bigdataviewer-core:10.4.14")
+    api("sc.fiji:bigdataviewer-core:10.6.3")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
