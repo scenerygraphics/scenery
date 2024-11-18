@@ -267,6 +267,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * Runs the OpenVR shutdown hooks
      */
     fun close() {
+        initialized = false
         VR_ShutdownInternal()
     }
 
