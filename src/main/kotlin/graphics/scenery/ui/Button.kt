@@ -8,7 +8,14 @@ import org.joml.Vector3f
 /**
  *  @author Jan Tiemann
  *  */
-class Button(text: String, height: Float = 1f,command: () -> Unit): TextBox(text,height = height) {
+class Button(
+    text: String,
+    height: Float = 1f,
+    command: () -> Unit,
+    val color: Vector3f = Vector3f(1f),
+    val pressedColor: Vector3f = Vector3f(0.5f)
+) :
+    TextBox(text, height = height) {
     /** only visually */
     var pressed: Boolean = false
         set(value) {
@@ -26,13 +33,11 @@ class Button(text: String, height: Float = 1f,command: () -> Unit): TextBox(text
                     position.z = 0f
                     needsUpdate = true
                 }
-                box.changeColorWithTouchable(Vector3f(1f))
+                box.changeColorWithTouchable(color)
             }
         }
 
     var stayPressed = false
-
-    var pressedColor = Vector3f(0.5f)
 
     init {
         box.addAttribute(Touchable::class.java, Touchable())
@@ -47,8 +52,7 @@ class Button(text: String, height: Float = 1f,command: () -> Unit): TextBox(text
             }
         ))
 
-
-        box.material().diffuse = Vector3f(1f)
+        box.material().diffuse = color
 
     }
 }
