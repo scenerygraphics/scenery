@@ -38,7 +38,7 @@ import kotlin.math.ceil
  */
 
 @Experimental
-class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int, val scene: Scene)
+class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: Int, private val maxSupersegments: Int, val scene: Scene)
 {
     private val logger by lazyLogger()
 
