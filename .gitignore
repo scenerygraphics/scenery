@@ -184,3 +184,15 @@ log.txt
 
 # ExampleRunner logs
 ExampleRunner-*/
+
+# VDI files
+*.vdi-metadata
+*.vdi-color
+*.vdi-depth
+*.vdi-alpha
+*.vdi-grid
+
+# General file types not required for git
+*.png
+*.raw
+*.zip
