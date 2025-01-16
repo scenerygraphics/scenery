@@ -168,8 +168,8 @@ open class VRGrab(
         fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
-            button: OpenVRHMD.OpenVRButton,
-            controllerSide: TrackerRole,
+            button: List<OpenVRHMD.OpenVRButton>,
+            controllerSide: List<TrackerRole>,
             holdToDrag: Boolean = true,
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
@@ -179,7 +179,7 @@ open class VRGrab(
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
-                        if (controllerSide == device.role) {
+                        if (controllerSide.contains(device.role)) {
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
@@ -193,7 +193,9 @@ open class VRGrab(
                             )
 
                             hmd.addBehaviour(name, grabBehaviour)
-                            hmd.addKeyBinding(name, device.role, button)
+                            button.forEach {
+                                hmd.addKeyBinding(name, device.role, it)
+                            }
                             future.complete(grabBehaviour)
                         }
                     }
