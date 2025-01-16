@@ -46,8 +46,8 @@ open class TextBox(
 
         var textGeom = board.geometry().vertices
 
-        fun updateSize() {
-            if (textGeom != board.geometry().vertices) {
+        fun updateSize(force: Boolean = false) {
+            if (textGeom != board.geometry().vertices || force) {
                 val bv = board.geometry().vertices.duplicate().clear()
                 var maxX = minSize
                 while (bv.hasRemaining()) {
@@ -71,7 +71,7 @@ open class TextBox(
             }
         }
 
-        updateSize()
+        updateSize(true)
         this.update += { updateSize() }
 
         initGrabable(box)

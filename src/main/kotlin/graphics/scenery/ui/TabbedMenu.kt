@@ -12,14 +12,13 @@ class TabbedMenu(tabs: List<MenuTab>) : Column(invertedYOrder = false){
         if(tabs.isEmpty()) throw IllegalArgumentException("Tabbed Menu needs at least one sub menu.")
         name = "TabbedMenu"
 
-
         tabs.forEach { tab ->
-            tab.menu.middleAlign = false
-            tab.button = Button(tab.name) {
+            tab.menu.centerVertically = false
+            tab.button = Button(tab.name, command = {
                 openMenu(tab)
             }.apply {
-                stayPressed = true
-            }
+                tab.button?.stayPressed = true
+            })
         }
 
         this.addChild(Row(*tabs.map { it.button!! }.toTypedArray()))
