@@ -17,10 +17,10 @@ class Switch(label: String, start: Boolean, middleAlign: Boolean = false, onChan
 
         val knob = Knob(start,onChange = onChange)
         this.addChild(knob)
-        this.addChild(Button(label){knob.toggle()})
+        this.addChild(Button(label, command = knob::toggle))
     }
 
-    private class Knob(var value:Boolean,
+    private class Knob(var value: Boolean,
                        val onColor: Vector3f = Vector3f(0f,0.8f,0f),
                        val offColor: Vector3f = Vector3f(0.5f),
                        val onChange: (Boolean) -> Unit)
