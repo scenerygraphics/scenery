@@ -47,7 +47,7 @@ open class VRTouch(
             }
 
             val hit = targets().filter { node ->
-                controllerHitbox.spatialOrNull()?.intersects(node) ?: false
+                controllerHitbox.spatialOrNull()?.intersects(node, true) ?: false
             }.toList()
 
             if(hit.isNotEmpty()){
@@ -81,15 +81,16 @@ open class VRTouch(
     companion object {
         /**
          * Convenience method for adding touch behaviour
+         * @param customTip provide a custom node to be used for interaction instead of the controller hitbox.
          */
         fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
             controllerSide: List<TrackerRole>,
             vibrate: Boolean,
-            onTouch: (() -> Unit)? = null
-        ) : Future<VRTouch>{
-            val future = CompletableFuture<VRTouch>()
+            onTouch: (() -> Unit)? = null,
+            customTip: Node? = null
+        ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
@@ -97,16 +98,14 @@ open class VRTouch(
                             val name = "VRDPress:${hmd.trackingSystemName}:${device.role}"
                             val touchBehaviour = VRTouch(
                                 name,
-                                controller.children.first(),
+                                customTip ?: controller.children.first(),
                                 device,
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Touchable::class.java) != null }) },
                                 if (vibrate) fun(){ (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
-                            future.complete(touchBehaviour)
                         }
                     }
                 }
             }
-            return future
         }
 
         /**
