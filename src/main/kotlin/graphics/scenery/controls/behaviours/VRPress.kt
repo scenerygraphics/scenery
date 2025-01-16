@@ -138,14 +138,14 @@ open class VRPress(
             scene: Scene,
             hmd: OpenVRHMD,
             buttons: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: TrackerRole,
+            controllerSide: List<TrackerRole>,
             onPress: ((Node, OpenVRHMD.OpenVRButton) -> Unit)? = null
         ): Future<List<VRPress>> {
             val future = CompletableFuture<List<VRPress>>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
-                        if (controllerSide == device.role) {
+                        if (controllerSide.contains(device.role)) {
                             val behaviors = buttons.map { button ->
                                 val name = "VRDPress:${hmd.trackingSystemName}:${device.role}:$button"
                                 val pressBehaviour = VRPress(
