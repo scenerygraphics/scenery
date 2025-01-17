@@ -15,7 +15,7 @@ uniform sampler3D volume;
 uniform sampler2D transferFunction;
 uniform sampler2D colorMap;
 
-vec4 sampleVolume( vec4 wpos )
+vec4 sampleVolume( vec4 wpos, vec3 kernelOffset )
 {
     bool cropping = slicingMode == 1 || slicingMode == 3;
     bool slicing = slicingMode == 2 || slicingMode == 3;
@@ -28,7 +28,7 @@ vec4 sampleVolume( vec4 wpos )
         float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
 
         // compare position to slicing plane
-        // negative w inverts the comparision
+        // negative w inverts the comparison
         isCropped = isCropped || (slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w));
 
         float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
@@ -41,10 +41,9 @@ vec4 sampleVolume( vec4 wpos )
         return vec4(0);
     }
 
-
     vec3 pos = (im * wpos).xyz + 0.5;
 
-    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
+    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) + kernelOffset / textureSize(volume, 0) ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
