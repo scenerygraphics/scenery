@@ -18,10 +18,10 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
-import org.janelia.saalfeldlab.n5.GzipCompression
-import org.janelia.saalfeldlab.n5.N5FSReader
-import org.janelia.saalfeldlab.n5.N5FSWriter
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils
+//import org.janelia.saalfeldlab.n5.GzipCompression
+//import org.janelia.saalfeldlab.n5.N5FSReader
+//import org.janelia.saalfeldlab.n5.N5FSWriter
+//import org.janelia.saalfeldlab.n5.imglib2.N5Utils
 import java.nio.file.Files
 
 
@@ -50,12 +50,12 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         // and save it to a temporary location.
         val datasetName = "testDataset"
         val n5path = Files.createTempDirectory("scenery-t1-head-n5")
-        val n5 = N5FSWriter(n5path.toString())
-        N5Utils.save(img, n5, datasetName, intArrayOf(img.dimension(0).toInt(), img.dimension(1).toInt(), img.dimension(2).toInt()), GzipCompression())
+//        val n5 = N5FSWriter(n5path.toString())
+//        N5Utils.save(img, n5, datasetName, intArrayOf(img.dimension(0).toInt(), img.dimension(1).toInt(), img.dimension(2).toInt()), GzipCompression())
 
         // load the multiresolution N5 dataset from the temporary location and wrap it
         // as [net.imglib2.Volatile] dataset.
-        val ooc: RandomAccessibleInterval<UnsignedShortType> = N5Utils.openVolatile(N5FSReader(n5path.toString()), datasetName)
+        val ooc: RandomAccessibleInterval<UnsignedShortType>? = null //N5Utils.openVolatile(N5FSReader(n5path.toString()), datasetName)
         val wrapped = VolatileViews.wrapAsVolatile(ooc)
 
         // When loading datasets with multiple resolution levels, it's important to use Volatile types

@@ -4,6 +4,7 @@ import scenery.*
 import java.net.URL
 
 plugins {
+    `java-library`
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
     kotlin("jvm")
     kotlin("kapt")
@@ -12,10 +13,11 @@ plugins {
     scenery.base
     scenery.publish
     scenery.sign
-//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
     id("com.github.johnrengelman.shadow") apply false
 }
+
+
 
 repositories {
     mavenCentral()
@@ -40,6 +42,7 @@ val lwjglArtifacts = listOf(
         "lwjgl-lz4",
         "lwjgl-zstd"
 )
+
 
 dependencies {
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
@@ -113,6 +116,8 @@ dependencies {
     api("sc.fiji:bigdataviewer-core:10.4.14")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.3") {
+        exclude("sc.fiji", "bigdataviewer-core")
+        exclude("sc.fiji", "bigdataviewer-vistools")
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
@@ -123,9 +128,8 @@ dependencies {
         exclude("org.lwjgl", "lwjgl-bom")
         exclude("org.lwjgl", "lwjgl")
     }
-
-    implementation("org.janelia.saalfeldlab:n5")
-    implementation("org.janelia.saalfeldlab:n5-imglib2")
+//    implementation("org.janelia.saalfeldlab:n5")
+//    implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
         implementation("org.biojava:biojava-$it:6.0.5") {
             exclude("org.slf4j", "slf4j-api")
@@ -154,6 +158,7 @@ dependencies {
 val isRelease: Boolean
     get() = System.getProperty("release") == "true"
 
+
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
@@ -165,6 +170,10 @@ tasks {
     withType<JavaCompile>().all {
         targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
         sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+
+        // Set high error limit, such that all JPMS errors are shown, it's over 9000!
+        options.compilerArgs.addAll("-Xmaxerrs 9001".split(" "))
+
     }
 
     withType<GenerateMavenPom>().configureEach {
