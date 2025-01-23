@@ -71,7 +71,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val numGridCells = vdiNode.getAccelerationGridSize()
+        val numGridCells = VDINode.getAccelerationGridSize(vdiNode.vdiWidth, vdiNode.vdiHeight, vdiNode.numSupersegments)
 
         val gridBuffer = MemoryUtil.memAlloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
         if(skipEmpty) {
