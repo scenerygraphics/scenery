@@ -28,7 +28,7 @@ fun Texture.fetchFromGPU(): Boolean {
         val start = System.nanoTime()
         this.contents = ref.copyTo(buffer, true)
         val end = System.nanoTime()
-        logger.info("The request textures of size ${this.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+        logger.debug("The request textures of size ${this.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
     } else {
         logger.error("In fetchFromGPU: Texture not accessible")
         return false
