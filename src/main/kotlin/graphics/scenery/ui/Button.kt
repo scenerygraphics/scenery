@@ -4,6 +4,7 @@ import graphics.scenery.controls.behaviours.Pressable
 import graphics.scenery.controls.behaviours.SimplePressable
 import graphics.scenery.controls.behaviours.Touchable
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 
 /** A button with text field for VR interaction.
  * @param command is executed when the user interacts with the button.
@@ -11,6 +12,7 @@ import org.joml.Vector3f
  * @param pressedColor color after being pressed
  * @param byTouch allows the button to be pressed by simply touching it. If this is set to false, the user needs to press Grab.
  * @param stayPressed whether the button should stay pressed after being triggered
+ * @param depressDelay how long to wait until the button becomes depressed again, in millisecond (if stayPressed is false)
  * @author Jan Tiemann
  * @author Samuel Pantze
  */
@@ -20,6 +22,7 @@ class Button(
     command: () -> Unit,
     val byTouch: Boolean = false,
     var stayPressed: Boolean = false,
+    val depressDelay: Int = 0,
     val color: Vector3f = Vector3f(1f),
     val pressedColor: Vector3f = Vector3f(0.5f)
 ) :
@@ -35,6 +38,13 @@ class Button(
                     needsUpdate = true
                 }
                 box.changeColorWithTouchable(pressedColor)
+                // Release the button after a while if it's not supposed to stay pressed
+                if (!stayPressed) {
+                    thread {
+                        Thread.sleep(depressDelay.toLong())
+                        release()
+                    }
+                }
             } else {
                 this.spatial {
                     scale.z = 1f
@@ -63,7 +73,7 @@ class Button(
         box.addAttribute(
             Pressable::class.java, SimplePressable(
                 onPress = { _, _ ->
-                    if (!byTouch) {
+                    if (!byTouch && !pressed) {
                         command()
                         pressed = true
                     }
