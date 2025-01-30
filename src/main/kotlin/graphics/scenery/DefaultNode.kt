@@ -103,17 +103,24 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
     }
 
     override fun getMaximumBoundingBox(): OrientedBoundingBox {
-        if(boundingBox == null && children.size == 0) {
-            return OrientedBoundingBox(this,0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        if (boundingBox == null && children.size == 0) {
+            return OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
 
-        if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(this,boundingBox?.min ?: Vector3f(0.0f, 0.0f, 0.0f), boundingBox?.max ?: Vector3f(0.0f, 0.0f, 0.0f))
+        if (children.none { it !is BoundingGrid }) {
+            return OrientedBoundingBox(
+                this,
+                boundingBox?.min ?: Vector3f(0.0f, 0.0f, 0.0f),
+                boundingBox?.max ?: Vector3f(0.0f, 0.0f, 0.0f)
+            )
         }
 
         return children
-            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox().translate(it.spatialOrNull()?.position ?: Vector3f(0f, 0f, 0f)) }
-            .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> lhs.expand(lhs, rhs) })
+            .filter { it !is BoundingGrid }
+            .map { it.getMaximumBoundingBox().translate(it.spatialOrNull()?.position ?: Vector3f(0f, 0f, 0f)) }
+            .fold(
+                boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            ) { lhs, rhs -> lhs.expand(lhs, rhs) }
     }
 
     override fun runRecursive(func: (Node) -> Unit) {
