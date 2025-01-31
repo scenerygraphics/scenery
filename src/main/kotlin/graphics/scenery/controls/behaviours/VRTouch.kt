@@ -35,8 +35,8 @@ open class VRTouch(
     init {
         // this has to be done in the post update otherwise the intersection test causes a stack overflow
         controllerHitbox.postUpdate.add {
-            if(!active){
-                if (selected.isNotEmpty()){
+            if (!active) {
+                if (selected.isNotEmpty()) {
                     selected.forEach {
                         unapplySelectionColor(it)
                         it.getAttributeOrNull(Touchable::class.java)?.onRelease?.invoke(controller)
@@ -47,12 +47,10 @@ open class VRTouch(
             }
 
             val hit = targets().filter { node ->
+                // Only interact with visible nodes
+                if (!node.visible) { return@filter false }
                 controllerHitbox.spatialOrNull()?.intersects(node, true) ?: false
             }.toList()
-
-            if(hit.isNotEmpty()){
-                onTouch?.invoke()
-            }
 
             val new = hit.filter { !selected.contains(it) }
             val released = selected.filter { !hit.contains(it) }
@@ -63,7 +61,7 @@ open class VRTouch(
             }
 
             selected.forEach { node ->
-                node.ifHasAttribute(Touchable::class.java){
+                node.ifHasAttribute(Touchable::class.java) {
                     this.onHold?.invoke(controller)
                 }
             }
@@ -101,7 +99,7 @@ open class VRTouch(
                                 customTip ?: controller.children.first(),
                                 device,
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Touchable::class.java) != null }) },
-                                if (vibrate) fun(){ (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
+                                if (vibrate) fun() { (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
                         }
                     }
                 }
