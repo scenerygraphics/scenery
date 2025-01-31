@@ -27,6 +27,11 @@ class Button(
     val pressedColor: Vector3f = Vector3f(0.5f)
 ) :
     TextBox(text, height = height) {
+    /** Flag that determines whether the button is ready to be released from depressDelay. */
+    private var depressReady = true
+    /** Flag that determines whether we are currently touching the button. If yes, we don't want to softRelease yet. */
+    private var isTouching = false
+
     /** only visually */
     var pressed: Boolean = false
         set(value) {
@@ -40,8 +45,10 @@ class Button(
                 box.changeColorWithTouchable(pressedColor)
                 // Release the button after a while if it's not supposed to stay pressed
                 if (!stayPressed) {
+                    depressReady = false
                     thread {
                         Thread.sleep(depressDelay.toLong())
+                        depressReady = true
                         release()
                     }
                 }
@@ -60,12 +67,14 @@ class Button(
             onTouch = {
                 if (byTouch) {
                     command()
+                    isTouching = true
                     pressed = true
                 }
             },
             onRelease = {
                 if (byTouch) {
-                    pressed = false || stayPressed
+                    isTouching = false
+                    release()
                 }
             },
             onHoldChangeDiffuseTo = pressedColor
@@ -89,8 +98,10 @@ class Button(
 
     }
 
-    /** Releases the button if it was pressed. */
-    fun release() {
-        pressed = false
+    /** Releases the button if it was pressed, but only if the depressDelay allows us to release it. */
+    fun release(force: Boolean = false) {
+        if (depressReady && !stayPressed && !isTouching || force) {
+            pressed = false
+        }
     }
 }
