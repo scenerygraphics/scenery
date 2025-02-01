@@ -343,13 +343,15 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         }
 
-        val repeat = when(texture.texWrap()) {
+        var repeat = when(texture.texWrap()) {
             // TODO: Fix this in BigVolumeViewer
             BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToEdge
             BVVTexture.Wrap.CLAMP_TO_EDGE -> RepeatMode.ClampToEdge
             BVVTexture.Wrap.REPEAT -> RepeatMode.Repeat
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
+
+        repeat = RepeatMode.ClampToEdge
 
         val material = node.material()
         if (texture is TextureCache) {
