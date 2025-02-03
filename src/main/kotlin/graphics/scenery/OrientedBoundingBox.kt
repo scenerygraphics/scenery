@@ -71,12 +71,14 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
      * Checks this [OrientedBoundingBox] for intersection with [other], and returns
      * true if the bounding boxes do intersect.
      *
-     * If [precise] is true, the intersection test will be performed using oriented bounding boxes (OBBs),
-     * otherwise, a faster, but less precise bounding sphere test is performed.
+     * If [precise] is true, the intersection test will still test with the less precise bounding sphere test first,
+     * and if it returns true a more precise test will be performed using oriented bounding boxes (OBBs).
      */
     @JvmOverloads
     fun intersects(other: OrientedBoundingBox, precise: Boolean = false): Boolean {
-        return if(precise) {
+        val approxResult =
+            other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
+        return if(precise && approxResult) {
             Intersectionf.testObOb(
                 this.center,
                 this.n.spatialOrNull()!!.localX,
@@ -90,7 +92,7 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
                 other.halfSize
             )
         } else {
-            other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
+            return approxResult
         }
     }
 
