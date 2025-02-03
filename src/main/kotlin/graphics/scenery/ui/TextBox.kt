@@ -66,6 +66,7 @@ open class TextBox(
                     )
                     needsUpdate = true
                 }
+                box.generateBoundingBox()
                 width = maxX
                 textGeom = board.geometry().vertices
             }
