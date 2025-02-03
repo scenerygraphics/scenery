@@ -46,7 +46,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         boundingBox = generateBoundingBox()
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox {
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         val scale = getVoxelScale() ?: Vector3f(0f,0f,0f)
         return OrientedBoundingBox(
             this, Vector3f(-0.0f, -0.0f, -0.0f),
