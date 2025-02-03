@@ -180,14 +180,20 @@ interface Node : Networkable {
      * geometry information into consideration if this Node implements [Geometry].
      * In case a bounding box cannot be determined, the function will return null.
      */
-    fun generateBoundingBox(): OrientedBoundingBox? {
+    fun generateBoundingBox(includeChildren: Boolean = true): OrientedBoundingBox? {
         val geometry = geometryOrNull()
         if(geometry == null) {
             logger.warn("$name: Assuming 3rd party BB generation")
             return boundingBox
         } else {
-            boundingBox = geometry.generateBoundingBox(children)
-            return boundingBox
+            if (includeChildren) {
+                boundingBox = geometry.generateBoundingBox(children)
+                return boundingBox
+            } else {
+                boundingBox = geometry.generateBoundingBox(listOf())
+                return boundingBox
+            }
+
         }
     }
 

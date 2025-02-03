@@ -38,7 +38,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         boundingBox = generateBoundingBox()
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox {
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         val source = (ds.sources[0].spimSource as TransformedSource).wrappedSource as? BufferSource<*>
         val sizes = if(source != null) {
             val min = Vector3f(0.0f)

@@ -61,6 +61,9 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     /** Slack around transparent objects, 2% by default. */
     var slack = 0.02f
 
+    /** Whether to consider the node's children in bounding box generation. */
+    var includeChildren = true
+
     /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
         set(value) {
@@ -130,7 +133,11 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
     protected fun updateFromNode() {
         node?.let { node ->
-            val maxBoundingBox = node.getMaximumBoundingBox()
+            val maxBoundingBox = if (includeChildren) {
+                node.getMaximumBoundingBox()
+            } else {
+                node.generateBoundingBox(false) ?: OrientedBoundingBox(node, Vector3f(0f), Vector3f(0f))
+            }
             nodeBoundingBoxHash = maxBoundingBox.hashCode()
 
 

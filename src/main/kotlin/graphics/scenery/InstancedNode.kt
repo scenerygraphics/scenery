@@ -59,7 +59,7 @@ open class InstancedNode(template: Node, name: String = "InstancedNode") : Defau
         return node
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox? {
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         //TODO? generate joint boundingbox of all instances, set bounding box
         return template?.generateBoundingBox()
     }
@@ -73,7 +73,7 @@ open class InstancedNode(template: Node, name: String = "InstancedNode") : Defau
             addSpatial()
         }
 
-        override fun generateBoundingBox(): OrientedBoundingBox? {
+        override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
             return instancedParent.template?.generateBoundingBox()
         }
     }
