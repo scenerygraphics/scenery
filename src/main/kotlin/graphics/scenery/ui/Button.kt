@@ -29,7 +29,7 @@ class Button(
     TextBox(text, height = height) {
     /** Flag that determines whether the button is ready to be released from depressDelay. */
     private var depressReady = true
-    /** Flag that determines whether we are currently touching the button. If yes, we don't want to softRelease yet. */
+    /** Flag that determines whether we are currently touching the button. If yes, we don't want to release from depressDelay yet. */
     private var isTouching = false
 
     /** only visually */

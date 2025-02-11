@@ -84,6 +84,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean
             blending.colorBlending = Blending.BlendOp.add
             blending.alphaBlending = Blending.BlendOp.add
             cullingMode = Material.CullingMode.None
+            depthOp = Material.DepthTest.Always
         }
 
         needsPreUpdate = true
