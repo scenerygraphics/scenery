@@ -551,7 +551,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                         val dimensionsChanged = Vector3i(newDimensions).sub(gt.dimensions).length() > 0.0001f
 
                         if(dimensionsChanged) {
-                            logger.warn("*** SIZE CHANGE FOR $name ***")
+                            logger.debug("*** SIZE CHANGE FOR $name ***")
                             logger.debug("Reallocating for size change {} -> {}", gt.dimensions, newDimensions)
 
                             gt.clearUpdates()
