@@ -220,7 +220,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
 
-            logger.info("Selected present mode: ${swapchainModeToName(swapchainPresentMode)} with $desiredNumberOfSwapchainImages images")
+            logger.debug("Selected present mode: ${swapchainModeToName(swapchainPresentMode)} with $desiredNumberOfSwapchainImages images")
 
             val currentWidth = surfCaps.currentExtent().width()
             val currentHeight = surfCaps.currentExtent().height()
@@ -404,7 +404,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 throw RuntimeException("Presentation queue != graphics queue")
             }
 
-            logger.info("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
+            logger.debug("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
             presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
             // Get list of supported formats
