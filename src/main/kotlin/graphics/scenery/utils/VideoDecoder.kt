@@ -266,8 +266,7 @@ class VideoDecoder(val filename: String) {
         val data = pFrame.data(0)
         val l = pFrame.linesize(0)
         for (y in 0 until height) {
-            val h = height - 1 - y
-            data.position((h * l).toLong()).get(image, width * y * 4, width * 4)
+            data.position((y * l).toLong()).get(image, width * y * 4, width * 4)
         }
         return image
     }
