@@ -55,7 +55,7 @@ class SimpleVolumeServerExample : SceneryBase("Volume Server Example", 512, 512)
         scene.addChild(volume)
 
         settings.set("VideoEncoder.StreamVideo", true)
-        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
+        settings.set("VideoEncoder.StreamingAddress", "rtp://" + Settings().get("ServerAddress", "127.0.0.1").toString().replaceFirst(Regex("^[a-zA-Z]+://"), "") + ":5004")
         renderer!!.recordMovie()
 
         renderer!!.runAfterRendering.add {
