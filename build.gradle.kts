@@ -14,7 +14,7 @@ plugins {
     scenery.sign
 //    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") apply false
+    id("com.github.johnrengelman.shadow") apply true
 }
 
 repositories {
@@ -105,7 +105,7 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
-    implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
+    implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.172")
 
     implementation("info.picocli:picocli:4.7.6")
@@ -165,6 +165,11 @@ tasks {
     withType<JavaCompile>().all {
         targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
         sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+    }
+
+    task<Jar>("testJar") {
+        archiveClassifier.set("tests")
+        from(sourceSets.test.get().output)
     }
 
     withType<GenerateMavenPom>().configureEach {
