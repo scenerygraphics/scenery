@@ -10,6 +10,7 @@ import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.TransferFunctionEditor
 import org.joml.Vector3f
 import org.joml.Vector3i
+import java.io.File
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
@@ -67,11 +68,19 @@ class SimpleVolumeClient : SceneryBase("Volume Client", 512, 512) {
             scene.addChild(this)
         }
 
-        val videoDecoder = VideoDecoder("scenery-stream.sdp")
         thread {
             while(!renderer!!.firstImageReady) {
                 Thread.sleep(50)
             }
+            logger.info("Searching for SDP file: scenery-stream.sdp. Please make sure the appropriate SDP file for the " +
+                "streaming video is present in the working directory.")
+
+            while (!File("scenery-stream.sdp").exists()) {
+                Thread.sleep(100)
+            }
+
+            logger.info("Found SDP file. Starting video decoding.")
+            val videoDecoder = VideoDecoder("scenery-stream.sdp")
 
             videoDecoder.decodeFrameByFrame(drawFrame)
         }
