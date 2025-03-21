@@ -35,7 +35,7 @@ import java.util.zip.Inflater
 class NodePublisher(
     override var hub: Hub?,
     //ip: String = "tcp://127.0.0.1",
-    ip: String = "tcp://localhost",
+    ip: String = "tcp://0.0.0.0",
     portMain: Int = 7777,
     portBackchannel: Int = 6666,
     val context: ZContext
