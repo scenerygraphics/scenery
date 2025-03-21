@@ -170,34 +170,54 @@ class VideoEncoder(
             actualFrameWidth = frameWidth.nearestWholeMultipleOf(2)
             actualFrameHeight = frameHeight.nearestWholeMultipleOf(2)
 
-            val encoders = listOf<Triple<String, AVCodec?, (AVCodecContext) -> AVCodecContext?>>(
-                Triple("NVenc", avcodec_find_encoder_by_name("${format.toString().lowercase()}_nvenc"), { context -> context }),
-
-                Triple("AMD AMF", avcodec_find_encoder_by_name("${format.toString().lowercase()}_amf"), { context -> context }),
-
-                Triple("Intel Quick Sync Video", avcodec_find_encoder_by_name("${format.toString().lowercase()}_qsv")) { context: AVCodecContext ->
-                    logger.debug("Creating QuickSync device")
-                    val device = AVBufferRef()
-                    val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)
-
-                    if (create < 0) {
-                        logger.error("Could not open QSV device: ${ffmpegErrorString(create)}")
-                        null
-                    } else {
-                        context.pix_fmt(AV_PIX_FMT_NV12)
-                        context.hw_device_ctx(device)
+            val encoders = if(disableHWAcceleration == true) {
+                listOf<Triple<String, AVCodec?, (AVCodecContext) -> AVCodecContext?>>(
+                    Triple("Software encoder", avcodec_find_encoder(outputContext.video_codec_id())) { context ->
                         av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
+                        av_opt_set(context.priv_data(), "tune", "zerolatency", 0)
+                        av_opt_set(context.priv_data(), "repeat-headers", "1", 0)
                         context
                     }
-                },
+                )
+            } else {
+                listOf<Triple<String, AVCodec?, (AVCodecContext) -> AVCodecContext?>>(
+                    Triple(
+                        "NVenc",
+                        avcodec_find_encoder_by_name("${format.toString().lowercase()}_nvenc"),
+                        { context -> context }),
 
-                Triple("Software encoder", avcodec_find_encoder(outputContext.video_codec_id())) { context ->
-                    av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
-                    av_opt_set(context.priv_data(), "tune", "zerolatency", 0)
-                    av_opt_set(context.priv_data(), "repeat-headers", "1", 0)
-                    context
-                }
-            )
+                    Triple(
+                        "AMD AMF",
+                        avcodec_find_encoder_by_name("${format.toString().lowercase()}_amf"),
+                        { context -> context }),
+
+                    Triple(
+                        "Intel Quick Sync Video",
+                        avcodec_find_encoder_by_name("${format.toString().lowercase()}_qsv")
+                    ) { context: AVCodecContext ->
+                        logger.debug("Creating QuickSync device")
+                        val device = AVBufferRef()
+                        val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)
+
+                        if (create < 0) {
+                            logger.error("Could not open QSV device: ${ffmpegErrorString(create)}")
+                            null
+                        } else {
+                            context.pix_fmt(AV_PIX_FMT_NV12)
+                            context.hw_device_ctx(device)
+                            av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
+                            context
+                        }
+                    },
+
+                    Triple("Software encoder", avcodec_find_encoder(outputContext.video_codec_id())) { context ->
+                        av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
+                        av_opt_set(context.priv_data(), "tune", "zerolatency", 0)
+                        av_opt_set(context.priv_data(), "repeat-headers", "1", 0)
+                        context
+                    }
+                )
+            }
                 .mapNotNull {
                     val codec = it.second ?: return@mapNotNull null
 
