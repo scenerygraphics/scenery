@@ -65,7 +65,7 @@ class Button(
     init {
         box.addAttribute(Touchable::class.java, Touchable(
             onTouch = {
-                if (byTouch) {
+                if (byTouch && !pressed) {
                     command()
                     isTouching = true
                     pressed = true
