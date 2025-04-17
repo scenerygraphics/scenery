@@ -24,6 +24,7 @@ import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import kotlin.math.ceil
+import kotlin.math.max
 
 /**
  * Class for creating and maintaining a [VolumeManager] for generating Volumetric Depth Images (VDIs).
@@ -53,6 +54,33 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     private var colorTexture: Texture? = null
     private var depthTexture: Texture? = null
     private var numGeneratedTexture: Texture? = null
+
+    var maxColorBufferSize = -1
+        private set
+        get() {
+            if (field == -1) {
+                logger.error("Color buffer size is not set. Was VDIVolumeManager created?")
+            }
+            return field
+        }
+
+    var maxDepthBufferSize = -1
+        private set
+        get() {
+            if (field == -1) {
+                logger.error("Depth buffer size is not set. Was VDIVolumeManager created?")
+            }
+            return field
+        }
+
+    var prefixBufferSize = -1
+        private set
+        get() {
+            if (field == -1) {
+                logger.error("Prefix buffer size is not set. Was VDIVolumeManager created?")
+            }
+            return field
+        }
 
     /**
      * Returns the width of the VDI.
@@ -156,9 +184,11 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
+        maxColorBufferSize = windowHeight*windowWidth*4*maxSupersegments*4
+        colorBuffer = MemoryUtil.memCalloc(maxColorBufferSize)
 
-        depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
+        maxDepthBufferSize = windowHeight*windowWidth*2*maxSupersegments*2 * 2
+        depthBuffer = MemoryUtil.memCalloc(maxDepthBufferSize)
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
@@ -219,14 +249,17 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         val totalMaxSupersegments = maxSupersegments * windowWidth * windowHeight
 
-        colorBuffer = MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
-        depthBuffer = MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
+        maxColorBufferSize = 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4
+        maxDepthBufferSize = 2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4
+        colorBuffer = MemoryUtil.memCalloc(maxColorBufferSize)
+        depthBuffer = MemoryUtil.memCalloc(maxDepthBufferSize)
 
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
         gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
-        prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+        prefixBufferSize = windowHeight * windowWidth * 4
+        prefixBuffer = MemoryUtil.memCalloc(prefixBufferSize)
         thresholdBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
         numGeneratedBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
 
