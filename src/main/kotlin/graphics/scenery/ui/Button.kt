@@ -4,6 +4,7 @@ import graphics.scenery.controls.behaviours.Pressable
 import graphics.scenery.controls.behaviours.SimplePressable
 import graphics.scenery.controls.behaviours.Touchable
 import org.joml.Vector3f
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /** A button with text field for VR interaction.
@@ -31,6 +32,8 @@ class Button(
     private var depressReady = true
     /** Flag that determines whether we are currently touching the button. If yes, we don't want to release from depressDelay yet. */
     private var isTouching = false
+
+    var enabled: AtomicBoolean = AtomicBoolean(true)
 
     /** only visually */
     var pressed: Boolean = false
@@ -65,16 +68,18 @@ class Button(
     init {
         box.addAttribute(Touchable::class.java, Touchable(
             onTouch = {
-                if (byTouch && !pressed) {
+                if (byTouch && !pressed && enabled.get()) {
                     command()
                     isTouching = true
                     pressed = true
                 }
             },
             onRelease = {
-                if (byTouch) {
+                if (byTouch && enabled.get()) {
                     isTouching = false
-                    release()
+                    if (!stayPressed) {
+                        release()
+                    }
                 }
             },
             onHoldChangeDiffuseTo = pressedColor
@@ -82,13 +87,13 @@ class Button(
         box.addAttribute(
             Pressable::class.java, SimplePressable(
                 onPress = { _, _ ->
-                    if (!byTouch && !pressed) {
+                    if (!byTouch && !pressed && enabled.get()) {
                         command()
                         pressed = true
                     }
                 },
                 onRelease = { _, _ ->
-                    if (!byTouch) {
+                    if (!byTouch && enabled.get()) {
                         pressed = false || stayPressed
                     }
                 }
@@ -100,7 +105,7 @@ class Button(
 
     /** Releases the button if it was pressed, but only if the depressDelay allows us to release it. */
     fun release(force: Boolean = false) {
-        if (depressReady && !stayPressed && !isTouching || force) {
+        if (depressReady && !isTouching || force) {
             pressed = false
         }
     }
