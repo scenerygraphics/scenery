@@ -82,6 +82,24 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
             return field
         }
 
+    var uncompressedColorBufferSize = -1
+        private set
+        get() {
+            if (field == -1) {
+                logger.error("Uncompressed color buffer size is not set. Was VDIVolumeManager created?")
+            }
+            return field
+        }
+
+    var uncompressedDepthBufferSize = -1
+        private set
+        get() {
+            if (field == -1) {
+                logger.error("Uncompressed depth buffer size is not set. Was VDIVolumeManager created?")
+            }
+            return field
+        }
+
     /**
      * Returns the width of the VDI.
      *
@@ -254,6 +272,8 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         colorBuffer = MemoryUtil.memCalloc(maxColorBufferSize)
         depthBuffer = MemoryUtil.memCalloc(maxDepthBufferSize)
 
+        uncompressedColorBufferSize = totalMaxSupersegments * 4 * 4
+        uncompressedDepthBufferSize = totalMaxSupersegments * 2 * 4
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
         gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
