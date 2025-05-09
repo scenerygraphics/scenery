@@ -54,9 +54,9 @@ layout(push_constant) uniform currentEye_t {
 
 layout(local_size_x = 15, local_size_y = 15) in; //TODO: change to 16x16
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
-layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
-layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
-layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
+layout(set = 3, binding = 0, rgba32f) uniform image3D VDIColor;
+layout(set = 4, binding = 0, r32f) uniform image3D VDIDepth;
+layout (set = 8, binding = 0, r32ui) uniform uimage3D AccelerationGrid;
 layout (set = 9, binding = 0, r32f) uniform image2D Thresholds;
 layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
 layout (set = 11, binding = 0, r32i) uniform readonly iimage2D PrefixSums;
@@ -210,9 +210,24 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
     int y_ = remainder / bufferWidth;
     int x_ = remainder % bufferWidth;
 
-    imageStore(OutputSubVDIDepth, ivec3(2 * x_, y_, z_), vec4(start, 0, 0, 0));
-    imageStore(OutputSubVDIDepth, ivec3(2 * x_ + 1, y_, z_), vec4(end, 0, 0, 0));
-    imageStore(OutputSubVDIColor, ivec3(x_, y_, z_), color);
+    imageStore(VDIDepth, ivec3(2 * x_, y_, z_), vec4(start, 0, 0, 0));
+    imageStore(VDIDepth, ivec3(2 * x_ + 1, y_, z_), vec4(end, 0, 0, 0));
+    imageStore(VDIColor, ivec3(x_, y_, z_), color);
+}
+
+void writeSegAndGrid(int supersegmentNum, float supSegStartPoint, float supSegEndPoint, vec4 wfront, vec4 wback,
+vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell) {
+
+    vec4 jump_pos = mix(wfront, wback, stepWidth * steps);
+
+    float segLen = length(jump_pos - wfront);
+
+    vec4 supersegmentColor;
+
+    supersegmentColor.rgb = accumulatedColor.rgb / accumulatedColor.a;
+    supersegmentColor.a = adjustOpacity(accumulatedColor.a, 1.0/segLen);
+
+    writeSupersegment(supersegmentNum, supSegStartPoint, supSegEndPoint, supersegmentColor);
 }
 
 //void writeThreshold(float threshold) {
@@ -220,7 +235,7 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
 //}
 
 void update_cell_count(ivec3 cell) {
-    uint ret = imageAtomicAdd(OctreeCells, cell, 1);
+    uint ret = imageAtomicAdd(AccelerationGrid, cell, 1);
 
     //    if(gl_GlobalInvocationID.xy == debug_pixel) {
     //        debugPrintfEXT("Updated the cell: (%d, %d, %d). Prev value was: %u", cell.xyz, ret);
@@ -264,6 +279,8 @@ void main()
         return;
     }
 
+    float stepWidth = nw;
+
     if(gl_GlobalInvocationID.x >= windowWidth || gl_GlobalInvocationID.y >= windowHeight) {
         return;
     }
@@ -277,12 +294,12 @@ void main()
     //    }
     //    #endif
 
-    ivec3 imageCoords  = imageSize(OutputSubVDIColor);
+    ivec3 imageCoords  = imageSize(VDIColor);
     bufferWidth = imageCoords.x;
     bufferHeight = imageCoords.y;
     bufferDepth = imageCoords.z;
 
-    num_cells = imageSize(OctreeCells).xyz;
+    num_cells = imageSize(AccelerationGrid).xyz;
 
 
     ivec3 grid_cell = ivec3(0);
