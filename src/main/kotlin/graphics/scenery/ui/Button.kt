@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
  * @author Jan Tiemann
  * @author Samuel Pantze
  */
-class Button(
+open class Button(
     text: String,
     height: Float = 1f,
     command: () -> Unit,
@@ -25,18 +25,23 @@ class Button(
     var stayPressed: Boolean = false,
     val depressDelay: Int = 0,
     val color: Vector3f = Vector3f(1f),
-    val pressedColor: Vector3f = Vector3f(0.5f)
+    val pressedColor: Vector3f = Vector3f(0.4f),
+    val touchingColor: Vector3f = Vector3f(0.7f)
 ) :
     TextBox(text, height = height) {
     /** Flag that determines whether the button is ready to be released from depressDelay. */
     private var depressReady = true
+
     /** Flag that determines whether we are currently touching the button. If yes, we don't want to release from depressDelay yet. */
-    private var isTouching = false
+    protected var isTouching = false
+
+    /** Marks the time when the user first touched the button. */
+    protected var enteredTouchTime = System.currentTimeMillis()
 
     var enabled: AtomicBoolean = AtomicBoolean(true)
 
     /** only visually */
-    var pressed: Boolean = false
+    open var pressed: Boolean = false
         set(value) {
             field = value
             if (value) {
@@ -68,7 +73,15 @@ class Button(
     init {
         box.addAttribute(Touchable::class.java, Touchable(
             onTouch = {
-                if (byTouch && !pressed && enabled.get()) {
+                enteredTouchTime = System.currentTimeMillis()
+                this.spatial {
+                    scale.z = 0.8f
+                    position.z = -0.1f
+                    needsUpdate = true
+                }
+            },
+            onHold = {
+                if (byTouch && !isTouching && !pressed && enabled.get() && System.currentTimeMillis() - enteredTouchTime > 30 ) {
                     command()
                     isTouching = true
                     pressed = true
@@ -82,7 +95,7 @@ class Button(
                     }
                 }
             },
-            onHoldChangeDiffuseTo = pressedColor
+            onHoldChangeDiffuseTo = touchingColor
         ))
         box.addAttribute(
             Pressable::class.java, SimplePressable(
