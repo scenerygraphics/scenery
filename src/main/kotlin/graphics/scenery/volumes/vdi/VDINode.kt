@@ -375,7 +375,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
 
         private fun getColorTextureType(): NumericType<*> {
-            return UnsignedByteType()
+            return FloatType()
         }
 
         private fun getDepthTextureType(): NumericType<*> {
