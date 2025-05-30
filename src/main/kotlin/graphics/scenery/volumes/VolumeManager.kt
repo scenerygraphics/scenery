@@ -29,6 +29,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -857,6 +858,16 @@ class VolumeManager(
             vm.customTextures.add(it)
             vm.material().textures[it] = current.material().textures[it]!!
         }
+
+        current?.customUniforms?.forEach {
+            vm.customUniforms.add(it)
+            val currentUniform = current.shaderProperties[it]
+            if(currentUniform != null) {
+                vm.shaderProperties[it] = currentUniform
+            } else {
+                logger.warn("Custom uniform $it not found in current shader properties, skipping")
+            }
+        }
         volumes.forEach {
             vm.add(it)
             it.volumeManager = vm
@@ -951,6 +962,7 @@ class VolumeManager(
 
     /** Companion object for Volume */
     companion object {
+        val logger by lazyLogger()
         /** Static [ForkJoinPool] for fill task submission. */
         protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
 
@@ -970,6 +982,16 @@ class VolumeManager(
             vm?.customTextures?.forEach {
                 volume.volumeManager.customTextures.add(it)
                 volume.volumeManager.material().textures[it] = vm.material().textures[it]!!
+            }
+
+            vm?.customUniforms?.forEach {
+                volume.volumeManager.customUniforms.add(it)
+                val currentUniform = vm.shaderProperties[it]
+                if(currentUniform != null) {
+                    volume.volumeManager.shaderProperties[it] = currentUniform
+                } else {
+                    logger.warn("Custom uniform $it not found in current shader properties, skipping")
+                }
             }
             volume.volumeManager.add(volume)
             volumes.forEach {
