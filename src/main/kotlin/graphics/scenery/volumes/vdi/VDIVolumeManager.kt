@@ -296,7 +296,8 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         volumeManager.material().textures[depthTextureName] = vdiDepth
 
         val gridCells: Texture =
-            Texture.fromImage(Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), FloatType()), channels = 1,
+            Texture.fromImage(Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(),
+                UnsignedIntType()), channels = 1,
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.customTextures.add(accelerationTextureName)
         volumeManager.material().textures[accelerationTextureName] = gridCells
