@@ -63,7 +63,7 @@ layout (set = 11, binding = 0, r32i) uniform readonly iimage2D PrefixSums;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(960, 540);
+ivec2 debug_pixel = ivec2(640, 360);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -210,13 +210,19 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
     int y_ = remainder / bufferWidth;
     int x_ = remainder % bufferWidth;
 
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Writing supersegment at indices: (%d, %d, %d).", x_, y_, z_);
+    }
+    #endif
+
     imageStore(VDIDepth, ivec3(2 * x_, y_, z_), vec4(start, 0, 0, 0));
     imageStore(VDIDepth, ivec3(2 * x_ + 1, y_, z_), vec4(end, 0, 0, 0));
     imageStore(VDIColor, ivec3(x_, y_, z_), color);
 }
 
 void writeSegAndGrid(int supersegmentNum, float supSegStartPoint, float supSegEndPoint, vec4 wfront, vec4 wback,
-vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell) {
+vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell, float tnear) {
 
     vec4 jump_pos = mix(wfront, wback, stepWidth * steps);
 
@@ -270,9 +276,23 @@ void main()
     bool write_supersegments;
 
     if(doGeneration) {
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Starting supersegment generation for pixel: (%d, %d)", gl_GlobalInvocationID.xy);
+        }
+        #endif
+
         write_supersegments = true;
         thresh_found = true;
     } else if(doThreshSearch) {
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Starting threshold search for pixel: (%d, %d)", gl_GlobalInvocationID.xy);
+        }
+        #endif
+
         write_supersegments = false;
         thresh_found = false;
     } else {
