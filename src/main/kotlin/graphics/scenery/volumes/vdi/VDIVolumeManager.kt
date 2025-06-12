@@ -197,47 +197,30 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     }
 
     private fun vdiFull(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager {
-        val intDepths = false
         val raycastShader = "VDIGenerator.comp"
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        maxColorBufferSize = windowHeight*windowWidth*4*maxSupersegments*4
+        maxColorBufferSize = VDINode.getColorBufferSize(windowWidth, windowHeight, maxSupersegments)
         colorBuffer = MemoryUtil.memCalloc(maxColorBufferSize)
 
-        depthBuffer = if(intDepths) {
-            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
-        } else {
-            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*4)
-        }
+        depthBuffer = MemoryUtil.memCalloc(
+            VDINode.getDepthBufferSize(windowWidth, windowHeight, maxSupersegments)
+        )
 
-        val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
+        val numGridCells = VDINode.getAccelerationGridSize(windowWidth, windowHeight, maxSupersegments)
 
-        gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+        gridBuffer = MemoryUtil.memCalloc(VDINode.getGridBufferSize(windowWidth, windowHeight, maxSupersegments))
 
-        val vdiDimensions = VDINode.getLinearizationOrder(windowWidth, windowHeight, maxSupersegments)
-
-        val vdiColor: Texture = Texture.fromImage(
-            Image(colorBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val vdiColor: Texture = VDINode.generateColorTexture(windowWidth, windowHeight, maxSupersegments, colorBuffer!!)
         volumeManager.customTextures.add(colorTextureName)
         volumeManager.material().textures[colorTextureName] = vdiColor
 
-        val vdiDepth: Texture = if(intDepths) {
-            Texture.fromImage(
-                Image(depthBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z, UnsignedShortType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                channels = 2, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        } else {
-            Texture.fromImage(
-                Image(depthBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                channels = 2, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        }
+        val vdiDepth: Texture = VDINode.generateDepthTexture(windowWidth, windowHeight, maxSupersegments, depthBuffer!!)
         volumeManager.customTextures.add(depthTextureName)
         volumeManager.material().textures[depthTextureName] = vdiDepth
 
-        val gridCells: Texture = Texture.fromImage(
-            Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), UnsignedIntType()), channels = 1,
-            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val gridCells: Texture = VDINode.generateAccelerationTexture(windowWidth, windowHeight, maxSupersegments, gridBuffer!!)
         volumeManager.customTextures.add(accelerationTextureName)
         volumeManager.material().textures[accelerationTextureName] = gridCells
 
