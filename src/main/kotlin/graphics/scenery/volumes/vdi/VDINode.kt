@@ -427,6 +427,19 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
 
         /**
+         * Calculates the size of the acceleration grid buffer.
+         *
+         * @param vdiWidth The width of the VDI.
+         * @param vdiHeight The height of the VDI.
+         * @param numSupersegments The number of supersegments in the VDI.
+         * @return The size of the acceleration grid buffer in bytes.
+         */
+        fun getGridBufferSize(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int): Int {
+            val numGridCells = getAccelerationGridSize(vdiWidth, vdiHeight, numSupersegments)
+            return numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4 // 4 bytes per unsigned int
+        }
+
+        /**
          * Calculates the size of the acceleration buffer, given the dimensions of the VDI.
          *
          * @param vdiWidth The width of the VDI.
