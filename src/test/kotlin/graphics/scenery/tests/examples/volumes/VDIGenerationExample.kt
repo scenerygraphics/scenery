@@ -74,12 +74,8 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         val vdiData = VDIData(
             VDIBufferSizes(),
             VDIMetadata(
-                index = count,
-                projection = cam.spatial().projection,
-                view = cam.spatial().getTransformation(),
                 volumeDimensions = volumeDimensions3i,
                 model = model,
-                nw = volume.volumeManager.shaderProperties["nw"] as Float,
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
@@ -143,6 +139,11 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
 
             vdiData.metadata.index = count
+            vdiData.metadata.nw = vdiVolumeManager.shaderProperties["nw"] as Float
+            scene.findObserver()?.let { cam ->
+                vdiData.metadata.projection = cam.spatial().projection
+                vdiData.metadata.view = cam.spatial().getTransformation()
+            }
 
             if (count == 4) { //store the 4th VDI
 

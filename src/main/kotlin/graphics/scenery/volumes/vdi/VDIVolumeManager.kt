@@ -205,8 +205,11 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         maxColorBufferSize = windowHeight*windowWidth*4*maxSupersegments*4
         colorBuffer = MemoryUtil.memCalloc(maxColorBufferSize)
 
-        maxDepthBufferSize = windowHeight*windowWidth*2*maxSupersegments*2 * 2
-        depthBuffer = MemoryUtil.memCalloc(maxDepthBufferSize)
+        depthBuffer = if(intDepths) {
+            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
+        } else {
+            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*4)
+        }
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 

@@ -22,6 +22,7 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
+import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -434,7 +435,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
          * @return The size of the acceleration buffer in bytes.
          */
         fun getAccelerationGridSize(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int) : Vector3f {
-            return Vector3f(min(vdiWidth/8f, 1f), min(vdiHeight/8f, 1f), min(numSupersegments.toFloat(), 1f))
+            return Vector3f(max(vdiWidth/8f, 1f), max(vdiHeight/8f, 1f), max(numSupersegments.toFloat(), 1f))
         }
 
         /**
@@ -481,7 +482,8 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
          */
         fun generateAccelerationTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
             val numGridCells = getAccelerationGridSize(vdiWidth, vdiHeight, numSupersegments)
-            return Texture(Vector3i(min(numGridCells.x.toInt(), 1), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            return Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),
+                1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
     }
 }

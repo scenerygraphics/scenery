@@ -34,13 +34,22 @@ if (vis && step > localNear && step < localFar)
                 num_terminations++;
                 supersegmentIsOpen = false;
 
+                #if INT_DEPTHS
+                supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+                #else
                 supSegEndPoint = ndc_step;
+                #endif
                 steps_in_supseg = 0;
 
                 if(thresh_found) {
                     if(!supsegs_written) {
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+                            debugPrintfEXT("supersegment: %d ends at: %f", supersegmentNum, ndc_step);
+                        }
+                        #endif
                         writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
-                        steps_trunc_trans, ipv, uv, grid_cell);
+                        steps_trunc_trans, ipv, uv, grid_cell, tnear);
                     }
                     supersegmentNum++;
                 }
@@ -51,10 +60,14 @@ if (vis && step > localNear && step < localFar)
         if( (!supersegmentIsOpen) && (!transparentSample) ) { //opening a supersegment
 
             supersegmentIsOpen = true;
+            #if INT_DEPTHS
+            supSegStartPoint = i;
+            #else
             vec4 ndcStart = pv * wpos;
             ndcStart *= 1. / ndcStart.w;
             float start_step = ndcStart.z;
             supSegStartPoint = start_step;
+            #endif
             supseg_start_w = wpos;
             curV = vec4( 0 ); //TODO: should this be x instead?
         }
@@ -85,13 +98,17 @@ if (vis && step > localNear && step < localFar)
             num_terminations++;
             supersegmentIsOpen = false;
 
+            #if INT_DEPTHS
+            supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+            #else
             supSegEndPoint = ndc_step;
+            #endif
             steps_in_supseg = 0;
 
             if(thresh_found) {
                 if(!supsegs_written) {
                     writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
-                    steps_trunc_trans, ipv, uv, grid_cell);
+                    steps_trunc_trans, ipv, uv, grid_cell, tnear);
                 }
                 supersegmentNum++;
             }
