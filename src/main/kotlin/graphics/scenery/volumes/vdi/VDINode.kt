@@ -375,11 +375,11 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             return Vector3i(vdiWidth, vdiHeight, numSupersegments)
         }
 
-        private fun getColorTextureType(): NumericType<*> {
+        fun getColorTextureType(): NumericType<*> {
             return FloatType()
         }
 
-        private fun getDepthTextureType(): NumericType<*> {
+        fun getDepthTextureType(): NumericType<*> {
             val intDepths = false
             return if (intDepths) {
                 UnsignedShortType()
@@ -388,7 +388,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             }
         }
 
-        private fun getColorTextureChannels(): Int {
+        fun getColorTextureChannels(): Int {
             return 4
         }
 
