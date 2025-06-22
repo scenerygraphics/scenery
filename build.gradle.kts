@@ -60,7 +60,7 @@ dependencies {
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
-
+    implementation("ome:formats-gpl:7.1.0")
 
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
