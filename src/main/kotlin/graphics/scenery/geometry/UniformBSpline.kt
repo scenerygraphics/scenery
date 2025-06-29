@@ -1,8 +1,9 @@
 package graphics.scenery.geometry
 
+import graphics.scenery.compute.BSplineMetricsCalculator
+import graphics.scenery.compute.SplineMetricsCalculator
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.xyz
-import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -109,5 +110,7 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
     override fun verticesCountPerSection(): Int {
         return n
     }
+
+    override fun metricsCalculator(): SplineMetricsCalculator = BSplineMetricsCalculator(this, parameters, tList)
 
 }

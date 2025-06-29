@@ -1,5 +1,6 @@
 package graphics.scenery.geometry
 
+import graphics.scenery.compute.SplineMetricsCalculator
 import org.joml.Vector3f
 
 /**
@@ -26,4 +27,9 @@ interface Spline {
      * Returns the number of points the spline contains in each section.
      */
     fun verticesCountPerSection(): Int
+
+    /**
+     * Returns an object which is able to calculate spline metrics like arc length or curvature.
+     * */
+    fun metricsCalculator(): SplineMetricsCalculator
 }

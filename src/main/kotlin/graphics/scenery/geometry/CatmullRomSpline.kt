@@ -1,5 +1,7 @@
 package graphics.scenery.geometry
 
+import graphics.scenery.compute.CatmullRomSplineMetricsCalculator
+import graphics.scenery.compute.SplineMetricsCalculator
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.plus
@@ -117,5 +119,7 @@ class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n:
     override fun verticesCountPerSection(): Int {
         return n
     }
+
+    override fun metricsCalculator(): SplineMetricsCalculator = CatmullRomSplineMetricsCalculator(this, alpha)
 
 }

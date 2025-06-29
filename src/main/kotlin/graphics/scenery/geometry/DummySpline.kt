@@ -1,6 +1,7 @@
 package graphics.scenery.geometry
 
-import graphics.scenery.geometry.Spline
+import graphics.scenery.compute.DefaultMetricsCalculator
+import graphics.scenery.compute.SplineMetricsCalculator
 import org.joml.Vector3f
 
 /**
@@ -25,4 +26,6 @@ class DummySpline(private val controlPoints: List<Vector3f>, val sectionVertices
     override fun verticesCountPerSection(): Int {
         return sectionVerticesCount
     }
+
+    override fun metricsCalculator(): SplineMetricsCalculator = DefaultMetricsCalculator(this)
 }
