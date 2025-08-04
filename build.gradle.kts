@@ -21,7 +21,7 @@ repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
 //    maven("https://jitpack.io")
-//    mavenLocal()
+    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -48,6 +48,7 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
+    implementation("graphics.scenery:autofab:0.1")
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
@@ -416,4 +417,22 @@ plugins.withType<JacocoPlugin> {
 // disable Gradle metadata file in general, as Maven artifacts are our main publication.
 tasks.withType<GenerateModuleMetadata> {
     enabled = false
+}
+tasks.register<Jar>("packageTests") {
+    from(sourceSets.test.get().output)
+    archiveClassifier = "tests"
+}
+
+
+tasks.register("copyDependencies") {
+        val runtimeClasspath =
+            project.configurations.matching { it.name == "testRuntimeClasspath" }
+        runtimeClasspath.all {
+            for (dep in map { file: File -> file.absoluteFile }) {
+                project.copy {
+                    from(dep)
+                    into("${rootProject.projectDir}/build/dependencies")
+                }
+            }
+        }
 }

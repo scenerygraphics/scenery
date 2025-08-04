@@ -9,12 +9,17 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.Mesh
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.io.path.absolute
+import kotlin.system.exitProcess
 
 /**
  * Demo reel example to be run on a CAVE system.
@@ -37,7 +42,8 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         logger.warn("This is an experimental example, which might need additional configuration on your computer")
         logger.warn("or might not work at all. You have been warned!")
 
-        hmd = hub.add(TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml"))
+        val trackerAddress = System.getProperty("scenery.TrackerAddress") ?: "DTrack:body-0@224.0.1.1:5000"
+        hmd = hub.add(TrackedStereoGlasses(trackerAddress, screenConfig = "CAVEExample.yml"))
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         cam = DetachedHeadCamera(hmd)
@@ -47,7 +53,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
             disableCulling = true
-
             scene.addChild(this)
         }
 
@@ -67,7 +72,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         // scene setup
         val driveLetter = System.getProperty("scenery.DriveLetter", "E")
 
-        val histoneVolume = Volume.fromPathRaw(
+        /*val histoneVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
             hub
         )
@@ -97,7 +102,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         retinaScene.addChild(retinaVolume)
         retinaScene.visible = false
         scene.addChild(retinaScene)
-
+*/
         val bile = Mesh()
         val canaliculi = Mesh()
         canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
@@ -139,6 +144,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
 
+//        val publisher = null
 
         val minDelay = 200
 
@@ -203,11 +209,52 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         inputHandler.addKeyBinding("goto_scene_histone", "shift 2")
         inputHandler.addKeyBinding("goto_scene_drosophila", "shift 3")
         inputHandler.addKeyBinding("goto_scene_retina", "shift 4")
+
+        inputHandler.addBehaviour("kill_clients", ClickBehaviour { _, _ -> DemoReelLaunchExample.client?.shutdownLaunchedProcesses(); Thread.sleep(1500); exitProcess(
+            0
+        )
+        })
+        inputHandler.addKeyBinding("kill_clients", "ctrl Q")
     }
 
     companion object {
+        private val logger by lazyLogger()
+        //var client: AutofabClient? = null
         @JvmStatic
         fun main(args: Array<String>) {
+//            if(System.getProperty("scenery.master") != null) {
+//                thread {
+////                val clusterLaunch = Runtime.getRuntime().exec("C:\\Users\\mosaic\\Code\\scenery-base\\run-cluster.bat graphics.scenery.tests.examples.cluster.CaveClientExample",
+////                    null, Paths.get(".").absolute().parent.parent.toFile())
+//                    //val client = AutofabClient()
+//                    //val hosts = client.listAvailableHosts()
+//                    //logger.info("Available hosts are ${hosts.joinToString { it.hostAddress }}")
+////                val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dscenery.VulkanRenderer.UseOpenGLSwapchain=false -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=false-Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5001 -Dscenery.ScreenName=front graphics.scenery.tests.examples.basic.TexturedCubeExample"""
+//                    //val clusterLaunchCommand =
+//                    //    """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -Dorg.lwjgl.system.stackSize=500 -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dscenery.VulkanRenderer.UseOpenGLSwapchain=false -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=false-Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5001 -Dscenery.ScreenName=front graphics.scenery.tests.examples.basic.TexturedCubeExample"""
+//
+//                    //client.launchOnAvailableHosts(clusterLaunchCommand, register = false)
+//
+////                BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
+////                    var line: String?
+////                    while (input.readLine().also { line = it } != null) {
+////                        DemoReelExample.logger.info("Cluster: $line")
+////                    }
+////                }
+//                    client = AutofabClient()
+//                    while(client!!.listAvailableHosts().size == 0) {
+//                        Thread.sleep(1000)
+//                        logger.info("Waiting for available hosts...")
+//                    }
+//
+//                    val hosts = client!!.listAvailableHosts()
+//                    logger.info("Available hosts are ${hosts.joinToString { it.hostAddress }}")
+//                    //client.shutdownLaunchedProcesses()
+//                    val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dorg.lwjgl.system.stackSize=300 -Dscenery.VulkanRenderer.UseOpenGLSwapchain=false -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=false -Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5001 -Dscenery.DriveLetter=D """ + this::class.java.name.substringBefore("$")
+//
+//                    client!!.launchOnAvailableHosts(clusterLaunchCommand, register = false)
+//                }
+//            }
             DemoReelExample().main()
         }
     }
