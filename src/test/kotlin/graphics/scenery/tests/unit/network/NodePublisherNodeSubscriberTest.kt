@@ -8,6 +8,8 @@ import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType

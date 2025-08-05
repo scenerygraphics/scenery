@@ -153,7 +153,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         scene += ferry
         selectableObjects.add(ferry)
 
-        TransferFunctionEditor(volume = cryoEM)
+        //TransferFunctionEditor(volume = cryoEM)
 
         val ambient = AmbientLight(0.1f)
         scene += ambient
@@ -211,8 +211,8 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
                     scene.findObserver()?.showMessage("Now controlling ${activeObject.name}",
                         distance = 1.0f,
-                        offset = Vector2f(0.0f, -0.25f),
-                        transparent = true
+                        transparent = true,
+                        centered = true
                     )
                 }
             }
@@ -296,8 +296,8 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
                     scene.findObserver()?.showMessage("Resetting ${activeObject.name}",
                         distance = 1.0f,
-                        offset = Vector2f(0.0f, -0.25f),
-                        transparent = true
+                        transparent = true,
+                        centered = true
                     )
                 }
             }

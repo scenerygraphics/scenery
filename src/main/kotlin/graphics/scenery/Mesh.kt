@@ -48,9 +48,9 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         addSpatial()
     }
 
-    var initalizer: MeshInitializer? = null
+    var initializer: MeshInitializer? = null
 
-    var wantsSync = true
+    open var wantsSync = true
     override fun wantsSync(): Boolean {
         return wantsSync
     }
@@ -876,13 +876,13 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
     }
 
     override fun getConstructorParameters(): Any? {
-        return initalizer
+        return initializer
     }
 
     override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
         if (parameters is MeshInitializer) {
             val mesh = Mesh().readFrom(parameters.path,parameters.useMaterial)
-            mesh.initalizer = parameters
+            mesh.initializer = parameters
             return mesh
         } else {
             throw IllegalArgumentException("Mesh Initializer implementation as params expected")
@@ -893,7 +893,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
 
     open class MeshSpatial(node: Node): DefaultSpatial(node) {
 
-        var origin = Origin.FrontBottomLeft
+        var origin: Origin = Origin.FrontBottomLeft
 
         /**
          * Composes the world matrix for this mesh node

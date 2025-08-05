@@ -3,7 +3,6 @@ package graphics.scenery.tests.applications.vdi
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
-import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.VideoDecoder
 import graphics.scenery.volumes.DummyVolume
 import graphics.scenery.volumes.RemoteRenderingProperties
@@ -72,14 +71,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             scene.addChild(this)
         }
 
-        val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val transferFunctionUI = TransferFunctionEditor(dummyVolume)
-        bridge.addPanel(transferFunctionUI)
-        transferFunctionUI.name = dummyVolume.name
-        val swingUiNode = bridge.uiNode
-        swingUiNode.spatial() {
-            position = Vector3f(2f, 0f, 0f)
-        }
+        val transferFunctionUI = TransferFunctionEditor.showTFFrame(dummyVolume)
 
         val vdiData = VDIData()
 

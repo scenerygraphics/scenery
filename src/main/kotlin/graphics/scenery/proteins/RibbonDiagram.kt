@@ -126,7 +126,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         } else {
             protein
         }
-        return RibbonDiagram(p, displaySS)
+        return RibbonDiagram(p, showSecondaryStructures)
     }
 
     /**

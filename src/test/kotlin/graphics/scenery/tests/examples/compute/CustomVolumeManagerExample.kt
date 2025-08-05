@@ -8,7 +8,6 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
-import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.Image
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.TransferFunctionEditor

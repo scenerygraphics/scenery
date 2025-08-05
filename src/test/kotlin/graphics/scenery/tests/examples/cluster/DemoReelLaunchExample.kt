@@ -60,8 +60,8 @@ class DemoReelLaunchExample: SceneryBase("Demo Reel") {
 
                     val hosts = client!!.listAvailableHosts()
                     logger.info("Available hosts are ${hosts.joinToString { it.hostAddress }}")
-                    client!!.shutdownLaunchedProcesses()
-                    val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dorg.lwjgl.system.stackSize=300 -Dscenery.VulkanRenderer.UseOpenGLSwapchain=true -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=true -Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5000 -Dscenery.DriveLetter=D """ + DemoReelExample::class.java.name//.substringBefore("$")
+                    //client!!.shutdownLaunchedProcesses()
+                    val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dorg.lwjgl.system.stackSize=300 -Dscenery.VulkanRenderer.UseOpenGLSwapchain=true -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=true -Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5000 -Dscenery.DriveLetter=D --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED -Dscenery.ServerAddress=tcp://10.1.2.201 """ + DemoReelExample::class.java.name//.substringBefore("$")
 
                     client!!.launchOnAvailableHosts(clusterLaunchCommand, register = false)
                 }
