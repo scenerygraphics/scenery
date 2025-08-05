@@ -13,8 +13,8 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import net.java.games.input.Component
 import org.joml.Vector3f
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
+import kotlin.time.milliseconds
 
 /**
  * Example for visually comparing two proteins. A gamepad can be used for navigation,
@@ -29,7 +29,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
     var cam = DetachedHeadCamera()
 
     override fun init() {
-        hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
+        hmd = TrackedStereoGlasses("DTrack:body-1@224.0.1.1", screenConfig = "CAVEExample.yml")
         hub.add(SceneryElement.HMDInput, hmd!!)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)
@@ -44,9 +44,9 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         }
 
         // box setup
-        val shell = Box.hulledBox(Vector3f(10.0f))
-        shell.material().diffuse = Vector3f(1.0f)
-        scene.addChild(shell)
+//        val shell = Box.hulledBox(Vector3f(10.0f))
+//        shell.material().diffuse = Vector3f(1.0f)
+//        scene.addChild(shell)
 
         // lighting setup
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 10.0f)
@@ -60,9 +60,9 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         }
         scene.addChild(protein1)
 
-        val grid1 = BoundingGrid()
-        grid1.node = protein1
-        grid1.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
+//        val grid1 = BoundingGrid()
+//        grid1.node = protein1
+//        grid1.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
 
         val protein2 = RibbonDiagram(Protein.fromID("4yvj"))
         protein2.name = protein2.protein.structure.name.lowercase()
@@ -72,8 +72,8 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         }
         scene.addChild(protein2)
 
-        val grid2 = BoundingGrid()
-        grid2.node = protein2
+//        val grid2 = BoundingGrid()
+//        grid2.node = protein2
 
         activeProtein = protein1
     }

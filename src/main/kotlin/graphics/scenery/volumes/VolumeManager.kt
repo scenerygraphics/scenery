@@ -282,6 +282,7 @@ class VolumeManager(
 
                 is VolatileARGBType,
                 is ARGBType -> VolumeShaderSignature.PixelType.ARGB
+
                 else -> throw IllegalStateException("Unknown volume type ${it.stack.type.javaClass}")
             }
 
@@ -306,6 +307,7 @@ class VolumeManager(
             "vis",
             "localNear",
             "localFar",
+            "skip",
             "SampleVolume",
             "Convert",
             "Accumulate"
@@ -331,14 +333,17 @@ class VolumeManager(
             "slicingPlanes",
             "slicingMode",
             "usedSlicingPlanes",
-            "sceneGraphVisibility"
+            "sceneGraphVisibility",
+            "usedSlicingPlanes",
+            "skip"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
             "slicingMode", "usedSlicingPlanes",
-            "sceneGraphVisibility"
+            "sceneGraphVisibility",
+            "slicingMode", "usedSlicingPlanes", "skip"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -358,17 +363,17 @@ class VolumeManager(
         var triggered = false
         val additionalBindings = customBindings
             ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
-                                                  segmentInstances: Map<SegmentType, Segment>,
-                                                  volumeIndex: Int ->
+                                                      segmentInstances: Map<SegmentType, Segment>,
+                                                      volumeIndex: Int ->
                 logger.debug("Connecting additional bindings")
 
-                if(!triggered) {
+                if (!triggered) {
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localFar", n)
                     triggered = true
                 }
 
-                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                if (signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
                     segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localNear",
                         volumeIndex,
@@ -391,16 +396,16 @@ class VolumeManager(
                         segmentInstances[SegmentType.Accumulator]
                     )
                 }
-                
+
                 segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
                     "convert",
                     segmentInstances[SegmentType.Convert]
                 )
                 segmentInstances[SegmentType.SampleVolume]?.bind(
-                    "convert", 
+                    "convert",
                     segmentInstances[SegmentType.Convert]
                 )
-                
+
                 segmentInstances[SegmentType.SampleVolume]?.bind(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.Accumulator]
@@ -409,8 +414,16 @@ class VolumeManager(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.AccumulatorMultiresolution]
                 )
-                
+
+                logger.debug("Connecting additional bindings")
+
+                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    segmentInstances[SegmentType.FragmentShader]?.bind("skip", volumeIndex, segmentInstances[SegmentType.SampleMultiresolutionVolume])
+                } else {
+                    segmentInstances[SegmentType.FragmentShader]?.bind("skip", volumeIndex, segmentInstances[SegmentType.SampleVolume])
+                }
             }
+
 
         val newProgvol = MultiVolumeShaderMip(
             VolumeShaderSignature(signatures),
@@ -439,6 +452,14 @@ class VolumeManager(
             state = State.Ready
         } else {
             state = State.Created
+        }
+    }
+
+    private fun Boolean.toInt(): Int {
+        return if(this) {
+            1
+        } else {
+            0
         }
     }
 
@@ -561,6 +582,7 @@ class VolumeManager(
                     currentProg.setUniform(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
+                    currentProg.setUniform(i, "skip", (!state.node.visible).toInt())
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)

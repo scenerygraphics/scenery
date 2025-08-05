@@ -119,7 +119,7 @@ void main()
 
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
-	
+
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
 	vec4 back = vec4( uv, 1, 1 );
@@ -134,18 +134,18 @@ void main()
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
-	// $repeat:{vis,localNear,localFar,intersectBoundingBox|
+	// $repeat:{vis,localNear,localFar,skip,intersectBoundingBox|
 	bool vis = false;
 	float localNear = 0.0f;
 	float localFar = 0.0f;
 	intersectBoundingBox( wfront, wback, n, f );
 	f = min( tmax, f );
-	if ( n < f )
+	if ( n < f && skip == 0)
 	{
 		localNear = n;
 		localFar = f;
-		tnear = min( tnear, max( 0, n ) );
-		tfar = max( tfar, f );
+		tnear = min(tnear, max(0, n));
+		tfar = max(tfar, f);
 		vis = true;
 	}
 	// }$

@@ -15,13 +15,37 @@ import kotlin.io.path.outputStream
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  */
-class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", inputPropertiesStream : InputStream? = null) : Hubable {
+class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", val propertiesFile: String = "scenery.properties") : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by lazyLogger()
 
     var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
 
     init {
+        if(File(propertiesFile).exists()) {
+            // reads system properties from scenery.properties file
+            logger.info("Reading custom properties from $propertiesFile")
+            val propFile = FileInputStream(propertiesFile)
+            val p = Properties()
+            p.load(propFile)
+
+            p.forEach { prop, value ->
+                val key = prop as String
+                if (key.startsWith("scenery.")) {
+                    System.setProperty(key, value as String)
+                }
+            }
+
+            if (logger.isDebugEnabled) {
+                logger.debug("System properties are:")
+                System.getProperties().forEach { prop, value ->
+                    logger.debug("* $prop=$value")
+                }
+            }
+
+            propFile.close()
+        }
+
         val properties = System.getProperties()
         properties.forEach { p ->
             val key = p.key as? String ?: return@forEach
@@ -35,9 +59,9 @@ class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", 
             set(key.substringAfter(prefix), parsed)
         }
 
-        if(inputPropertiesStream != null)
+        if(File(propertiesFile).exists())
         {
-            loadProperties(inputPropertiesStream)
+            loadProperties(File(propertiesFile).inputStream())
         }
 
     }

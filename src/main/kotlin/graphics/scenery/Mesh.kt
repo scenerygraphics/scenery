@@ -7,15 +7,19 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
-import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.attribute.spatial.DefaultSpatial
+import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.geometry.GeometryType
+import graphics.scenery.net.Networkable
 import graphics.scenery.primitives.PointCloud
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
@@ -33,7 +37,8 @@ import java.nio.file.Files
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial, HasSpatial,
+open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial,
+    HasCustomSpatial<Mesh.MeshSpatial>,
     HasGeometry {
 
     init {
@@ -41,6 +46,13 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         addRenderable()
         addMaterial()
         addSpatial()
+    }
+
+    var initalizer: MeshInitializer? = null
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean {
+        return wantsSync
     }
 
     /**
@@ -605,6 +617,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
             (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
 
+        generateBoundingBox()
         logger.info("Read ${vertexCount / meshGeometry.vertexSize}/${normalCount / meshGeometry.vertexSize}/${uvCount / meshGeometry.texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
         return this
     }
@@ -860,5 +873,57 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         this.boundingBox = OrientedBoundingBox(this, boundingBox)
 
         return this
+    }
+
+    override fun getConstructorParameters(): Any? {
+        return initalizer
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        if (parameters is MeshInitializer) {
+            val mesh = Mesh().readFrom(parameters.path,parameters.useMaterial)
+            mesh.initalizer = parameters
+            return mesh
+        } else {
+            throw IllegalArgumentException("Mesh Initializer implementation as params expected")
+        }
+    }
+
+    class MeshInitializer(val path: String, val useMaterial: Boolean = true)
+
+    open class MeshSpatial(node: Node): DefaultSpatial(node) {
+
+        var origin = Origin.FrontBottomLeft
+
+        /**
+         * Composes the world matrix for this mesh node
+         */
+        override fun composeModel() {
+
+            model.translation(position)
+            model.mul(Matrix4f().set(this.rotation))
+            model.scale(scale)
+            if (origin == Origin.Center) {
+                val shift = node.boundingBox?.let { (it.min + it.max) * -0.5f } ?: Vector3f(0f)
+                model.translate(shift)
+            }
+        }
+
+        override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+            super.update(fresh, getNetworkable, additionalData)
+            if (fresh !is MeshSpatial) throw IllegalArgumentException("Update called with object of foreign class")
+
+            this.origin = fresh.origin
+        }
+    }
+
+    override fun createSpatial(): MeshSpatial {
+        return MeshSpatial(this)
+    }
+
+    companion object{
+        fun forNetwork(path: String, useMaterial: Boolean = true,hub: Hub): Mesh{
+            return Mesh().constructWithParameters(MeshInitializer(path,useMaterial),hub) as Mesh
+        }
     }
 }

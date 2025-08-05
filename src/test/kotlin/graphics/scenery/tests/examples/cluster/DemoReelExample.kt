@@ -66,7 +66,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
         scene.addChild(shell)
 
-        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 150.0f, radius = 150.0f)
+        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 5.0f, radius = 150.0f)
             .forEach { scene.addChild(it) }
 
         // scene setup
@@ -141,48 +141,10 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         bileScene.addChild(bile)
         scene.addChild(bileScene)
 
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
+        //val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
+        //val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
 
-//        val publisher = null
 
-        val minDelay = 200
-
-        logger.info("Publisher is: $publisher")
-        if(publisher != null) {
-            thread {
-                while (!scene.initialized) {
-                    logger.info("Wainting for scene init")
-                    Thread.sleep(1000)
-                }
-
-                while (true) {
-                    var sleepDuration = 50L
-
-                    arrayOf(drosophilaScene, histoneScene).forEach {
-                        if(it.visible) {
-                            logger.info("Reading next volume for ${it.name} ...")
-                            val start = System.currentTimeMillis()
-
-                            val v = it.children[0]
-                            (v as? Volume)?.nextTimepoint()
-
-                            val timeToRead  = System.currentTimeMillis() - start
-
-                            if(it.name == "drosophila") {
-                                sleepDuration = Math.max(40,minDelay-timeToRead)
-                            }
-
-                            if(it.name == "histone") {
-                                sleepDuration = Math.max(30,minDelay-timeToRead)
-                            }
-                        }
-                    }
-
-                    Thread.sleep(sleepDuration)
-                }
-            }
-        }
     }
 
     /**

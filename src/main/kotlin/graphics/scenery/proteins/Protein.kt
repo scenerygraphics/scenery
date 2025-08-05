@@ -20,6 +20,7 @@ import java.nio.file.InvalidPathException
  */
 
 class Protein(val structure: Structure): Mesh("Protein") {
+    var id: String? = null
 
     companion object MyProtein {
         private val proteinLogger by lazyLogger()
@@ -45,6 +46,7 @@ class Protein(val structure: Structure): Mesh("Protein") {
 
             val structure = StructureIO.getStructure(id)
             val protein = Protein(structure)
+            protein.id = id
             return protein
         }
 

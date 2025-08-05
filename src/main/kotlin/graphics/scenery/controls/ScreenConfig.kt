@@ -118,12 +118,14 @@ class ScreenConfig {
                 if (screen.match.type == ScreenMatcherType.Hostname) {
                     logger.info("Trying to match hostname for ${getHostname().lowercase()}")
                     if (getHostname().lowercase() == screen.match.value) {
+                        logger.info("Screen matched via hostname: ${screen.match.value}")
                         return screen
                     }
                 }
 
                 if (screen.match.type == ScreenMatcherType.Property) {
                     if (System.getProperty("scenery.ScreenName") == screen.match.value) {
+                        logger.info("Screen matched via system property: ${screen.match.value}")
                         return screen
                     }
                 }
