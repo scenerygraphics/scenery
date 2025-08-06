@@ -70,6 +70,8 @@ class NodeSubscriber(
                 // Interrupted exceptions are expected when closing the Subscriber and no need to worry
                 throw t
             }
+        } catch (t: com.esotericsoftware.kryo.KryoException){
+            logger.warn("Ignoring Kryo Exception:",t)
         }
     }
 
