@@ -48,7 +48,10 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
-    implementation("graphics.scenery:autofab:0.1")
+    implementation("graphics.scenery:autofab:0.1"){
+        exclude("org.slf4j", "slf4j-api")
+        exclude("org.slf4j", "slf4j-simple")
+    }
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
