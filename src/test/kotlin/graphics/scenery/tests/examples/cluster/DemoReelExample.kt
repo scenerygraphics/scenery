@@ -29,7 +29,6 @@ import kotlin.system.exitProcess
 class DemoReelExample: SceneryBase("Demo Reel") {
     var hmd: TrackedStereoGlasses? = null
 
-    var cam = DetachedHeadCamera()
     var bileScene = Mesh(name = "bile")
     var histoneScene = Mesh(name = "histone")
     var drosophilaScene = Mesh(name = "drosophila")
@@ -46,10 +45,12 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         hmd = hub.add(TrackedStereoGlasses(trackerAddress, screenConfig = "CAVEExample.yml"))
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
-        cam = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
+            networkID = -5
             spatial {
                 position = Vector3f(0.0f, 0.0f, 55.0f)
+                networkID = -7
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
             disableCulling = true

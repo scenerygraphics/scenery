@@ -1,22 +1,15 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
-import graphics.scenery.tests.examples.cluster.DemoReelExample
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
-import java.nio.file.Paths
 import kotlin.concurrent.thread
-import kotlin.io.path.absolute
 
 /**
  * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TexturedCubeLaunchExample {
+class TestingClusterLaunchExample {
 
     companion object {
         private val logger by lazyLogger()
@@ -39,7 +32,10 @@ class TexturedCubeLaunchExample {
                 }
                 val hosts = client.listAvailableHosts()
                 logger.info("Available hosts are ${hosts.joinToString { it.hostAddress }}")
-                val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dorg.lwjgl.system.stackSize=300 -Dscenery.VulkanRenderer.UseOpenGLSwapchain=false -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=false -Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.vr.Active=true -Dscenery.ScreenConfig=CAVEExample.yml -Dscenery.TrackerAddress=DTrack:body-0@224.0.1.1:5001 -Dscenery.ScreenName=front graphics.scenery.tests.examples.basic.TexturedCubeExample"""
+                // -Dscenery.VulkanRenderer.UseOpenGLSwapchain=false
+                val clusterLaunchCommand = """S:\\jdk\\temurin-21.0.3.9\\bin\\java.exe -cp "S:/scenery/build/libs/*;S:/scenery/build/dependencies/*" -ea -Xmx16g -Dorg.lwjgl.system.stackSize=300 -Dscenery.Renderer.Framelock=true -Dscenery.RunFullscreen=false -Dscenery.Renderer.Config=DeferredShadingStereo.yml -Dscenery.ServerAddress=tcp://10.1.2.201 -Dscenery.RemoteCamera=true --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED graphics.scenery.tests.examples.cluster.SlimClient"""
+
+                client.shutdownLaunchedProcesses()
 
                 client.launchOnAvailableHosts(clusterLaunchCommand, register = false)
 
