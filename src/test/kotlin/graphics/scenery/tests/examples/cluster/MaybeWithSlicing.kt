@@ -1,7 +1,6 @@
 package graphics.scenery.tests.examples.cluster
 
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.*
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.controls.behaviours.GamepadMovementControl
@@ -16,9 +15,7 @@ import graphics.scenery.volumes.*
 import net.java.games.input.Component
 import org.joml.AxisAngle4f
 import org.joml.Quaternionf
-import org.joml.Vector2f
 import org.joml.Vector3f
-import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -28,27 +25,14 @@ import kotlin.time.ExperimentalTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @OptIn(ExperimentalTime::class)
-class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) {
-    var hmd: TrackedStereoGlasses? = null
+class MaybeWithSlicing: CaveBaseScene("uff") {
     lateinit var activeObject: Node
     var selectableObjects = ArrayList<Node>()
 
     override fun init() {
-        val tsg = TrackedStereoGlasses("DTrack:body-0@224.0.1.1:5001", screenConfig = "CAVEExample.yml")
-        hmd = hub.add(tsg)
+        super.init()
 
-        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 320))
-
-        val cam: Camera = DetachedHeadCamera(hmd)
-        with(cam) {
-            networkID = -5
-            spatial {
-                position = Vector3f(.0f, 0.0f, 10.0f)
-                networkID = -7
-            }
-            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.1f, farPlaneLocation = 200.0f)
-            scene.addChild(this)
-        }
+        cam.spatial().position = Vector3f(.0f, 0.0f, 10.0f)
 
         val slicingPlane = SlicingPlane()
 //        val lights = Light.createLightTetrahedron<PointLight>(spread = 20.0f, intensity = 5.0f, radius = 200.0f)
@@ -73,23 +57,23 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         scene.addChild(retina)
         selectableObjects.add(retina)
 
-        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Given("""E:\ssd-backup-inauguration\CAVE_DATA\droso-royer-autopilot-transposed"""),
-            Volume.VolumeFileSource.VolumeType.TIFF),hub)
-
-        drosophila.colormap = Colormap.get("hot")
-        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-        drosophila.setTransferFunctionRange(20.0f, 1200.0f)
-        drosophila.origin = Origin.Center
-        drosophila.spatial {
-            scale = Vector3f(1.0f, 5.0f, 1.0f)
-            position = Vector3f(10.0f, 1.0f, 0.0f)
-        }
-        drosophila.name = "Drosophila timelapse"
-        drosophila.slicingMode = Volume.SlicingMode.Cropping
-        slicingPlane.addTargetVolume(drosophila)
-        scene.addChild(drosophila)
-        selectableObjects.add(drosophila)
+//        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
+//            Volume.VolumeFileSource.VolumePath.Given("""E:\ssd-backup-inauguration\CAVE_DATA\droso-royer-autopilot-transposed"""),
+//            Volume.VolumeFileSource.VolumeType.TIFF),hub)
+//
+//        drosophila.colormap = Colormap.get("hot")
+//        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+//        drosophila.setTransferFunctionRange(20.0f, 1200.0f)
+//        drosophila.origin = Origin.Center
+//        drosophila.spatial {
+//            scale = Vector3f(1.0f, 5.0f, 1.0f)
+//            position = Vector3f(10.0f, 1.0f, 0.0f)
+//        }
+//        drosophila.name = "Drosophila timelapse"
+//        drosophila.slicingMode = Volume.SlicingMode.Cropping
+//        slicingPlane.addTargetVolume(drosophila)
+//        scene.addChild(drosophila)
+//        selectableObjects.add(drosophila)
 
         val bile = RichNode()
         bile.apply {
@@ -175,12 +159,12 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 //        }
         croppingHandle.addChild(slicingPlane)
         croppingHandle.update += {
-            val headPose = (tsg.tracker as? DTrackTrackerInput)?.getPose()
+            val headPose = (hmd?.tracker as? DTrackTrackerInput)?.getPose()
             var headPos = Vector3f()
             headPose!!.getTranslation(headPos)
             headPos *= (-1.0f)
 
-            val controllerPose = (tsg.tracker as? DTrackTrackerInput)?.getPose(TrackedDeviceType.Controller)
+            val controllerPose = (hmd?.tracker as? DTrackTrackerInput)?.getPose(TrackedDeviceType.Controller)
             controllerPose?.firstOrNull()?.pose?.let {
                 val p = Vector3f()
                 val aa = AxisAngle4f()
@@ -245,33 +229,33 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
             called "scale_up"
             boundTo GamepadButton.Button5)
 
-        inputHandler += (object: GamepadClickBehaviour {
-            override fun click(p0: Int, p1: Int) {
-                if(!activeObject.name.startsWith("Drosophila")) {
-                    return
-                }
-
-                playerThread = if(playerThread == null) {
-                    thread {
-                        while(!Thread.interrupted()) {
-                            val vol = (scene.find("Drosophila timelapse") as? Volume) ?: continue
-                            if(vol.currentTimepoint == vol.timepointCount -1) {
-                                vol.goToFirstTimepoint()
-                            } else {
-                                vol.nextTimepoint()
-                            }
-
-                            Thread.sleep(100)
-                        }
-                    }
-                } else {
-                    (playerThread as? Thread)?.interrupt()
-                    null
-                }
-            }
-        }
-            called "play_pause_volume"
-            boundTo GamepadButton.Button2)
+//        inputHandler += (object: GamepadClickBehaviour {
+//            override fun click(p0: Int, p1: Int) {
+//                if(!activeObject.name.startsWith("Drosophila")) {
+//                    return
+//                }
+//
+//                playerThread = if(playerThread == null) {
+//                    thread {
+//                        while(!Thread.interrupted()) {
+//                            val vol = (scene.find("Drosophila timelapse") as? Volume) ?: continue
+//                            if(vol.currentTimepoint == vol.timepointCount -1) {
+//                                vol.goToFirstTimepoint()
+//                            } else {
+//                                vol.nextTimepoint()
+//                            }
+//
+//                            Thread.sleep(100)
+//                        }
+//                    }
+//                } else {
+//                    (playerThread as? Thread)?.interrupt()
+//                    null
+//                }
+//            }
+//        }
+//            called "play_pause_volume"
+//            boundTo GamepadButton.Button2)
 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
@@ -313,7 +297,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            CaveCubesExample().main()
+            MaybeWithSlicing().main()
         }
     }
 }

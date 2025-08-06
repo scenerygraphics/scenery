@@ -1,33 +1,18 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
-import graphics.scenery.*
-import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.net.NodePublisher
-import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.Mesh
-import graphics.scenery.attribute.material.Material
+import graphics.scenery.SceneryElement
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.utils.lazyLogger
-import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
+import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.nio.file.Paths
-import kotlin.concurrent.thread
-import kotlin.io.path.absolute
-import kotlin.system.exitProcess
 
 /**
  * Demo reel example to be run on a CAVE system.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class DemoReelExample: SceneryBase("Demo Reel") {
-    var hmd: TrackedStereoGlasses? = null
+class DemoReelExample: CaveBaseScene("Demo Reel") {
 
     var bileScene = Mesh(name = "bile")
     var histoneScene = Mesh(name = "histone")
@@ -37,41 +22,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
     val scenes = listOf(bileScene, histoneScene, drosophilaScene, retinaScene)
 
     override fun init() {
-        logger.warn("*** WARNING - EXPERIMENTAL ***")
-        logger.warn("This is an experimental example, which might need additional configuration on your computer")
-        logger.warn("or might not work at all. You have been warned!")
-
-        val trackerAddress = System.getProperty("scenery.TrackerAddress") ?: "DTrack:body-0@224.0.1.1:5000"
-        hmd = hub.add(TrackedStereoGlasses(trackerAddress, screenConfig = "CAVEExample.yml"))
-        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
-
-        val cam: Camera = DetachedHeadCamera(hmd)
-        with(cam) {
-            networkID = -5
-            spatial {
-                position = Vector3f(0.0f, 0.0f, 55.0f)
-                networkID = -7
-            }
-            perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
-            disableCulling = true
-            scene.addChild(this)
-        }
-
-        // box setup
-        val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
-        shell.material {
-            cullingMode = Material.CullingMode.Front
-            diffuse = Vector3f(0.0f, 0.0f, 0.0f)
-            specular = Vector3f(0.0f)
-            ambient = Vector3f(0.0f)
-        }
-        scene.addChild(shell)
-
-        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 5.0f, radius = 150.0f)
-            .forEach { scene.addChild(it) }
-
-        // scene setup
-        val driveLetter = System.getProperty("scenery.DriveLetter", "E")
+        super.init()
 
         /*val histoneVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
@@ -153,6 +104,8 @@ class DemoReelExample: SceneryBase("Demo Reel") {
      * switch scenes.
      */
     override fun inputSetup() {
+        super.inputSetup()
+
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
 
         fun gotoScene(sceneName: String) = ClickBehaviour { _, _ ->
@@ -172,12 +125,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         inputHandler.addKeyBinding("goto_scene_histone", "shift 2")
         inputHandler.addKeyBinding("goto_scene_drosophila", "shift 3")
         inputHandler.addKeyBinding("goto_scene_retina", "shift 4")
-
-        inputHandler.addBehaviour("kill_clients", ClickBehaviour { _, _ -> DemoReelLaunchExample.client?.shutdownLaunchedProcesses(); Thread.sleep(1500); exitProcess(
-            0
-        )
-        })
-        inputHandler.addKeyBinding("kill_clients", "ctrl Q")
     }
 
     companion object {
