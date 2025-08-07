@@ -1092,16 +1092,16 @@ open class Volume(
                         // Same as above, with the difference that we only use one reader to
                         // simply read bytes Plane-wise sequentially, and add them to the buffer.
                         val bytes = localReader.openPlane(0, plane).bytes
-                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-                        view.put(bytes)
+                        imageData.put(bytes)
                     }
+                    imageData.flip()
 
                     val duration = (System.nanoTime() - start) / 10e5
                     logger.debug("Reading took $duration ms, no parallel readers.")
                 }
+
+                volumes.add(BufferedVolume.Timepoint(id, imageData))
             }
-
-
 
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
             val volume = when(type) {
