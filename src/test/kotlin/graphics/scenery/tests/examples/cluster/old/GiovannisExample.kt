@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.cluster.old
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer

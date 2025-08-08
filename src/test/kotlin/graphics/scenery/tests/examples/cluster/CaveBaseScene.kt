@@ -10,9 +10,8 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.system.exitProcess
 
 /**
- * Demo reel example to be run on a CAVE system.
- *
- * @author Ulrik Günther <hello@ulrik.is>
+ * Simple scene that includes the basics for a network enabled cave scene. Other cave scenes should inherit from this
+ * one and call its super methods.
  */
 open class CaveBaseScene(name: String = "Cave Scene") : SceneryBase(name) {
     var hmd: TrackedStereoGlasses? = null

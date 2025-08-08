@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.cluster.old
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -13,10 +13,8 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import net.java.games.input.Component
 import org.joml.Vector3f
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
 
 /**
  * Example for visually comparing two proteins. A gamepad can be used for navigation,

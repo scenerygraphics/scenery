@@ -3,13 +3,10 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.tests.examples.cluster.DemoReelExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
-import java.nio.file.Paths
 import kotlin.concurrent.thread
-import kotlin.io.path.absolute
 
 /**
  * <Description>

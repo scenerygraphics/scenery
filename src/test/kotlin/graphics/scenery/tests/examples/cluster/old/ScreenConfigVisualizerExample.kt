@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.cluster.old
 
 import org.joml.Vector3f
 import graphics.scenery.*

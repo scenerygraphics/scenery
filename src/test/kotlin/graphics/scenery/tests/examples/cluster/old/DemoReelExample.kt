@@ -1,8 +1,9 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.cluster.old
 
 import graphics.scenery.Mesh
 import graphics.scenery.SceneryElement
 import graphics.scenery.controls.InputHandler
+import graphics.scenery.tests.examples.cluster.CaveBaseScene
 import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
