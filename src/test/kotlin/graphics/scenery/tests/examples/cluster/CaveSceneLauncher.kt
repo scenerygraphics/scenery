@@ -17,7 +17,7 @@ class CaveSceneLauncher: SceneryBase("Demo Reel") {
         @JvmStatic
         fun main(args: Array<String>) {
 //            val caveScene = CaveClientExample()
-            val caveScene = MaybeWithSlicing()
+            val caveScene = CaveDemoWithSlicing()
             val slim = true
 //            val caveScene = CaveBaseScene()
 

@@ -16,6 +16,7 @@ import net.java.games.input.Component
 import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -25,7 +26,7 @@ import kotlin.time.ExperimentalTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @OptIn(ExperimentalTime::class)
-class MaybeWithSlicing: CaveBaseScene("uff") {
+class CaveDemoWithSlicing: CaveBaseScene("uff") {
     lateinit var activeObject: Node
     var selectableObjects = ArrayList<Node>()
 
@@ -35,18 +36,16 @@ class MaybeWithSlicing: CaveBaseScene("uff") {
         cam.spatial().position = Vector3f(.0f, 0.0f, 10.0f)
 
         val slicingPlane = SlicingPlane()
-//        val lights = Light.createLightTetrahedron<PointLight>(spread = 20.0f, intensity = 5.0f, radius = 200.0f)
-//        lights.forEach { scene.addChild(it) }
         val light = PointLight(radius = 100.0f)
         scene += light
 
         val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
             Volume.VolumeFileSource.VolumeType.TIFF),hub)
-        retina.colormap = Colormap.get("hot")
+        retina.colormap = Colormap.get("jet")
         retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
         retina.setTransferFunctionRange(200.0f, 36000.0f)
-        retina.slicingMode = Volume.SlicingMode.Cropping
+        retina.slicingMode = Volume.SlicingMode.None
         slicingPlane.addTargetVolume(retina)
         retina.origin = Origin.Center
         retina.spatial {
@@ -54,66 +53,31 @@ class MaybeWithSlicing: CaveBaseScene("uff") {
             position = Vector3f(5.0f, 1.0f, 0.0f)
         }
         retina.name = "Mouse retina"
+        retina.loadTransferFunctionFromFile(File("""E:\datasets\retina_test2\transferFunction"""))
         scene.addChild(retina)
         selectableObjects.add(retina)
 
-//        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
-//            Volume.VolumeFileSource.VolumePath.Given("""E:\ssd-backup-inauguration\CAVE_DATA\droso-royer-autopilot-transposed"""),
-//            Volume.VolumeFileSource.VolumeType.TIFF),hub)
-//
-//        drosophila.colormap = Colormap.get("hot")
-//        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-//        drosophila.setTransferFunctionRange(20.0f, 1200.0f)
-//        drosophila.origin = Origin.Center
-//        drosophila.spatial {
-//            scale = Vector3f(1.0f, 5.0f, 1.0f)
-//            position = Vector3f(10.0f, 1.0f, 0.0f)
-//        }
-//        drosophila.name = "Drosophila timelapse"
-//        drosophila.slicingMode = Volume.SlicingMode.Cropping
-//        slicingPlane.addTargetVolume(drosophila)
-//        scene.addChild(drosophila)
-//        selectableObjects.add(drosophila)
+        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
+            Volume.VolumeFileSource.VolumeType.SPIM),hub)
 
-        val bile = RichNode()
-        bile.apply {
-            val canaliculi = Mesh.forNetwork("E:/datasets/bile/bile-canaliculi.obj", true, hub)
-            canaliculi.spatial {
-                scale = Vector3f(0.005f)
-                origin = Origin.Center
-            }
-            canaliculi.material {
-                diffuse = Vector3f(0.5f, 0.7f, 0.1f)
-            }
-            addChild(canaliculi)
-
-            val nuclei = Mesh.forNetwork("E:/datasets/bile/bile-nuclei.obj", true, hub)
-            nuclei.spatial {
-                scale = Vector3f(0.005f)
-                origin = Origin.Center
-            }
-            nuclei.material {
-                diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-            }
-            addChild(nuclei)
-
-            val sinusoidal = Mesh.forNetwork("E:/datasets/bile/bile-sinus.obj", true, hub)
-            sinusoidal.spatial {
-                scale = Vector3f(0.005f)
-                origin = Origin.Center
-            }
-            sinusoidal.material {
-                ambient = Vector3f(0.1f, 0.0f, 0.0f)
-                diffuse = Vector3f(0.4f, 0.0f, 0.02f)
-                specular = Vector3f(0.05f, 0f, 0f)
-            }
-            addChild(sinusoidal)
-
-            name = "Bile Network"
+        drosophila.colormap = Colormap.get("hot")
+        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+        drosophila.setTransferFunctionRange(20.0f, 1200.0f)
+        drosophila.origin = Origin.Center
+        drosophila.spatial {
+            scale = Vector3f(1.0f, 5.0f, 1.0f)
+            position = Vector3f(10.0f, 1.0f, 0.0f)
         }
-        bile.spatial().position = Vector3f(0.0f, 2.0f, 0.0f)
-        scene += bile
-        selectableObjects.add(bile)
+        drosophila.name = "Drosophila timelapse"
+        drosophila.slicingMode = Volume.SlicingMode.Cropping
+        slicingPlane.addTargetVolume(drosophila)
+        scene.addChild(drosophila)
+        selectableObjects.add(drosophila)
+
+//        TransferFunctionEditor.showTFFrame(drosophila)
+
+        val bile = initBile()
 
         val ferry = RichNode()
         ferry.name = "FERRY complex"
@@ -137,7 +101,7 @@ class MaybeWithSlicing: CaveBaseScene("uff") {
         scene += ferry
         selectableObjects.add(ferry)
 
-        //TransferFunctionEditor(volume = cryoEM)
+//        TransferFunctionEditor.showTFFrame(cryoEM)
 
         val ambient = AmbientLight(0.1f)
         scene += ambient
@@ -179,7 +143,52 @@ class MaybeWithSlicing: CaveBaseScene("uff") {
         }
     }
 
+    private fun initBile(): RichNode {
+        val bile = RichNode()
+        bile.apply {
+            val canaliculi = Mesh.forNetwork("E:/datasets/bile/bile-canaliculi.obj", true, hub)
+            canaliculi.spatial {
+                scale = Vector3f(0.005f)
+                origin = Origin.Center
+            }
+            canaliculi.material {
+                diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+            }
+            addChild(canaliculi)
+
+            val nuclei = Mesh.forNetwork("E:/datasets/bile/bile-nuclei.obj", true, hub)
+            nuclei.spatial {
+                scale = Vector3f(0.005f)
+                origin = Origin.Center
+            }
+            nuclei.material {
+                diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+            }
+            addChild(nuclei)
+
+            val sinusoidal = Mesh.forNetwork("E:/datasets/bile/bile-sinus.obj", true, hub)
+            sinusoidal.spatial {
+                scale = Vector3f(0.005f)
+                origin = Origin.Center
+            }
+            sinusoidal.material {
+                ambient = Vector3f(0.1f, 0.0f, 0.0f)
+                diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+                specular = Vector3f(0.05f, 0f, 0f)
+            }
+            addChild(sinusoidal)
+
+            name = "Bile Network"
+        }
+        bile.spatial().position = Vector3f(0.0f, 2.0f, 0.0f)
+        scene += bile
+        selectableObjects.add(bile)
+        return bile
+    }
+
     override fun inputSetup() {
+        super.inputSetup()
+
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
         var playerThread: Thread? = null
 
@@ -297,7 +306,7 @@ class MaybeWithSlicing: CaveBaseScene("uff") {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            MaybeWithSlicing().main()
+            CaveDemoWithSlicing().main()
         }
     }
 }
