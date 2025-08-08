@@ -17,6 +17,7 @@ import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.io.File
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -49,7 +50,7 @@ class CaveDemoWithSlicing: CaveBaseScene("uff") {
         slicingPlane.addTargetVolume(retina)
         retina.origin = Origin.Center
         retina.spatial {
-            scale = Vector3f(2.0f,5.0f,10.0f) * 0.3f
+            scale = Vector3f(2.0f, 2.0f, 6.0f)
             position = Vector3f(5.0f, 1.0f, 0.0f)
         }
         retina.name = "Mouse retina"
@@ -65,6 +66,7 @@ class CaveDemoWithSlicing: CaveBaseScene("uff") {
         drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
         drosophila.setTransferFunctionRange(20.0f, 1200.0f)
         drosophila.origin = Origin.Center
+        drosophila.multiResolutionLevelLimits = 1 to 2
         drosophila.spatial {
             scale = Vector3f(1.0f, 5.0f, 1.0f)
             position = Vector3f(10.0f, 1.0f, 0.0f)
@@ -238,33 +240,33 @@ class CaveDemoWithSlicing: CaveBaseScene("uff") {
             called "scale_up"
             boundTo GamepadButton.Button5)
 
-//        inputHandler += (object: GamepadClickBehaviour {
-//            override fun click(p0: Int, p1: Int) {
-//                if(!activeObject.name.startsWith("Drosophila")) {
-//                    return
-//                }
-//
-//                playerThread = if(playerThread == null) {
-//                    thread {
-//                        while(!Thread.interrupted()) {
-//                            val vol = (scene.find("Drosophila timelapse") as? Volume) ?: continue
-//                            if(vol.currentTimepoint == vol.timepointCount -1) {
-//                                vol.goToFirstTimepoint()
-//                            } else {
-//                                vol.nextTimepoint()
-//                            }
-//
-//                            Thread.sleep(100)
-//                        }
-//                    }
-//                } else {
-//                    (playerThread as? Thread)?.interrupt()
-//                    null
-//                }
-//            }
-//        }
-//            called "play_pause_volume"
-//            boundTo GamepadButton.Button2)
+        inputHandler += (object: GamepadClickBehaviour {
+            override fun click(p0: Int, p1: Int) {
+                if(!activeObject.name.startsWith("Drosophila")) {
+                    return
+                }
+
+                playerThread = if(playerThread == null) {
+                    thread {
+                        while(!Thread.interrupted()) {
+                            val vol = (scene.find("Drosophila timelapse") as? Volume) ?: continue
+                            if(vol.currentTimepoint == vol.timepointCount -1) {
+                                vol.goToFirstTimepoint()
+                            } else {
+                                vol.nextTimepoint()
+                            }
+
+                            Thread.sleep(100)
+                        }
+                    }
+                } else {
+                    (playerThread as? Thread)?.interrupt()
+                    null
+                }
+            }
+        }
+            called "play_pause_volume"
+            boundTo GamepadButton.Button2)
 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
