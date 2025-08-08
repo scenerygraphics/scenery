@@ -54,9 +54,6 @@ open class CaveBaseScene(name: String = "Cave Scene") : SceneryBase(name) {
         Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 5.0f, radius = 150.0f)
             .forEach { scene.addChild(it) }
 
-        val box = Box()
-        scene.addChild(box)
-
     }
 
     /**
