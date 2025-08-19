@@ -69,6 +69,11 @@ abstract class VRTwoHandDragBehavior(
         }
     }
 
+    /** Returns [bothPressed], indicating whether both buttons of the behavior are currently pressed. */
+    fun isBothPressed(): Boolean {
+        return bothPressed
+    }
+
 
     // --- actual behavior ---
     var lastPosMain: Vector3f = Vector3f()
