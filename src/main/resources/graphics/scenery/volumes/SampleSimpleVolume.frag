@@ -3,6 +3,7 @@ uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
 uniform int slicingMode;
 uniform int usedSlicingPlanes;
+uniform ivec3 volTextureSize;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -44,7 +45,7 @@ vec4 sampleVolume( vec4 wpos )
 
     vec3 pos = (im * wpos).xyz + 0.5;
 
-    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
+    float rawsample = convert(texture( volume, pos / volTextureSize ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
