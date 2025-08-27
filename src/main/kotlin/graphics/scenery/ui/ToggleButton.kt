@@ -87,7 +87,6 @@ class ToggleButton(
                 }
             ))
 
-        box.material().diffuse = color
-
+        box.material().diffuse = if (default) pressedColor else color
     }
 }
