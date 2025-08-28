@@ -464,11 +464,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             hub.add(subscriber)
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
-            if(settings.get("Cluster.Launch", false)) {
-                clusterLaunch()
-                applicationName += " [Cluster]"
-            }
-
             applicationName += " [Server]"
             val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort, context = ZContext())
 
@@ -486,38 +481,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     fun waitForSceneInitialisation() {
         while(!sceneInitialized()) {
             Thread.sleep(200)
-        }
-    }
-
-    /**
-     * Launches scenery instances on a cluster, with launch and shutdown scripts
-     * determined from the settings Cluster.LaunchScript, and Cluster.ShutdownScript.
-     */
-    fun clusterLaunch() {
-        thread(isDaemon = true) {
-            val settings = hub.get<Settings>() ?: throw IllegalStateException("Can't execute cluster launch without Settings object present in Hub")
-
-            val shutdownScript = settings.get("Cluster.ShutdownScript", "killall-java.bat")
-            val launchScript = settings.get("Cluster.LaunchScript", "run-cluster.bat")
-            val clusterWorkingDirectory = settings.get("Cluster.WorkingDirectory", ".")
-
-            logger.info("Using $launchScript as cluster launch script")
-
-            Runtime.getRuntime().addShutdownHook(thread(start = false) {
-                logger.info("Registering $shutdownScript as shutdown script")
-                Runtime.getRuntime().exec(shutdownScript,
-                    null, Paths.get(clusterWorkingDirectory).absolute().toFile())
-            })
-
-            val clusterLaunch = Runtime.getRuntime().exec("$launchScript graphics.scenery.tests.examples.cluster.CaveClientExample",
-                null, Paths.get(clusterWorkingDirectory).absolute().toFile())
-
-            BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
-                var line: String?
-                while (input.readLine().also { line = it } != null && !shouldClose) {
-                    logger.info("Cluster: $line")
-                }
-            }
         }
     }
 
