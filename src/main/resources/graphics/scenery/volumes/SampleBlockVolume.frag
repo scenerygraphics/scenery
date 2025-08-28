@@ -6,7 +6,6 @@ uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
 uniform int slicingMode;
 uniform int usedSlicingPlanes;
-uniform int skip;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {

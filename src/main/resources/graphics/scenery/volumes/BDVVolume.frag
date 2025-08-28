@@ -134,13 +134,13 @@ void main()
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
-	// $repeat:{vis,localNear,localFar,skip,intersectBoundingBox|
+	// $repeat:{vis,localNear,localFar,intersectBoundingBox|
 	bool vis = false;
 	float localNear = 0.0f;
 	float localFar = 0.0f;
 	intersectBoundingBox( wfront, wback, n, f );
 	f = min( tmax, f );
-	if ( n < f && skip == 0)
+	if ( n < f)
 	{
 		localNear = n;
 		localFar = f;

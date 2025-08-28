@@ -307,7 +307,6 @@ class VolumeManager(
             "vis",
             "localNear",
             "localFar",
-            "skip",
             "SampleVolume",
             "Convert",
             "Accumulate"
@@ -334,14 +333,13 @@ class VolumeManager(
             "slicingMode",
             "usedSlicingPlanes",
             "sceneGraphVisibility",
-            "skip"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert",
             "slicingPlanes", "slicingMode", "usedSlicingPlanes",
-            "sceneGraphVisibility", "skip"
+            "sceneGraphVisibility"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -412,14 +410,6 @@ class VolumeManager(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.AccumulatorMultiresolution]
                 )
-
-                logger.debug("Connecting additional bindings")
-
-                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
-                    segmentInstances[SegmentType.FragmentShader]?.bind("skip", volumeIndex, segmentInstances[SegmentType.SampleMultiresolutionVolume])
-                } else {
-                    segmentInstances[SegmentType.FragmentShader]?.bind("skip", volumeIndex, segmentInstances[SegmentType.SampleVolume])
-                }
             }
 
 
@@ -450,14 +440,6 @@ class VolumeManager(
             state = State.Ready
         } else {
             state = State.Created
-        }
-    }
-
-    private fun Boolean.toInt(): Int {
-        return if(this) {
-            1
-        } else {
-            0
         }
     }
 
@@ -580,7 +562,6 @@ class VolumeManager(
                     currentProg.setUniform(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
-                    currentProg.setUniform(i, "skip", (!state.node.visible).toInt())
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
