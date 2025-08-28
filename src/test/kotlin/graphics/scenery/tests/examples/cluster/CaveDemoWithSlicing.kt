@@ -221,6 +221,8 @@ class CaveDemoWithSlicing: CaveBaseScene("uff") {
 
         // removes the default second-stick camera look-around for the gamepad
         inputHandler -= "gamepad_camera_control"
+        // replace default movement control to also include z movement
+        inputHandler.behaviourMap.put("gamepad_movement_control", GamepadMovementControl(listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y, Component.Identifier.Axis.Z)) { scene.findObserver() })
         // adds a new behaviour for rotating the [activeProtein], RX and RY are the rotation
         // axis on the Xbox Wireless controller. For other controllers, different axis may
         // have to be used. Gamepad movement and rotation behaviours are always active,
