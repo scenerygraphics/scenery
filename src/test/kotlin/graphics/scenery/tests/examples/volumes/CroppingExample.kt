@@ -83,6 +83,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
 
                 volume2 = Volume.forNetwork(volumeInitializer, hub)
                 volume2.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+                volume2.spatial().scale = Vector3f(10f)
                 vol2Pivot.addChild(volume2)
 
                 val slicingPlane2 = createSlicingPlane()
