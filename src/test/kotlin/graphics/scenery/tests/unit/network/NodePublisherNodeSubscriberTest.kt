@@ -35,7 +35,7 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
-    private val sleepTime = 500L
+    private val sleepTime = 1000L
 
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and waits a bit to let everything setup.
