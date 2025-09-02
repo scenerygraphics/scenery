@@ -10,6 +10,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.utils.lazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.LinkedHashMap
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -30,8 +31,6 @@ open class VulkanRendererMetadata {
         get() = flags.contains(RendererFlags.Initialised)
     /** Indicates whether the mesh is using indexed vertex storage. */
     var isIndexed = false
-    /** Indicates the offset to the indices in the vertex buffer in bytes. */
-    var indexOffset = 0L
     /** The number of indices stored. */
     var indexCount = 0
     /** The number of vertices stored. */
@@ -40,10 +39,16 @@ open class VulkanRendererMetadata {
     var instanceCount = 1
 
     /** Hash map storing necessary vertex buffers. */
-    var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
+    var geometryBuffers = ConcurrentHashMap<String, VulkanBuffer>()
 
     /** UBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
     var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
+
+    /** SSBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
+    var SSBOs = LinkedHashMap<String, Long>()
+    var SSBOBuffers = LinkedHashMap<String, VulkanBuffer>()
+    //TODO: Temp
+    var inheritedDescriptors = HashMap<String, Long>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
     var textures = ConcurrentHashMap<String, VulkanTexture>()
@@ -268,7 +273,7 @@ open class VulkanRendererMetadata {
 
         val set = textureDescriptorSets[passname to texture]
         if(set == null) {
-            logger.warn("$this: Could not find descriptor set for $passname and texture set $texture")
+            logger.warn("$this: Could not find descriptor set for pass $passname and texture set $texture")
 //            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
             logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().groupBy { it.first }.entries.joinToString { "${it.key}: ${it.value.joinToString(", ") { ds -> ds.second }}" }}")
         }

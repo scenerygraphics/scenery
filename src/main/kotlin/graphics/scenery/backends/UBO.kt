@@ -7,6 +7,7 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**
@@ -19,8 +20,8 @@ open class UBO {
     /** Name of this UBO */
     var name = ""
 
-    protected var members = LinkedHashMap<String, () -> Any>()
-    protected var memberOffsets = HashMap<String, Int>()
+    internal var members = LinkedHashMap<String, () -> Any>()
+    internal var memberOffsets = HashMap<String, Int>()
     protected val logger by lazyLogger()
 
     /** Hash value of all the members, gets updated by [populate()] */
@@ -37,7 +38,7 @@ open class UBO {
     }
 
     /**
-     * Returns the size of [element] inside an uniform buffer.
+     * Returns the size of [element] inside a uniform buffer.
      */
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     protected fun sizeOf(element: Any): Int {
@@ -336,6 +337,29 @@ open class UBO {
      */
     fun memberCount(): Int {
         return members.size
+    }
+
+    /**
+     * Return a list of all member sizes and offsets of this UBO
+     */
+    fun membersSizesAndOffsets()  : LinkedList<Pair<Int, Int>> {
+        val list  =  LinkedList<Pair<Int, Int>>()
+        members.forEach {
+            memberOffsets.get(it.key)?.let { it1 ->
+                list.add(sizeOf(it.value.invoke()) to it1)
+            }
+        }
+        return list
+    }
+
+    /**
+     * Return the size and offset of member [name] if it exists in this UBO.
+     */
+    fun memberSizeAndOffset(name : String) : Pair<Int, Int?>? {
+         return when(members.containsKey(name)) {
+            true -> sizeOf(members[name]!!.invoke()) to memberOffsets[name]
+            else -> null
+        }
     }
 
     /**

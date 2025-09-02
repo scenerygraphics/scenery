@@ -72,7 +72,6 @@ open class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: B
         }
 
         addRenderable()
-
         addSpatial()
     }
 

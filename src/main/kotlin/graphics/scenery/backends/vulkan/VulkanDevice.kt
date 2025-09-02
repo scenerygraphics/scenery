@@ -460,13 +460,16 @@ open class VulkanDevice(
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC to maxUBOs,
                 VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT to maxInputAttachments,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to maxTextures,
-                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures)
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER to maxSSBOs,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC to maxSSBOs)
         )
     ) {
 
         companion object {
             val maxTextures = 2048 * 16
             val maxUBOs = 2048
+            val maxSSBOs = 64
             val maxInputAttachments = 32
             val maxSets = maxUBOs * 2 + maxInputAttachments + maxTextures
         }
@@ -480,7 +483,7 @@ open class VulkanDevice(
 
         return stackPush().use { stack ->
             // We need to tell the API the number of max. requested descriptors per type
-            val typeCounts = VkDescriptorPoolSize.calloc(5, stack)
+            val typeCounts = VkDescriptorPoolSize.calloc(7, stack)
             typeCounts[0]
                 .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 .descriptorCount(DescriptorPool.maxTextures)
@@ -501,6 +504,14 @@ open class VulkanDevice(
                 .type(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
                 .descriptorCount(DescriptorPool.maxTextures)
 
+            typeCounts[5]
+                .type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+                .descriptorCount(DescriptorPool.maxSSBOs)
+
+            typeCounts[6]
+                .type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+                .descriptorCount(DescriptorPool.maxSSBOs)
+
             // Create the global descriptor pool
             // All descriptors used in this example are allocated from this pool
             val descriptorPoolInfo = VkDescriptorPoolCreateInfo.calloc(stack)
@@ -518,6 +529,68 @@ open class VulkanDevice(
     }
 
     /**
+     * Order is important. buffers.size determines the rest. binding count will be set to 1 by default. If types is just one type, it will be default for all buffers. Does support arrays, but array elements are the same atm.
+     */
+    fun createDescriptorSet(
+        descriptorSetLayout: Long,
+        buffers: List<Pair<Int, /*List<*/VulkanUBO.UBODescriptor/*>*/>>,
+        types: List<Int> = listOf(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+    ): Long {
+        //TODO: makes this better
+        if(types.size != 1 && types.size != buffers.size) {
+            logger.error("Not good")
+        }
+        val finalTypes =
+        if(types.size == 1) {
+            buffers.indices.map { types[0] }
+        } else {
+            types
+        }
+
+        val pool = findAvailableDescriptorPool(finalTypes[0])
+        pool.decreaseAvailable(finalTypes[0], 1)
+
+        logger.debug("Creating descriptor set with ${buffers.size} bindings, DSL=$descriptorSetLayout")
+        return stackPush().use { stack ->
+            val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .descriptorPool(pool.handle)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            val descriptorSet = VU.getLong("createDescriptorSet",
+                { vkAllocateDescriptorSets(vulkanDevice, allocInfo, this) }, {})
+
+            var writeCount = 0
+            buffers.forEach{ writeCount += it.first}
+            val writeDescriptorSet = VkWriteDescriptorSet.calloc(buffers.size, stack)
+
+            buffers.forEachIndexed {i, it ->
+                val d =
+                    VkDescriptorBufferInfo.calloc(1, stack)
+                        .buffer(it.second.buffer)
+                        .range(it.second.range)
+                        .offset(it.second.offset)
+
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(MemoryUtil.NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .pBufferInfo(d)
+                    .descriptorType(finalTypes[i])
+                    .descriptorCount(it.first)
+            }
+            vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
+
+            descriptorSet
+        }
+    }
+
+
+    /**
      * Creates a new descriptor set with default type uniform buffer.
      */
     fun createDescriptorSet(
@@ -526,7 +599,8 @@ open class VulkanDevice(
         ubo: VulkanUBO.UBODescriptor,
         type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
     ): Long {
-        val pool = findAvailableDescriptorPool(type)
+        return createDescriptorSet(descriptorSetLayout, listOf(bindingCount to ubo))
+        /*val pool = findAvailableDescriptorPool(type)
         pool.decreaseAvailable(type, 1)
 
         logger.debug("Creating descriptor set with $bindingCount bindings, DSL=$descriptorSetLayout")
@@ -564,7 +638,7 @@ open class VulkanDevice(
             vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
 
             descriptorSet
-        }
+        }*/
     }
 
     /**

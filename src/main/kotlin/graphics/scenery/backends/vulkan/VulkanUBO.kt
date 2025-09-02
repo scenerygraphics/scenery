@@ -16,6 +16,7 @@ const val BUFFER_OFFSET_UNINTIALISED = -1337
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
+
     /** [UBODescriptor] for this UBO, containing size, memory pointer, etc. */
     var descriptor = UBODescriptor()
         private set
@@ -24,6 +25,14 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     private var closed = false
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null
+
+    constructor(device: VulkanDevice, backingBuffer: VulkanBuffer? = null, ubo : UBO) : this(device, backingBuffer) {
+        this.name = ubo.name
+        this.members = ubo.members // TODO check me if this is fine or need to `.clone()`
+        this.memberOffsets = ubo.memberOffsets
+
+        // TODO: check if the hash needs to be retrieved as well or not
+    }
 
     /**
      * UBO descriptor class, wrapping memory pointers,
@@ -107,23 +116,29 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
 
+    // TODO: Refactor UBO and SSBO
     /**
      * Creates a [UBODescriptor] for this UBO and returns it.
      */
-    fun createUniformBuffer(): UBODescriptor {
+    fun createUniformBuffer(vkBufferUsage : Int = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT): UBODescriptor {
         backingBuffer?.let { buffer ->
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
-            descriptor.range = this.getSize() * 1L
+            descriptor.offset = buffer.bufferOffset
+            descriptor.range = when(vkBufferUsage)
+            {
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT -> this.getSize() * 1L
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT -> buffer.size
+                else -> this.getSize() * 1L
+            }
 
             return descriptor
         }
 
         ownedBackingBuffer = VulkanBuffer(device,
             this.getSize() * 1L,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            vkBufferUsage,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             wantAligned = true)
 
@@ -132,8 +147,13 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
-            descriptor.range = this.getSize() * 1L
+            descriptor.offset = buffer.bufferOffset
+            descriptor.range = when(vkBufferUsage)
+            {
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT -> this.getSize() * 1L
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT -> buffer.size
+                else -> this.getSize() * 1L
+            }
         }
 
         return descriptor
@@ -148,6 +168,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         descriptor.memory = newBackingBuffer.memory
         descriptor.allocationSize = newBackingBuffer.size
         descriptor.buffer = newBackingBuffer.vulkanBuffer
+        // TODO: Check what happens if the backing buffer is set for a SSBO -> offset and range might not be correct then
         descriptor.offset = 0L
         descriptor.range = this.getSize() * 1L
 

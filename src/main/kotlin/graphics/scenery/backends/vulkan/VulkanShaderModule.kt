@@ -61,7 +61,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val 
 
         localSize = Triple(maxOf(localSizes.x, 1), maxOf(localSizes.y, 1), maxOf(localSizes.z, 1))
 
-        intro.uniformBuffers().forEach { ubo ->
+        (intro.uniformBuffers()+intro.storageBuffers()).forEach { ubo ->
             // only add the UBO spec if it doesn't already exist, and has more than 0 members
             // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
             if(!uboSpecs.contains(ubo.name) && ubo.members.size > 0) {

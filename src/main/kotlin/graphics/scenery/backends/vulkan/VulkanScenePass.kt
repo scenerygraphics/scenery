@@ -172,7 +172,6 @@ object VulkanScenePass {
 
                 if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
                     MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(pipeline.descriptorSpecs.count())
                 }
 
                 val specs = pipeline.orderedDescriptorSpecs()
@@ -241,14 +240,16 @@ object VulkanScenePass {
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
-                    VulkanTexture.transitionLayout(texture.image.image,
+                    VulkanTexture.transitionLayout(
+                        texture.image.image,
                         from = VK10.VK_IMAGE_LAYOUT_GENERAL,
                         to = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         srcStage = VK10.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                         srcAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
                         dstStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                         dstAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
-                        commandBuffer = this)
+                        commandBuffer = this
+                    )
 
                 }
 
@@ -284,7 +285,7 @@ object VulkanScenePass {
 
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
-                if(s.vertexCount == 0) {
+                if(s.vertexCount == 0 && !geometry.shaderSourced) {
                     return@drawLoop
                 }
 
@@ -298,18 +299,27 @@ object VulkanScenePass {
                     return@drawLoop
                 }
 
-                val vertexIndexBuffer = s.vertexBuffers["vertex+index"]
-                val instanceBuffer = s.vertexBuffers["instance"]
+                // TODO: The vertex and index buffers are just VulkanBuffers which was already uploaded to the GPU in the render(...) function before cb-recording
+                var vertexBuffer = s.geometryBuffers["vertex"]
 
-                if(vertexIndexBuffer == null) {
-                    logger.error("Vertex+Index buffer not initialiazed")
-                    return@drawLoop
+                // For now, we override the verex buffer if shaderSources is active
+                if(geometry.shaderSourced) {
+                    vertexBuffer = s.SSBOBuffers["ssbosVertices"]
                 }
 
-                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, vertexIndexBuffer.vulkanBuffer.toHexString())
+                if(vertexBuffer == null) {
+                    logger.error("Vertex buffer not initialized")
+                    return@drawLoop
+                }
+                logger.trace("{} - Rendering {}, vertex buffer={}...", pass.name, node.name, vertexBuffer.vulkanBuffer.toHexString())
+
+
+
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
+
+
                 val p = pass.getActivePipeline(renderable)
                 val pipeline = p.getPipelineForGeometryType(geometry.geometryType)
                 val specs = p.orderedDescriptorSpecs()
@@ -324,15 +334,19 @@ object VulkanScenePass {
                     logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
                 }
 
+
+
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexIndexBuffer.bufferOffset)
-                pass.vulkanMetadata.vertexBuffers.put(0, vertexIndexBuffer.vulkanBuffer)
-
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexBuffer.bufferOffset)
+                pass.vulkanMetadata.vertexBuffers.put(0, vertexBuffer.vulkanBuffer)
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
+
+
+                val instanceBuffer = s.geometryBuffers["instance"]
                 if(node is InstancedNode) {
                     if (node.instances.size > 0 && instanceBuffer != null) {
                         pass.vulkanMetadata.vertexBuffers.limit(2)
@@ -362,18 +376,39 @@ object VulkanScenePass {
                         pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
 
-
                 if(p.pushConstantSpecs.containsKey("currentEye")) {
                     VK10.vkCmdPushConstants(this, pipeline.layout, VK10.VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
                 }
 
-                VK10.vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
+                VK10.vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
                 logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
 
-                if (s.isIndexed) {
-                    VK10.vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK10.VK_INDEX_TYPE_UINT32)
-                    VK10.vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
+
+                var indexCount = 0
+                var isIndexed = true
+                var indexBuffer = s.SSBOBuffers["ssbosIndices"]
+                if(indexBuffer != null) {
+                    indexCount = (indexBuffer.size - indexBuffer.suballocation!!.offset / 4).toInt()
+                    //indexCount = 6
+                } else {
+                    indexCount = s.indexCount
+                    indexBuffer = s.geometryBuffers["index"]
+                }
+
+                if(indexBuffer == null) {
+                    isIndexed = false
+                    indexCount = 0
+                    logger.error("Index buffer not initialized")
+                } else {
+                    pass.vulkanMetadata.indexBufferOffset = indexBuffer.bufferOffset
+                    pass.vulkanMetadata.indexBuffers.put(0, indexBuffer.vulkanBuffer)
+                    pass.vulkanMetadata.indexBuffers.limit(1)
+                }
+
+                if (isIndexed) {
+                    VK10.vkCmdBindIndexBuffer(this, pass.vulkanMetadata.indexBuffers.get(0), pass.vulkanMetadata.indexBufferOffset, VK10.VK_INDEX_TYPE_UINT32)
+                    VK10.vkCmdDrawIndexed(this, indexCount, s.instanceCount, 0, 0, 0)
                 } else {
                     VK10.vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
                 }
@@ -563,7 +598,8 @@ object VulkanScenePass {
 
     private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanRendererMetadata, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
-        return specs.mapNotNull { (name, _) ->
+        var ssboFound = false
+        return specs.mapNotNull { (name, spec) ->
             val ds = when {
                 name == "VRParameters" -> {
                     VulkanRenderer.DescriptorSet.setOrNull(descriptorSets["VRParameters"], setName = "VRParameters")
@@ -579,6 +615,15 @@ object VulkanScenePass {
 
                 name == "ShaderParameters" -> {
                     VulkanRenderer.DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
+                }
+
+                name.startsWith("ssbos") && s.SSBOs.isNotEmpty() -> {
+                    if(ssboFound)
+                    {
+                        null
+                    }
+                    ssboFound = true
+                    VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue("ssbos"), setName = "ssbos")
                 }
 
                 else -> {

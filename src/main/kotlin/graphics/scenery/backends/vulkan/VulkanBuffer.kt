@@ -2,12 +2,12 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.lazyLogger
 import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkBufferCreateInfo
-import org.lwjgl.vulkan.VkMemoryAllocateInfo
-import org.lwjgl.vulkan.VkMemoryRequirements
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
@@ -22,10 +22,11 @@ import kotlin.math.roundToInt
  */
 open class VulkanBuffer(val device: VulkanDevice, var size: Long,
                    val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                   val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
+                   val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null, var name : String = "VulkanBuffer"): AutoCloseable {
     private val logger by lazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
+
 
     /** Buffer alignment, 256 bytes by default (Vulkan standard) */
     var alignment: Long = 256
@@ -56,7 +57,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
 
     init {
         if(suballocation == null) {
-            val b = allocateVulkanBuffer(size, wantAligned)
+            val b = allocateVulkanBuffer(size, wantAligned, name)
 
             this.memory = b.memory
             this.vulkanBuffer = b.buffer
@@ -79,7 +80,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
 
     private data class RawBuffer(val buffer: Long, val memory: Long, val size: Long, val alignment: Long)
 
-    private fun allocateVulkanBuffer(size: Long, wantAligned: Boolean): RawBuffer {
+    private fun allocateVulkanBuffer(size: Long, wantAligned: Boolean, debugName : String): RawBuffer {
         val memory = MemoryUtil.memAllocLong(1)
         val memTypeIndex = MemoryUtil.memAllocInt(1)
 
@@ -93,6 +94,8 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         val buffer = VU.getLong("Creating buffer",
             { vkCreateBuffer(device.vulkanDevice, bufferInfo, null, this) }, {})
         vkGetBufferMemoryRequirements(device.vulkanDevice, buffer, reqs)
+
+        device.tag(buffer, VulkanDevice.VulkanObjectType.Buffer, debugName)
 
         val actualSize = if (wantAligned) {
             if (reqs.size().rem(reqs.alignment()) == 0L) {
@@ -156,7 +159,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         unmap()
 
         destroyVulkanBuffer()
-        val b = allocateVulkanBuffer(stagingBuffer.capacity() * 1L, wantAligned)
+        val b = allocateVulkanBuffer(stagingBuffer.capacity() * 1L, wantAligned, name)
 
         this.memory = b.memory
         this.vulkanBuffer = b.buffer
@@ -356,10 +359,10 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
          * Creates a new VulkanBuffer of [size] that has it's memory managed by a [VulkanBufferPool]
          * given by [pool].
          */
-        fun fromPool(pool: VulkanBufferPool, size: Long): VulkanBuffer {
+        fun fromPool(pool: VulkanBufferPool, size: Long, name : String): VulkanBuffer {
             val suballocation = pool.create(size.toInt())
             return VulkanBuffer(pool.device, suballocation.size.toLong(),
-                usage = pool.usage, suballocation = suballocation)
+                usage = pool.usage, suballocation = suballocation, name = name)
         }
     }
 }
