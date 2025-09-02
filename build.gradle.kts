@@ -1,5 +1,5 @@
 import org.gradle.kotlin.dsl.api
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import scenery.*
 import java.net.URL
 
@@ -65,7 +65,6 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
 
-
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
 
@@ -100,7 +99,7 @@ dependencies {
     }
     implementation("org.xerial.snappy:snappy-java:1.1.10.5")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
     implementation("org.zeromq:jeromq:0.6.0")
     implementation("com.esotericsoftware:kryo:5.6.2")
@@ -138,7 +137,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:2.1.10")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -159,10 +158,11 @@ val isRelease: Boolean
     get() = System.getProperty("release") == "true"
 
 tasks {
-    withType<KotlinCompile>().all {
-        kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
-            freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
+    withType<KotlinJvmCompile>().configureEach {
+        compilerOptions {
+            jvmTarget//project.properties["jvmTarget"]?.toString() ?: "21")
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+            freeCompilerArgs.addAll(listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"))
         }
     }
 

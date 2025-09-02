@@ -12,6 +12,8 @@ import graphics.scenery.utils.extensions.plus
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 
 /**
@@ -25,14 +27,16 @@ import org.scijava.ui.behaviour.DragBehaviour
  *
  * @param targets Only nodes in this list may be dragged. They must have a [Grabable] attribute.
  * @param multiTarget If this is true all targets which collide with [controllerHitbox] will be dragged otherwise only one.
+ * @param holdToDrag if true user has to hold the button pressed to continue dragging, otherwise the target will stick to the controller.
  *
  * @author Jan Tiemann
  */
 open class VRGrab(
-    protected val name: String,
-    protected val controllerHitbox: Node,
+    val name: String,
+    var controllerHitbox: Spatial,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
+    protected val holdToDrag: Boolean = true,
     protected val onGrab: ((Node) -> Unit)? = null,
     protected val onDrag: ((Node) -> Unit)? = null,
     protected val onRelease: ((Node) -> Unit)? = null
@@ -40,23 +44,31 @@ open class VRGrab(
 
     override var enabled: Boolean = true
 
-    protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
-        ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
-
     protected var selected = emptyList<Node>()
 
     protected var lastPos = Vector3f()
     protected var lastRotation = Quaternionf()
 
+    private val dragFunction = {this.drag(-42,0)}
+
+    init {
+        if (!holdToDrag && multiTarget) throw IllegalArgumentException("holdToDrag cant be false if multiTarget is true.")
+    }
+
     /**
      * Called on the first frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun init(x: Int, y: Int) {
         if (!enabled) return
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
+        if (!holdToDrag && selected.isNotEmpty()){
+            releaseDragging()
+            return
+        }
+
+        selected = targets().filter { box -> controllerHitbox.intersects(box, true) }
         if (!multiTarget) {
             selected = selected.take(1)
         }
@@ -66,26 +78,30 @@ open class VRGrab(
         selected.forEach {
             onGrab?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke()
+            if (!holdToDrag){
+                it.update += dragFunction
+            }
         }
-        lastPos = controllerSpatial.worldPosition()
-        lastRotation = controllerSpatial.worldRotation()
+        lastPos = controllerHitbox.worldPosition()
+        lastRotation = controllerHitbox.worldRotation()
     }
 
     /**
      * Called on every frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun drag(x: Int, y: Int) {
         if (!enabled) return
-        val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
+        if (!holdToDrag && x != -42) return //magic number
+        val newPos = controllerHitbox.worldPosition()
         val diffTranslation = newPos - lastPos
-        val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
+        val diffRotation = Quaternionf(controllerHitbox.worldRotation()).mul(lastRotation.conjugate())
 
         selected.forEach { node ->
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                    val target = (grabable.target ?: node)
+                    val target = (grabable.target() ?: node)
                     target.spatialOrNull()?.let { spatial ->
                     // apply parent world rotation to diff if available
                     val translationWorld = target.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
@@ -114,21 +130,28 @@ open class VRGrab(
             }
         }
 
-        lastPos = controllerSpatial.worldPosition()
-        lastRotation = controllerSpatial.worldRotation()
+        lastPos = controllerHitbox.worldPosition()
+        lastRotation = controllerHitbox.worldRotation()
     }
 
     /**
      * Called on the last frame this behavior is triggered.
      *
-     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
-     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param x invalid - residue from parent behavior. Use [controllerHitbox] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerHitbox] instead.
      */
     override fun end(x: Int, y: Int) {
         if (!enabled) return
+        if (holdToDrag) {
+            releaseDragging()
+        }
+    }
+
+    private fun releaseDragging() {
         selected.forEach {
             onRelease?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()
+            it.update -= dragFunction
         }
         selected = emptyList()
     }
@@ -147,11 +170,12 @@ open class VRGrab(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
+            holdToDrag: Boolean = true,
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
-        ) : List<VRGrab>{
-            val future = mutableListOf<VRGrab>()
+        ) : Future<VRGrab> {
+            val future = CompletableFuture<VRGrab>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
@@ -159,9 +183,10 @@ open class VRGrab(
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
-                                controller.children.first(),
+                                (controller.children.firstOrNull { it.name == "collider"}?: controller.children.first()).spatialOrNull() ?: throw IllegalArgumentException("Need collider spatial for VRGrab."),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
+                                holdToDrag,
                                 { n -> onGrab?.invoke(n, device) },
                                 { n -> onDrag?.invoke(n, device) },
                                 { n -> onRelease?.invoke(n, device) }
@@ -171,7 +196,7 @@ open class VRGrab(
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
                             }
-                            future.add(grabBehaviour)
+                            future.complete(grabBehaviour)
                         }
                     }
                 }
@@ -195,5 +220,5 @@ open class Grabable(
     val onDrag: (() -> Unit)? = null,
     val onRelease: (() -> Unit)? = null,
     val lockRotation: Boolean = false,
-    val target: Node? = null
+    var target: () -> Node? = {null}
 )

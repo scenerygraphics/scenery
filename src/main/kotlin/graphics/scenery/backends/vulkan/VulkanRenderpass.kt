@@ -938,7 +938,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                         width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
                         height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
 
-                        logger.info("Creating render framebuffer ${rt.key} for pass $passName (${width}x${height})")
+                        logger.debug("Creating render framebuffer ${rt.key} for pass $passName (${width}x${height})")
 
                         settings.set("Renderer.$passName.displayWidth", width)
                         settings.set("Renderer.$passName.displayHeight", height)
@@ -955,7 +955,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                                 sRGB = config.sRGB)
 
                             rt.value.attachments.forEach { att ->
-                                logger.info(" + attachment ${att.key}, ${att.value.name}")
+                                logger.debug(" + attachment ${att.key}, ${att.value.name}")
 
                                 when (att.value) {
                                     RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)

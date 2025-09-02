@@ -38,7 +38,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         boundingBox = generateBoundingBox()
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox {
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         val source = (ds.sources[0].spimSource as TransformedSource).wrappedSource as? BufferSource<*>
         val sizes = if(source != null) {
             val min = Vector3f(0.0f)
@@ -205,7 +205,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 else -> throw java.lang.IllegalStateException("Can't determine density for ${ds.type.javaClass.simpleName} data")
             }
 
-            val transferRangeMax = range.second
+            val transferRangeMax = displayRangeLimits.second
 
             val final = transferFunction.evaluate(s / transferRangeMax)
             logger.debug("Sample at $index is $s, final is $final $transferRangeMax")

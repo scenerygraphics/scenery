@@ -24,7 +24,8 @@ abstract class VRTwoHandDragBehavior(
 
     // --- two hand drag behavior ---
     //TODO fix make order of presses irrelevant, waits on issue #432
-    private var bothPressed = false
+    var bothPressed = false
+        private set
 
     override var enabled: Boolean = true
 
@@ -68,7 +69,6 @@ abstract class VRTwoHandDragBehavior(
             bothPressed = false
         }
     }
-
 
     // --- actual behavior ---
     var lastPosMain: Vector3f = Vector3f()

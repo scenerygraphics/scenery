@@ -4,9 +4,12 @@ import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import org.scijava.ui.behaviour.DragBehaviour
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 /**
  * Behavior for pressing or clicking nodes.
@@ -27,6 +30,7 @@ open class VRPress(
     protected val targets: () -> List<Node>,
     protected val button: OpenVRHMD.OpenVRButton,
     protected val multiTarget: Boolean = false,
+    val controllerDevice: TrackedDevice,
     protected val onPress: ((Node) -> Unit)? = null
 ) : DragBehaviour {
 
@@ -42,20 +46,28 @@ open class VRPress(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun init(x: Int, y: Int) {
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
+        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box, true) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
         }
         selected.forEach { node ->
-            onPress?.let { it(node) }
-            node.ifHasAttribute(Pressable::class.java) {
-                when (this) {
-                    is SimplePressable -> this
-                    is PerButtonPressable -> {
-                        this.actions[button]
-                    }
-                }?.onPress?.invoke(controllerSpatial)
-            }
+            initFor(node)
+        }
+    }
+
+    /**
+     * Circumventing collision check and calling this method directly for the Node.
+     * Remember to call the other behavior functions as well.
+     */
+    fun initFor(node:Node){
+        onPress?.let { it(node) }
+        node.ifHasAttribute(Pressable::class.java) {
+            when (this) {
+                is SimplePressable -> this
+                is PerButtonPressable -> {
+                    this.actions[button]
+                }
+            }?.onPress?.invoke(controllerSpatial,controllerDevice)
         }
     }
 
@@ -67,14 +79,22 @@ open class VRPress(
      */
     override fun drag(x: Int, y: Int) {
         selected.forEach {
-            it.ifHasAttribute(Pressable::class.java) {
-                when (this) {
-                    is SimplePressable -> this
-                    is PerButtonPressable -> {
-                        this.actions[button]
-                    }
-                }?.onHold?.invoke(controllerSpatial)
-            }
+            dragFor(it)
+        }
+    }
+
+    /**
+     * Circumventing collision check and calling this method directly for the Node.
+     * Remember to call the other behavior functions as well.
+     */
+    fun dragFor(node: Node){
+        node.ifHasAttribute(Pressable::class.java) {
+            when (this) {
+                is SimplePressable -> this
+                is PerButtonPressable -> {
+                    this.actions[button]
+                }
+            }?.onHold?.invoke(controllerSpatial,controllerDevice)
         }
     }
 
@@ -86,16 +106,24 @@ open class VRPress(
      */
     override fun end(x: Int, y: Int) {
         selected.forEach {
-            it.ifHasAttribute(Pressable::class.java) {
-                when (this) {
-                    is SimplePressable -> this
-                    is PerButtonPressable -> {
-                        this.actions[button]
-                    }
-                }?.onRelease?.invoke(controllerSpatial)
-            }
+            endFor(it)
         }
         selected = emptyList()
+    }
+
+    /**
+     * Circumventing collision check and calling this method directly for the Node.
+     * Remember to call the other behavior functions as well.
+     */
+    fun endFor(node:Node){
+        node.ifHasAttribute(Pressable::class.java) {
+            when (this) {
+                is SimplePressable -> this
+                is PerButtonPressable -> {
+                    this.actions[button]
+                }
+            }?.onRelease?.invoke(controllerSpatial,controllerDevice)
+        }
     }
 
     /**
@@ -112,16 +140,17 @@ open class VRPress(
             buttons: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             onPress: ((Node, OpenVRHMD.OpenVRButton) -> Unit)? = null
-        ) {
+        ): Future<List<VRPress>> {
+            val future = CompletableFuture<List<VRPress>>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            buttons.forEach { button ->
+                            val behaviors = buttons.map { button ->
                                 val name = "VRDPress:${hmd.trackingSystemName}:${device.role}:$button"
                                 val pressBehaviour = VRPress(
                                     name,
-                                    controller.children.first(),
+                                    controller.children.firstOrNull { it.name == "collider"}?: controller.children.first(),
                                     {
                                         scene.discover(
                                             scene,
@@ -129,6 +158,7 @@ open class VRPress(
                                     },
                                     button,
                                     false,
+                                    device
                                 ) {
                                     (hmd as? OpenVRHMD)?.vibrate(device)
                                     onPress?.invoke(it, button)
@@ -136,11 +166,14 @@ open class VRPress(
 
                                 hmd.addBehaviour(name, pressBehaviour)
                                 hmd.addKeyBinding(name, device.role, button)
+                                pressBehaviour
                             }
+                            future.complete(behaviors)
                         }
                     }
                 }
             }
+            return future
         }
     }
 }
@@ -155,16 +188,16 @@ sealed class Pressable
 /**
  * Attribute which marks a node than can be pressed by the [VRPress] behavior.
  *
- * Each action receives the [Spatial] of the pressing controller
+ * Each action receives the [Spatial] and [TrackedDevice] of the pressing controller
  *
  * @param onPress called in the first frame of the interaction
  * @param onHold called each frame of the interaction
  * @param onRelease called in the last frame of the interaction
  */
 open class SimplePressable(
-    open val onPress: ((Spatial) -> Unit)? = null,
-    open val onHold: ((Spatial) -> Unit)? = null,
-    open val onRelease: ((Spatial) -> Unit)? = null
+    open val onPress: ((Spatial, TrackedDevice) -> Unit)? = null,
+    open val onHold: ((Spatial, TrackedDevice) -> Unit)? = null,
+    open val onRelease: ((Spatial, TrackedDevice) -> Unit)? = null
 ) : Pressable()
 
 /**

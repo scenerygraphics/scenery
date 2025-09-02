@@ -38,6 +38,8 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import org.joml.Vector2f
+import org.joml.Vector3f
+import org.joml.Vector3i
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -351,7 +353,7 @@ class VolumeManager(
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility", "volTextureSize"
         )
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
@@ -581,6 +583,11 @@ class VolumeManager(
                             stackManager.upload(context, s, volume.volumeTexture)
                             updated.remove(state.node)
                         }
+                        // Add volumeSize uniform for simple volumes
+                        val width = volume.volumeTexture.texWidth()
+                        val height = volume.volumeTexture.texHeight()
+                        val depth = volume.volumeTexture.texDepth()
+                        currentProg.setUniform(i, "volTextureSize", Vector3i(width, height, depth))
                         minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                     }
                 }

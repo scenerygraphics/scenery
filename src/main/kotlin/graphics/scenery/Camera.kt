@@ -343,7 +343,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         duration: Int = 3000,
         centered: Boolean = false
     ) {
-        val tb = TextBoard()
+        val tb = TextBoard(inFront = true)
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
         tb.transparent = if(transparent) { 1 } else { 0 }

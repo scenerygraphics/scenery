@@ -6,6 +6,7 @@ import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasCustomRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
+import graphics.scenery.backends.vulkan.VulkanDevice.DeviceType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
@@ -151,7 +152,7 @@ open class VulkanRenderer(hub: Hub,
 
         @Synchronized fun recreate() {
             if(lock.tryLock() && !shouldClose) {
-                logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
+                logger.debug("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue.queue)
 
@@ -578,7 +579,11 @@ open class VulkanRenderer(hub: Hub,
                 physicalDeviceFilter = { index, device ->
                     val namePreference = System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")
                     val idPreference = System.getProperty("scenery.Renderer.DeviceId", "DOES_NOT_EXIST").toIntOrNull()
+
+                    // By default, prioritise discrete GPUs, if an index-based preference is set, use that one,
+                    // and fall through to name preference. If none match, the first available device will be used.
                     when {
+                        namePreference == "DOES_NOT_EXIST" && idPreference == null -> device.type == DeviceType.DiscreteGPU
                         idPreference != null -> index == idPreference
                         else -> "${device.vendor} ${device.name}".contains(namePreference)
                     }

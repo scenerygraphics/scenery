@@ -46,7 +46,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         boundingBox = generateBoundingBox()
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox {
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         val scale = getVoxelScale() ?: Vector3f(0f,0f,0f)
         return OrientedBoundingBox(
             this, Vector3f(-0.0f, -0.0f, -0.0f),
@@ -113,9 +113,10 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
                 val shift = if (source != null) {
                     val s = source.spimSource.getSource(0, 0)
+                    val voxelScale = volume.getVoxelScale()
                     val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
                     val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                    (max - min) * (-0.5f)
+                    (max - min).mul(voxelScale) * (-0.5f)
                 } else {
                     Vector3f(0.0f, 0.0f, 0.0f)
                 }
