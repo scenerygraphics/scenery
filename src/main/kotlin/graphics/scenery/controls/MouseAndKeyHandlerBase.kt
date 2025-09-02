@@ -140,6 +140,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                     Platform.LINUX -> listOf("libjinput-linux64.so")
                     Platform.MACOSX -> listOf("libjinput-osx.jnilib")
                     Platform.WINDOWS -> listOf("jinput-raw_64.dll", "jinput-dx8_64.dll", "jinput-wintab.dll")
+                    Platform.FREEBSD -> TODO()
                 }
 
                 val path = extractLibrariesFromClasspath(nativeLibraries, load = false)
