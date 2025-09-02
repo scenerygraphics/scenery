@@ -52,7 +52,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("org.joml:joml:1.10.5")
+    implementation("org.joml:joml:1.10.8")
     implementation("net.java.jinput:jinput:2.0.10", "natives-all")
     implementation("org.jocl:jocl:2.0.5")
     implementation("org.scijava:scijava-common")
