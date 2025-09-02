@@ -35,7 +35,8 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
-    private val sleepTime = 1000L
+    private val sleepTime = 1500L
+    private var portCounter= 29170
 
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and waits a bit to let everything setup.
@@ -52,12 +53,12 @@ class NodePublisherNodeSubscriberTest {
         scene2.name = "scene2"
 
         zContext = ZContext()
-        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = zContext)
+        val port = portCounter++
+        pub = NodePublisher(hub1, "tcp://127.0.0.1", port, context = zContext)
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = zContext)
+        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", port, context = zContext)
         hub2.add(sub)
-
     }
 
     /**
@@ -225,7 +226,7 @@ class NodePublisherNodeSubscriberTest {
             }
         )
 
-        Thread.sleep(1000)
+        Thread.sleep(sleepTime *2)
         sub.networkUpdate(scene2)
 
         val parent = scene2.find("parent")
