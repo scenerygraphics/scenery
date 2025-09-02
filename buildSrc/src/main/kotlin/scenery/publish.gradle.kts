@@ -6,6 +6,7 @@ import java.net.URL
 plugins {
     `maven-publish`
     id("org.jetbrains.dokka")
+    id("com.gradleup.nmcp.aggregation")
 }
 
 val sceneryUrl = "http://scenery.graphics"
@@ -126,20 +127,6 @@ publishing {
                     system = "GitHub Actions"
                     url = "https://github.com/scenerygraphics/scenery/actions"
                 }
-                distributionManagement {
-                    // https://stackoverflow.com/a/21760035/1047713
-                    //                    <snapshotRepository>
-                    //                        <id>ossrh</id>
-                    //                        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                    //                    </snapshotRepository>
-                    //                    <repository>
-                    //                        <id>ossrh</id>
-                    //                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                    //                    </repository>
-                }
-
-//                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
-//                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
             }
         }
     }
@@ -148,34 +135,22 @@ publishing {
         name = "sonatype"
         credentials(PasswordCredentials::class)
 
-        val releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-        val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
+        val releaseRepo = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+        val snapshotRepo = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
 
         url = uri(if (snapshot) snapshotRepo else releaseRepo)
         //            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
     }
 }
 
-//val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-//    dependsOn(tasks.dokkaJavadoc)
-//    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-//    archiveClassifier.set("javadoc")
-//}
-//
-//val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
-//    dependsOn(tasks.dokkaHtml)
-//    from(tasks.dokkaHtml.get().outputDirectory.get())
-//    archiveClassifier.set("html-doc")
-//}
-//
-//val sourceJar = task("sourceJar", Jar::class) {
-//    dependsOn(tasks.classes)
-//    archiveClassifier.set("sources")
-//    from(sourceSets.main.get().allSource)
-//}
-//
-//artifacts {
-//    archives(dokkaJavadocJar)
-//    archives(dokkaHtmlJar)
-//    archives(sourceJar)
-//}
+nmcpAggregation {
+    centralPortal {
+        username = properties["sonatypeUsername"] as String
+        password = properties["sonatypePassword"] as String
+        // publish manually from the portal
+        publishingType = "USER_MANAGED"
+    }
+
+    // Publish all projects that apply the 'maven-publish' plugin
+    publishAllProjectsProbablyBreakingProjectIsolation()
+}
