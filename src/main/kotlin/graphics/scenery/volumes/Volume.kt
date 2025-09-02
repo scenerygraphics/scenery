@@ -40,7 +40,6 @@ import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
 import io.scif.util.FormatTools
-import loci.formats.ImageReader
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imagej.ops.OpService
@@ -80,7 +79,6 @@ import org.jfree.data.statistics.SimpleHistogramDataset
 import org.scijava.Context
 import kotlin.math.*
 import kotlin.time.measureTimedValue
-import loci.formats.MetadataTools
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -1013,21 +1011,19 @@ open class Volume(
                 }
 
                 val bytesPerVoxel = localReader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
+                localReader.openPlane(0, 0).imageMetadata.pixelType
 
                 logger.debug("Loading $id from disk")
+                val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
 
-                var numTimepoints = 1
-                // if it's an OME-TIFF, the z-dimension is not the total number of slices, but the number of slices per timepoint and we can read in timepoints
-                if(id.endsWith("ome.tif") || id.endsWith("ome.tiff")) {
-                    val metadata = MetadataTools.createOMEXMLMetadata()
-                    val omeReader = ImageReader()
-                    omeReader.metadataStore = metadata
-                    omeReader.setId(v.toString())
-
-                    dims.z = metadata.getPixelsSizeZ(0).getValue()
-                    numTimepoints = metadata.getPixelsSizeT(0).getValue()
-                    omeReader.close()
-                }
+                logger.debug(
+                    "{}: Allocated {} bytes for {} {}bit image of {}",
+                    file.fileName,
+                    imageData.capacity(),
+                    type,
+                    8 * bytesPerVoxel,
+                    dims
+                )
 
                 logger.debug("Volume is little endian")
                 val planeSize = bytesPerVoxel * dims.x * dims.y
@@ -1045,27 +1041,21 @@ open class Volume(
                     // Each plane (read: z-slice) will be read by an async Job.
                     // These jobs are distributed among worker threads. This is the reason
                     // why the current thread object serves as an index to the [readers] hash map.
-                    (0 until numTimepoints).forEach{t ->
-                        val imageData = MemoryUtil.memAlloc(planeSize * dims.z)
-
-                        (0 until dims.z).forEachIndexedAsync { z, _ ->
-                            val thread = Thread.currentThread()
-                            val myReader = readers.getOrPut(thread) {
-                                scifio.initializer().initializeReader(FileLocation(file.toFile()))
-                            }
-
-                            val planeIndex = t * dims.z + z
-                            val bytes = myReader.openPlane(0, planeIndex.toLong()).bytes
-                            // In order to prevent mess-ups, we're working on a duplicate of [imageData]
-                            // here, so it's position(), remaining() etc. remain at the original, correct values.
-                            val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-
-                            // For writing the image data to the view, we move the buffer's position
-                            // to the place where the plane's data needs to be.
-                            view.position(z * planeSize)
-                            view.put(bytes)
+                    (0 until localReader.getPlaneCount(0)).forEachIndexedAsync { index, plane ->
+                        val thread = Thread.currentThread()
+                        val myReader = readers.getOrPut(thread) {
+                            scifio.initializer().initializeReader(FileLocation(file.toFile()))
                         }
-                        volumes.add(BufferedVolume.Timepoint("timepoint_$t", imageData))
+
+                        val bytes = myReader.openPlane(0, plane).bytes
+                        // In order to prevent mess-ups, we're working on a duplicate of [imageData]
+                        // here, so it's position(), remaining() etc. remain at the original, correct values.
+                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+
+                        // For writing the image data to the view, we move the buffer's position
+                        // to the place where the plane's data needs to be.
+                        view.position(index * planeSize)
+                        view.put(bytes)
                     }
 
                     val duration = (System.nanoTime() - start) / 10e5
@@ -1073,18 +1063,12 @@ open class Volume(
                     readers.forEach { it.value.close() }
                     readers.clear()
                 } else {
-                    for (t in 0 until numTimepoints){
-                        val imageData = MemoryUtil.memAlloc(planeSize * dims.z)
-                        for (z in 0 until dims.z) {
-                            val planeIndex = t * dims.z + z
-                            val bytes = localReader.openPlane(0, planeIndex.toLong()).bytes
-
-                            val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-                            view.position(z * planeSize)
-                            view.put(bytes)
-                        }
-
-                        volumes.add(BufferedVolume.Timepoint("timepoint_$t", imageData))
+                    (0 until localReader.getPlaneCount(0)).forEach { plane ->
+                        // Same as above, with the difference that we only use one reader to
+                        // simply read bytes Plane-wise sequentially, and add them to the buffer.
+                        val bytes = localReader.openPlane(0, plane).bytes
+                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                        view.put(bytes)
                     }
 
                     val duration = (System.nanoTime() - start) / 10e5
