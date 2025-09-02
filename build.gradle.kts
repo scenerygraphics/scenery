@@ -1,5 +1,5 @@
 import org.gradle.kotlin.dsl.api
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import scenery.*
 import java.net.URL
 
@@ -155,10 +155,11 @@ val isRelease: Boolean
     get() = System.getProperty("release") == "true"
 
 tasks {
-    withType<KotlinCompile>().all {
-        kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
-            freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
+    withType<KotlinJvmCompile>().configureEach {
+        compilerOptions {
+            jvmTarget//project.properties["jvmTarget"]?.toString() ?: "21")
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+            freeCompilerArgs.addAll(listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn"))
         }
     }
 

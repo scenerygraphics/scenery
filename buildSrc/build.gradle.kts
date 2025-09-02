@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.9.20")
+    implementation("com.gradleup.nmcp.aggregation:com.gradleup.nmcp.aggregation.gradle.plugin:1.1.0")
 }
 
 //, imagej, imgLib2, scifio, fiji, bigDataViewer, trakEM2, n5, boneJ, ome, omero,
