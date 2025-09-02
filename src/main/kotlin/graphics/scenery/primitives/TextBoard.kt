@@ -17,12 +17,13 @@ import org.joml.Vector4f
  * rendered using signed-distance fields.
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[font]  Name of the font to use for this text board
- * @property[isBillboard] Whether the board should be billboarded or not
- *
+ * @param [font]  Name of the font to use for this text board
+ * @param [isBillboard] Whether the board should be billboarded or not
+ * @param inFront makes the object always win depth tests, for rendering in front of other objects
  * @constructor Returns a TextBoard instance, with [fontFamily] and a declared [ShaderMaterial]
  */
-class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean = false) : Mesh(),
+class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean = false, inFront: Boolean = false) :
+    Mesh(),
     DisableFrustumCulling {
 
     /** The text displayed on this font board */
@@ -84,7 +85,9 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean
             blending.colorBlending = Blending.BlendOp.add
             blending.alphaBlending = Blending.BlendOp.add
             cullingMode = Material.CullingMode.None
-            depthOp = Material.DepthTest.Always
+            if (inFront) {
+                depthOp = Material.DepthTest.Always
+            }
         }
 
         needsPreUpdate = true
