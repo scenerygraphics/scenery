@@ -28,14 +28,14 @@ open class TextBox(
 
     init {
         board.text = text
-        board.name = "$text TextBox"
+        board.name = "$text TextBoard"
         board.transparent = 1
         board.fontColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
         board.spatial {
             scale *= height
             position.y = 0.07f
         }
-
+        box.name = "$text Box"
         box.material().diffuse = Vector3f(0.5f)
         box.spatial {
             position.z = box.sizes.z * -0.5f - 0.05f
