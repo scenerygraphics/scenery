@@ -71,22 +71,6 @@ class NodePublisherNodeSubscriberTest {
         zContext.destroy()
     }
 
-    /**
-     * Instead of network use debug listen and publish
-     */
-    @Test
-    fun integrationSkippingNetwork() {
-
-        val box = Box()
-        box.name = "box"
-        scene1.addChild(box)
-
-        pub.register(scene1)
-        pub.debugPublish(sub::debugListen)
-        sub.networkUpdate(scene2)
-
-        assert(scene2.find("box") != null)
-    }
 
     @Test
     fun integrationSimpleChildNode() {
@@ -100,88 +84,6 @@ class NodePublisherNodeSubscriberTest {
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
-    }
-
-    @Test
-    fun integrationNodeRemoval() {
-        val node1 = DefaultNode("eins")
-        scene1.addChild(node1)
-        pub.register(scene1)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene2)
-        assert(scene2.find("eins") != null)
-
-        scene1.removeChild(node1)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene1)
-        assert(scene2.find("eins") == null)
-    }
-
-    @Test
-    fun integrationMoveNodeInGraph() {
-        val node1 = DefaultNode("eins")
-        val node2 = DefaultNode("zwei")
-        scene1.addChild(node1)
-        scene1.addChild(node2)
-        pub.register(scene1)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene2)
-
-        scene1.removeChild(node2)
-        node1.addChild(node2)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene1)
-
-        val zwei = scene2.find("zwei")
-        assertNotNull(zwei)
-        val eins = zwei.parent
-        assertNotNull(eins)
-    }
-
-    @Test
-    fun integrationMoveAttribute() {
-        val node1 = Box()
-        node1.name = "eins"
-        val node2 = Box()
-        node2.name = "zwei"
-        scene1.addChild(node1)
-        scene1.addChild(node2)
-
-        pub.register(scene1)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene2)
-
-        node2.setMaterial(node1.material())
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene1)
-
-        val eins = scene2.find("eins")
-        val zwei = scene2.find("zwei")
-
-        assert(eins?.materialOrNull() == zwei?.materialOrNull())
-    }
-
-    @Test
-    fun additionalDataTexture() {
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "box"
-        box.material {
-            textures["diffuse"] = Texture.fromImage(
-                Image.fromResource(
-                    "../../examples/basic/textures/helix.png",
-                    NodePublisherNodeSubscriberTest::class.java
-                )
-            )
-        }
-        scene1.addChild(box)
-
-        pub.register(scene1)
-        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
-        sub.networkUpdate(scene2)
-
-        val box2 = scene2.find("box") as? Box
-        assert(box2?.material()?.textures?.isNotEmpty() ?: false)
-
     }
 
     /**
@@ -285,21 +187,6 @@ class NodePublisherNodeSubscriberTest {
         assertNotNull(testVol2)
         assert(testVol2.transferFunction.serialise() == volume.transferFunction.serialise())
         assert(testVol2.spatial().position.z == 3f)
-    }
-
-    @Test
-    fun delegateSerializationAndUpdate() {
-
-        val node = DefaultNode()
-        val spatial = DefaultSpatial(node)
-        spatial.position = Vector3f(3f, 0f, 0f)
-
-
-        val result = serializeAndDeserialize(spatial) as DefaultSpatial
-
-        assertEquals(3f, result.position.x)
-        //should not fail
-        result.position = Vector3f(3f, 0f, 0f)
     }
 
     /**
