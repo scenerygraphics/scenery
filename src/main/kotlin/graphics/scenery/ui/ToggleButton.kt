@@ -4,8 +4,19 @@ import graphics.scenery.controls.behaviours.Pressable
 import graphics.scenery.controls.behaviours.SimplePressable
 import graphics.scenery.controls.behaviours.Touchable
 import org.joml.Vector3f
-import kotlin.concurrent.thread
 
+/** A toggleable button with text field for VR interaction.
+ * @param textFalse shown when the button state is false
+ * @param textTrue shown when the button state is true
+ * @param command is executed when the user interacts with the button.
+ * @param color default color of the button
+ * @param pressedColor color after being pressed
+ * @param touchingColor optional color input for touch feedback
+ * @param byTouch allows the button to be pressed by simply touching it. If this is set to false, the user needs to press Grab.
+ * @param default starting state of the button
+ * @author Jan Tiemann
+ * @author Samuel Pantze
+ */
 class ToggleButton(
     private val textFalse: String,
     private val textTrue: String,
@@ -60,6 +71,7 @@ class ToggleButton(
                     }
                 },
                 onHold = {
+                    // this prevents immediate on/off switching
                     if (byTouch && !isTouching && enabled.get() && (System.currentTimeMillis() - enteredTouchTime) > 50) {
                         command()
                         isTouching = true

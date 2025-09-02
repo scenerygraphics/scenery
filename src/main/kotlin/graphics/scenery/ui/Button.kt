@@ -11,6 +11,7 @@ import kotlin.concurrent.thread
  * @param command is executed when the user interacts with the button.
  * @param color default color of the button
  * @param pressedColor color after being pressed
+ * @param touchingColor optional color input for touch feedback
  * @param byTouch allows the button to be pressed by simply touching it. If this is set to false, the user needs to press Grab.
  * @param stayPressed whether the button should stay pressed after being triggered
  * @param depressDelay how long to wait until the button becomes depressed again, in millisecond (if stayPressed is false)
@@ -81,6 +82,7 @@ open class Button(
                 }
             },
             onHold = {
+                // this prevents immediate on/off switching
                 if (byTouch && !isTouching && !pressed && enabled.get() && System.currentTimeMillis() - enteredTouchTime > 30 ) {
                     command()
                     isTouching = true
