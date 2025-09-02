@@ -337,9 +337,9 @@ class VolumeManager(
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "colorMap", "sampleVolume", "convert",
-            "slicingPlanes", "slicingMode", "usedSlicingPlanes",
-            "sceneGraphVisibility"
+            "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
+            "slicingMode", "usedSlicingPlanes",
+            "sceneGraphVisibility", "volTextureSize"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
