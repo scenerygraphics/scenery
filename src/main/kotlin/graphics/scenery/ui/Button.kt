@@ -83,7 +83,9 @@ open class Button(
             },
             onHold = {
                 // this prevents immediate on/off switching
-                if (byTouch && !isTouching && !pressed && enabled.get() && System.currentTimeMillis() - enteredTouchTime > 30 ) {
+                val timeSinceTouch = System.currentTimeMillis() - enteredTouchTime
+                val availableForTouch = byTouch && !isTouching && !pressed && enabled.get()
+                if (availableForTouch && timeSinceTouch > 30) {
                     command()
                     isTouching = true
                     pressed = true

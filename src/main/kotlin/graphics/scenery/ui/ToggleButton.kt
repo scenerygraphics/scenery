@@ -72,7 +72,9 @@ class ToggleButton(
                 },
                 onHold = {
                     // this prevents immediate on/off switching
-                    if (byTouch && !isTouching && enabled.get() && (System.currentTimeMillis() - enteredTouchTime) > 50) {
+                    val timeSinceTouch = System.currentTimeMillis() - enteredTouchTime
+                    val availableForTouch = byTouch && !isTouching && enabled.get()
+                    if (availableForTouch && timeSinceTouch > 50) {
                         command()
                         isTouching = true
                         pressed = !pressed
