@@ -9,6 +9,7 @@ import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import org.joml.Vector2f
 import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -173,6 +174,7 @@ abstract class Renderer : Hubable {
             ?: 1.0f)
         settings.setIfUnset("Renderer.DisableVsync", false)
         settings.setIfUnset("Renderer.ForceUndecoratedWindow", false)
+        settings.setIfUnset("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f))
 
         return settings
     }
