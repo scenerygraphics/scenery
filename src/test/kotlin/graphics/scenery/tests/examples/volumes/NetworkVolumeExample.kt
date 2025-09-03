@@ -5,7 +5,7 @@ import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.tests.examples.cluster.SlimClient
+import graphics.scenery.tests.examples.network.SlimClient
 import graphics.scenery.utils.extensions.timesAssign
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume

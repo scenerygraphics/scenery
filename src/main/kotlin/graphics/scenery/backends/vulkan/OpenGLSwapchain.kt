@@ -72,7 +72,7 @@ class OpenGLSwapchain(device: VulkanDevice,
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
+        //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
         glfwWindowHint(GLFW_SRGB_CAPABLE, if(useSRGB) { GLFW_TRUE } else { GLFW_FALSE })
@@ -95,7 +95,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             throw IllegalStateException("Window could not be created: ${buffer.stringUTF8}")
         }
         window = SceneryWindow.GLFWWindow(w).apply {
-            glfwSetWindowPos(w, 100, 100)
+            glfwSetWindowPos(w, 0, 0)
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -112,6 +112,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                     height = h
                     swapchainRecreator.mustRecreate = true
                     lastResize = -1L
+                    logger.info("Resize received -> $width x $height")
                 }
             }
 
@@ -165,14 +166,15 @@ class OpenGLSwapchain(device: VulkanDevice,
         }
 
         // TODO: Figure out whether this sanity check was really ever useful
-//        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
-//            window.width
-//        } else {
-//            window.width
-//        }
-        val windowWidth = window.width
+        if(renderConfig.stereoEnabled && window.width < 10000) {
+            //logger.info("Doubling resolution for fun and profit")
+            window.width = window.width*2
+        } else {
+            window.width
+        }
+        //val windowWidth = window.width
 
-        logger.info("Creating backing images with ${windowWidth}x${window.height}")
+        logger.info("Creating backing images with ${window.width}x${window.height}")
 
         val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
             .sType(VK10.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
@@ -185,7 +187,7 @@ class OpenGLSwapchain(device: VulkanDevice,
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
-                val image = VulkanImage.create(this@OpenGLSwapchain.device, windowWidth, window.height, 1,
+                val image = VulkanImage.create(this@OpenGLSwapchain.device, window.width, window.height, 1,
                     format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     1)
@@ -360,7 +362,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 0.0f, window.width.toFloat()/2.0f, window.height.toFloat(), 0.0f,
                 0.0f, 1.0f, 0.5f, 0.0f)
 
             glDrawBuffer(GL_BACK_RIGHT)
@@ -368,7 +370,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 0.0f, window.width.toFloat()/2.0f, window.height.toFloat(), 0.0f,
                 0.5f, 1.0f, 1.0f, 0.0f)
         } else {
             glClear(GL_COLOR_BUFFER_BIT)
@@ -424,7 +426,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                 NULL,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
-            glfwSetWindowPos(window.window, 100, 100)
+            glfwSetWindowPos(window.window, 0,0)
             glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
 
             swapchainRecreator.mustRecreate = true
@@ -446,9 +448,9 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x() / 2
+                window.width = hmd.getRenderTargetSize().x()// / 2
                 window.height = hmd.getRenderTargetSize().y()
-                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
+                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height} via HMD")
             }
 
             glfwSetWindowMonitor(window.window,

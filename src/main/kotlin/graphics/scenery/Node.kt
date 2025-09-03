@@ -658,4 +658,8 @@ interface Node : Networkable {
         }
     }
 
+    operator fun plusAssign(child: Node) {
+        addChild(child)
+    }
+
 }

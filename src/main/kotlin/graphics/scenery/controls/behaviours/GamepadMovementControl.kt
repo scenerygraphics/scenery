@@ -22,7 +22,7 @@ open class GamepadMovementControl(
                              var invertY: Boolean = false,
                              private val node: () -> Node?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
-    var speedMultiplier = 0.04f
+    var speedMultiplier = 0.01f
     /** Threshold below which the behaviour does not trigger */
     var threshold = 0.05f
 

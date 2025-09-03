@@ -51,7 +51,7 @@ interface Networkable : Serializable {
 
     fun wantsSync(): Boolean = true
 
-    //set by framework
+    //set by framework or if <-1 it is used to register existing object in client and server scenes
     var networkID: Int
 
     fun updateModifiedAt() {

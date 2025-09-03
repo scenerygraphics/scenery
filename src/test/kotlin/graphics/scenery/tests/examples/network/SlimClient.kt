@@ -1,10 +1,8 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.network
 
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.net.NodeSubscriber
-import kotlin.concurrent.thread
 
 /**
  * Empty scene to receive content via network

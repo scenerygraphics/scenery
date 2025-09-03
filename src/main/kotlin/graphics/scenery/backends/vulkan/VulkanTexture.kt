@@ -199,10 +199,14 @@ open class VulkanTexture(
 
         // acquire GPU upload mutex
         tex?.gpuMutex?.acquire()
+        val commandPools = ArrayList<Long>()
 
         val t = CoroutineScope(TextureDispatcher).launch {
             val threadLocalTransferPool = device.createCommandPool(device.queueIndices.transferQueue.first)
             val threadLocalGraphicsPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+
+            commandPools.add(threadLocalTransferPool)
+            commandPools.add(threadLocalGraphicsPool)
 
             with(VU.newCommandBuffer(device, threadLocalTransferPool, autostart = true)) {
                 val fence = if(block) {
@@ -342,6 +346,7 @@ open class VulkanTexture(
             memFree(sourceBuffer)
         }
 
+        commandPools.forEach { device.destroyCommandPool(it) }
         initialised = true
         return this
     }

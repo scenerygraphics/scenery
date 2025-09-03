@@ -10,6 +10,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
+import java.net.InetAddress
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -115,26 +116,27 @@ class ScreenConfig {
         @JvmStatic fun getScreen(config: Config): SingleScreenConfig? {
             for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.Hostname) {
+                    logger.info("Trying to match hostname for ${getHostname().lowercase()}")
                     if (getHostname().lowercase() == screen.match.value) {
+                        logger.info("Screen matched via hostname: ${screen.match.value}")
                         return screen
                     }
                 }
 
                 if (screen.match.type == ScreenMatcherType.Property) {
                     if (System.getProperty("scenery.ScreenName") == screen.match.value) {
+                        logger.info("Screen matched via system property: ${screen.match.value}")
                         return screen
                     }
                 }
             }
 
-            logger.warn("No matching screen found.")
-            return null
+            logger.warn("No matching screen found, returning default")
+            return config.screens.entries.firstOrNull()?.value
         }
 
-        private fun getHostname(): String {
-            val proc = Runtime.getRuntime().exec("hostname")
-            proc.inputStream.use { stream -> Scanner(stream).useDelimiter("\\A").use { s -> return if (s.hasNext()) s.next() else "" } }
-        }
+        private fun getHostname(): String = InetAddress.getLocalHost().getHostName()
+
 
         /**
          * Loads a [ScreenConfig.Config] from a [path] and returns it.

@@ -11,6 +11,8 @@ import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.biojava.nbio.structure.AtomImpl
+import org.biojava.nbio.structure.BondImpl
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger
@@ -25,7 +27,9 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.zip.Inflater
+import kotlin.concurrent.thread
 
 /**
  * Server of scenery networking.
@@ -39,7 +43,7 @@ class NodePublisher(
     portMain: Int = 7777,
     portBackchannel: Int = 6666,
     val context: ZContext
-) : Agent(), Hubable {
+) : Hubable {
     private val logger by lazyLogger()
 
     private val addressMain = "$ip:$portMain"
@@ -69,13 +73,17 @@ class NodePublisher(
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private var index = 1
 
+    private val publishWorker = PublishWorker(this)
+    private val backchannelWorker = BackchannelWorker(this)
+
     private fun generateNetworkID() = index++
 
     init {
         logger.info("Server opened main channel at $ip:${this.portMain} and back channel at $ip:${this.portBackchannel}")
         backchannelSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
         backchannelSubscriber.receiveTimeOut = timeout
-        startAgent()
+        publishWorker.startAgent()
+        backchannelWorker.startAgent()
     }
 
     /**
@@ -90,8 +98,7 @@ class NodePublisher(
         scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child, parent) }
         scene.onAttributeAdded["networkPublish"] = { node, attribute -> registerAttribute(node, attribute) }
 
-        // abusing the discover function for a tree walk
-        scene.discover(scene, { registerNode(it); false })
+        scene.children.forEach(::registerNode)
     }
 
     private fun registerNode(node: Node) {
@@ -107,7 +114,10 @@ class NodePublisher(
         }
 
         if (publishedObjects[node.networkID] == null) {
-            val wrapper = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
+            val wrapper = NetworkWrapper(
+                // negative network id is reserved for preregistered objects
+                if (node.networkID < -1) node.networkID else generateNetworkID(),
+                node, mutableListOf(parentId))
             addUpdateEvent(wrapper)
             publishedObjects[wrapper.networkID] = wrapper
         } else {
@@ -118,16 +128,24 @@ class NodePublisher(
         }
 
         node.getSubcomponents().forEach { subComponent ->
+            if (!subComponent.wantsSync()){
+                return@forEach
+            }
             val subNetObj = publishedObjects[subComponent.networkID]
             if (subNetObj != null) {
                 subNetObj.parents.add(node.networkID)
                 eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
-                val new = NetworkWrapper(generateNetworkID(), subComponent, mutableListOf(node.networkID))
+                val new = NetworkWrapper(
+                    // negative network id is reserved for preregistered objects
+                    if (subComponent.networkID < -1) subComponent.networkID else generateNetworkID(),
+                    subComponent, mutableListOf(node.networkID))
                 publishedObjects[new.networkID] = new
                 addUpdateEvent(new)
             }
         }
+
+        node.children.forEach(::registerNode)
     }
 
     private fun detachNode(node: Node, parent: Node) {
@@ -169,54 +187,6 @@ class NodePublisher(
         }
     }
 
-    override fun onLoop() {
-
-        try {
-            val event = eventQueue.poll()
-            event?.let { processNextNetworkEvent(it) }
-            val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
-            payload?.let { listenToControlChannel(it) }
-
-            if (event == null && payload == null) {
-                Thread.sleep(timeout.toLong())
-            }
-        } catch (t: ZMQException){
-            if (t.errorCode != 4) {//Errno 4 : Interrupted function
-                // Interrupted exceptions are expected when closing the publisher and no need to worry
-                throw t
-            }
-        }
-    }
-
-    private fun listenToControlChannel(payload: kotlin.ByteArray) {
-        try {
-            val bin = ByteArrayInputStream(payload)
-            val input = Input(bin)
-            val event = kryo.readClassAndObject(input) as? NetworkEvent
-                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-            eventQueue.add(event)
-
-        } catch (t: Throwable) {
-            t.printStackTrace()
-        }
-    }
-
-    private fun processNextNetworkEvent(event: NetworkEvent) {
-        if (event is NetworkEvent.RequestInitialization) {
-            publishedObjects.forEach {
-                addUpdateEvent(it.value)
-            }
-        }
-        val start = System.nanoTime()
-        val payloadSize = sendEvent(event, kryo, publisher, logger)
-        val duration = (System.nanoTime() - start).toFloat()
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
-            "Serialise.payloadSize",
-            payloadSize,
-            isTime = false
-        )
-    }
 
     private fun addUpdateEvent(wrapper: NetworkWrapper<*>) {
         eventQueue.add(
@@ -232,11 +202,83 @@ class NodePublisher(
         }
     }
 
-    override fun onClose() {
-        publisher.linger = 0
-        publisher.close()
-        backchannelSubscriber.linger = 0
-        backchannelSubscriber.close()
+    fun close(): Thread = thread {
+        val pw = publishWorker.close()
+        val bw = backchannelWorker.close()
+        pw.join()
+        bw.join()
+    }
+
+    private class PublishWorker(val parent: NodePublisher): Agent(){
+        override fun onLoop() {
+            try {
+                val event = parent.eventQueue.poll(parent.timeout.toLong(),TimeUnit.MILLISECONDS)
+                event?.let { processNextNetworkEvent(it) }
+            } catch (t: ZMQException){
+                if (t.errorCode != 4) {//Errno 4 : Interrupted function
+                    // Interrupted exceptions are expected when closing the publisher and no need to worry
+                    throw t
+                }
+            }
+        }
+
+        private fun processNextNetworkEvent(event: NetworkEvent) {
+            if (event is NetworkEvent.RequestInitialization) {
+                parent.publishedObjects.forEach {
+                    parent.addUpdateEvent(it.value)
+                }
+            }
+            val start = System.nanoTime()
+            val payloadSize = sendEvent(event, parent.kryo, parent.publisher, parent.logger)
+            val duration = (System.nanoTime() - start).toFloat()
+            (parent.hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
+            (parent.hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
+                "Serialise.payloadSize",
+                payloadSize,
+                isTime = false
+            )
+        }
+
+        override fun onClose() {
+            parent.publisher.linger = 0
+            parent.publisher.close()
+        }
+
+    }
+
+    private class BackchannelWorker(val parent: NodePublisher): Agent(){
+        override fun onLoop() {
+            try {
+                val payload = parent.backchannelSubscriber.recv()
+                payload?.let { listenToControlChannel(it) }
+                if (payload == null) {
+                    Thread.sleep(parent.timeout.toLong())
+                }
+            } catch (t: ZMQException){
+                if (t.errorCode != 4) {//Errno 4 : Interrupted function
+                    // Interrupted exceptions are expected when closing the publisher and no need to worry
+                    throw t
+                }
+            }
+        }
+
+        private fun listenToControlChannel(payload: kotlin.ByteArray) {
+            try {
+                val bin = ByteArrayInputStream(payload)
+                val input = Input(bin)
+                val event = parent.kryo.readClassAndObject(input) as? NetworkEvent
+                    ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                parent.eventQueue.add(event)
+
+            } catch (t: Throwable) {
+                t.printStackTrace()
+            }
+        }
+
+        override fun onClose() {
+            parent.backchannelSubscriber.linger = 0
+            parent.backchannelSubscriber.close()
+        }
     }
 
     companion object {
@@ -282,6 +324,8 @@ class NodePublisher(
             kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
             kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
             kryo.register(Inflater::class.java, IgnoreSerializer<Inflater>())
+            kryo.register(org.biojava.nbio.structure.BondImpl::class.java, IgnoreSerializer<BondImpl>())
+            kryo.register(org.biojava.nbio.structure.AtomImpl::class.java, IgnoreSerializer<AtomImpl>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 

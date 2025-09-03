@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Box
 import graphics.scenery.RichNode
 import graphics.scenery.Sphere
-import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.extensions.plusAssign
@@ -137,7 +137,7 @@ class WheelMenu(
             sphereRoot.addChild(board)
 
 
-            MenuEntry(action, sphere)
+            MenuEntry(action, sphere.spatial())
         }
 
         if (supportsSubWheels) {
@@ -202,10 +202,10 @@ class WheelMenu(
      * @return (closest actionSphere) to (distance to controller)
      */
     fun closestActionSphere(pos: Vector3f) = menuEntries.map { entry ->
-        entry to entry.representation.spatial().worldPosition().distance(pos)
+        entry to entry.representation.worldPosition().distance(pos)
     }.reduceRight { left, right -> if (left.second < right.second) left else right }
 
     companion object {
-        data class MenuEntry(val action: WheelEntry, val representation: HasSpatial)
+        data class MenuEntry(val action: WheelEntry, val representation: Spatial)
     }
 }
