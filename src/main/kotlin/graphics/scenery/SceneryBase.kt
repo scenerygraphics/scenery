@@ -341,9 +341,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     open fun close() {
         // Terminate main loop.
         shouldClose = true
+        gracePeriod = 3
 
         renderer?.close()
-        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
