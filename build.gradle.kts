@@ -20,8 +20,6 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-//    maven("https://jitpack.io")
-    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
