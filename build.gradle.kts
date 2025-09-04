@@ -46,20 +46,20 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.98.0")
+    annotationProcessor("org.scijava:scijava-common:2.99.2")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 
-    implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("org.joml:joml:1.10.5")
+    implementation("org.slf4j:slf4j-api")
+    implementation("org.joml:joml")
     implementation("net.java.jinput:jinput:2.0.10", "natives-all")
-    implementation("org.jocl:jocl:2.0.5")
+    implementation("org.jocl:jocl")
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.14.0")
+    implementation("net.java.dev.jna:jna-platform")
 
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
@@ -94,11 +94,11 @@ dependencies {
         }
     }
     implementation("org.xerial.snappy:snappy-java:1.1.10.5")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
     implementation("org.zeromq:jeromq:0.6.0")
-    implementation("com.esotericsoftware:kryo:5.6.0")
+    implementation("com.esotericsoftware:kryo")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
@@ -107,10 +107,10 @@ dependencies {
     implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.172")
 
-    implementation("info.picocli:picocli:4.7.6")
+    implementation("info.picocli:picocli")
 
-    api("sc.fiji:bigdataviewer-core:10.4.14")
-    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
+    api("sc.fiji:bigdataviewer-core")
+    api("sc.fiji:bigdataviewer-vistools")
     api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
@@ -141,13 +141,13 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
 //    testImplementation(misc.junit4)
-    testImplementation("org.slf4j:slf4j-simple:1.7.36")
+    testImplementation("org.slf4j:slf4j-simple")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
 
-    implementation("org.jfree:jfreechart:1.5.4")
-    implementation("net.imagej:imagej-ops:2.1.0")
+    implementation("org.jfree:jfreechart")
+    implementation("net.imagej:imagej-ops")
 }
 
 val isRelease: Boolean
