@@ -51,7 +51,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
-    implementation("org.slf4j:slf4j-api:1.7.36")
+    implementation("org.slf4j:slf4j-api:2.0.17")
     implementation("org.joml:joml:1.10.8")
     implementation("net.java.jinput:jinput:2.0.10", "natives-all")
     implementation("org.jocl:jocl:2.0.5")
@@ -141,7 +141,7 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
 //    testImplementation(misc.junit4)
-    testImplementation("org.slf4j:slf4j-simple:1.7.36")
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
