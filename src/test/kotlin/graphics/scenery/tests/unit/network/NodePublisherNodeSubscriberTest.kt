@@ -35,7 +35,7 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
-    private val sleepTime = 1500L
+    private val sleepTime = 1000L
     private var portCounter= 29170
 
     /**
@@ -188,52 +188,6 @@ class NodePublisherNodeSubscriberTest {
         assertNotNull(testVol2)
         assert(testVol2.transferFunction.serialise() == volume.transferFunction.serialise())
         assert(testVol2.spatial().position.z == 3f)
-    }
-
-    /**
-     * Tests sync of scene names.
-     */
-    @Test
-    fun integrationSceneName() {
-
-        scene1.name = "lol"
-
-        pub.register(scene1)
-        Thread.sleep(sleepTime)
-        sub.networkUpdate(scene2)
-
-        assertEquals("lol", scene2.name)
-    }
-
-    @Test
-    fun childConstructedWithParams(){
-        class VolInt: Volume.VolumeInitializer{
-            override fun initializeVolume(hub: Hub): Volume {
-                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
-            }
-        }
-
-        pub.register(scene1)
-
-        val volume = Volume.forNetwork(
-            VolInt(),
-            hub1
-        )
-        scene1.addChild(
-            RichNode().apply {
-                this.name = "parent"
-                this.addChild(volume)
-            }
-        )
-
-        Thread.sleep(sleepTime *2)
-        sub.networkUpdate(scene2)
-
-        val parent = scene2.find("parent")
-        assertNotNull(parent)
-        val volume2 = parent.children.firstOrNull()
-        assertNotNull(volume2)
-        assertIs<Volume>(volume2)
     }
 }
 

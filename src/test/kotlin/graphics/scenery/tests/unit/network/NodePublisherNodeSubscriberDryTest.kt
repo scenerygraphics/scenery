@@ -1,15 +1,14 @@
 package graphics.scenery.tests.unit.network
 
-import graphics.scenery.Box
-import graphics.scenery.DefaultNode
-import graphics.scenery.Hub
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
@@ -17,6 +16,7 @@ import org.junit.Test
 import org.zeromq.ZContext
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 
 /**
  * Integration tests for [NodePublisher] and [NodeSubscriber] containing test, that don't use the agent threads but debug
@@ -195,6 +195,52 @@ class NodePublisherNodeSubscriberDryTest {
         assertEquals(3f, result.position.x)
         //should not fail
         result.position = Vector3f(3f, 0f, 0f)
+    }
+
+    /**
+     * Tests sync of scene names.
+     */
+    @Test
+    fun integrationSceneName() {
+
+        scene1.name = "lol"
+
+        pub.register(scene1)
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        assertEquals("lol", scene2.name)
+    }
+
+    @Test
+    fun childConstructedWithParams(){
+        class VolInt: Volume.VolumeInitializer{
+            override fun initializeVolume(hub: Hub): Volume {
+                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+            }
+        }
+
+        pub.register(scene1)
+
+        val volume = Volume.forNetwork(
+            VolInt(),
+            hub1
+        )
+        scene1.addChild(
+            RichNode().apply {
+                this.name = "parent"
+                this.addChild(volume)
+            }
+        )
+
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        val parent = scene2.find("parent")
+        assertNotNull(parent)
+        val volume2 = parent.children.firstOrNull()
+        assertNotNull(volume2)
+        assertIs<Volume>(volume2)
     }
 }
 
