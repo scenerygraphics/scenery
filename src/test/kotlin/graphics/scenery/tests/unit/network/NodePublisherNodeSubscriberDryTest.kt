@@ -11,6 +11,7 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Before
 import org.junit.Test
 import org.zeromq.ZContext
@@ -30,7 +31,6 @@ class NodePublisherNodeSubscriberDryTest {
     private lateinit var scene2: Scene
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
-    private lateinit var zContext: ZContext
 
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and immediately cancels their worker threads. All tests now need to
@@ -46,11 +46,10 @@ class NodePublisherNodeSubscriberDryTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        zContext = ZContext()
-        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = zContext)
+        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = Companion.zContext)
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = zContext)
+        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = Companion.zContext)
         hub2.add(sub)
 
         //stop agent threads
@@ -59,12 +58,18 @@ class NodePublisherNodeSubscriberDryTest {
         p.join()
     }
 
-    /**
-     * Cleans the zcontext.
-     */
-    @After
-    fun teardown() {
-        zContext.destroy()
+    companion object {
+        var zContext = ZContext()
+
+
+        /**
+         * Cleans the zcontext.
+         */
+        @AfterClass @JvmStatic
+        fun cleanZMQ(): Unit {
+            zContext.destroy()
+            Thread.sleep(2000)
+        }
     }
 
     /**

@@ -15,11 +15,11 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Before
 import org.junit.Test
 import org.zeromq.ZContext
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 /**
@@ -33,10 +33,23 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var scene2: Scene
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
-    private lateinit var zContext: ZContext
 
     private val sleepTime = 1000L
     private var portCounter= 29170
+
+    companion object {
+        var zContext = ZContext()
+
+        /**
+         * Cleans the zcontext.
+         */
+        @AfterClass
+        @JvmStatic
+        fun cleanZMQ(): Unit {
+            zContext.destroy()
+            Thread.sleep(2000)
+        }
+    }
 
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and waits a bit to let everything setup.
