@@ -50,6 +50,7 @@ open class DefaultMaterial : Material, Networkable {
     override var depthWrite: Boolean = true
     override var depthOp: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false
+    override var wireframeWidth: Float = 1.0f
     override var timestamp: Long = System.nanoTime()
     override var modifiedAt = Long.MIN_VALUE
 

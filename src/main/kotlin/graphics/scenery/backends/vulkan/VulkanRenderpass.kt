@@ -439,6 +439,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         val depthOp: Material.DepthTest,
         val blending: Blending,
         val wireframe: Boolean,
+        val wireframeWidth: Float,
         val vertexDescription: VulkanRenderer.VertexDescription
     )
 
@@ -467,6 +468,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         if(config.wireframe) {
             rasterizationState.polygonMode(VK_POLYGON_MODE_LINE)
+            rasterizationState.lineWidth(config.wireframeWidth)
         } else {
             rasterizationState.polygonMode(VK_POLYGON_MODE_FILL)
         }
@@ -499,7 +501,17 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines["preferred-${renderable.getUuid()}"] = pipeline
     }
 
-    fun initializePipeline(shaderModules: List<VulkanShaderModule>, cullingMode: Material.CullingMode, depthTest: Boolean, depthWrite: Boolean, depthOp: Material.DepthTest, blending: Blending, wireframe: Boolean, vertexDescription: VulkanRenderer.VertexDescription?): VulkanPipeline {
+    fun initializePipeline(
+        shaderModules: List<VulkanShaderModule>,
+        cullingMode: Material.CullingMode,
+        depthTest: Boolean,
+        depthWrite: Boolean,
+        depthOp: Material.DepthTest,
+        blending: Blending,
+        wireframe: Boolean,
+        wireframeWidth: Float,
+        vertexDescription: VulkanRenderer.VertexDescription?
+    ): VulkanPipeline {
         val config = PipelineConfig(hashSetOf(*shaderModules.toTypedArray()),
             cullingMode,
             depthTest,
@@ -507,6 +519,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             depthOp,
             blending,
             wireframe,
+            wireframeWidth,
             vertexDescription ?: vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord))
 
         return configuredPipelines.getOrPut(config) {
