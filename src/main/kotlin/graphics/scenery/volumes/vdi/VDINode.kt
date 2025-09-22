@@ -392,6 +392,10 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             return 4
         }
 
+        fun getDepthTextureChannels(): Int {
+            return 2
+        }
+
         /**
          * Calculates the size of the color buffer.
          *
