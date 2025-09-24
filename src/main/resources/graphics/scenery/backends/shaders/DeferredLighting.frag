@@ -70,29 +70,43 @@ layout(set = 6, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 };
 
+float chi(float v) {
+    return v > 0 ? 1.0 : 0.0;
+}
 
-float GGXDistribution(vec3 normal, vec3 halfway, float roughness) {
-    float a = roughness*roughness;
-    float aSquared = a*a;
-    float NdotH = abs(dot(normal, halfway));
+float BeckmannDistribution(float NdotH, float roughness) {
+    float alpha2 = roughness*roughness;
     float NdotH2 = NdotH*NdotH;
 
-    float denom = ((NdotH2 * (aSquared - 1.0) + 1.0));
-    return aSquared/(denom*denom*PI);
+    float denom = NdotH2 * alpha2 + (1.0 - NdotH2);
+    return (chi(NdotH) * alpha2)/(denom*denom*PI);
 }
 
 float GeometrySchlick(float NdotV, float roughness) {
     float r = (roughness + 1.0);
     float k = (r*r) / 8.0;
 
-    return (NdotV)/(NdotV*(1.0 - k) + k);
+    return NdotV/(NdotV*(1.0 - k) + k);
 }
 
-float GeometrySmith(vec3 normal, vec3 view, vec3 light, float roughness) {
-    float NdotV = abs(dot(normal, view));
-    float NdotL = abs(dot(normal, light));
+float GGXPartialGeometry(vec3 N, vec3 V, vec3 H, float roughness) {
+    float VdotH2 = clamp(dot(V, H), 0.0, 1.0);
+    float Chi = chi(VdotH2/clamp(dot(V, N), 0.0, 1.0));
 
-    return GeometrySchlick(NdotV, roughness) * GeometrySchlick(NdotL, roughness);
+    VdotH2 = VdotH2 * VdotH2;
+    float tan2 = (1.0 - VdotH2)/VdotH2;
+
+    return (Chi * 2.0)/(1 + sqrt(1.0 + roughness * roughness * tan2));
+}
+
+float V1(vec3 N, vec3 X, vec3 H, float roughness) {
+    float alpha2 = roughness * roughness;
+    float NdotX = clamp(dot(N, X), 0.0001, 1.0);
+    return 1.0 / (NdotX + sqrt(alpha2 + (1.0 - alpha2) * NdotX * NdotX));
+}
+
+float CookTorranceVisibility(vec3 N, vec3 V, vec3 H, vec3 L, float roughness) {
+    return V1(N, V, H, roughness) * V1(N, L, H, roughness);
 }
 
 vec3 FresnelSchlick(float cosTheta, vec3 F0) {
@@ -174,7 +188,7 @@ vec3 viewFromDepth(float depth, vec2 texcoord, const mat4 invProjection) {
 
 
 float SinPhi(float Ndotw, vec3 w) {
-    float SinTheta = sqrt(max(0, 1 - Ndotw));
+    float SinTheta = sqrt(max(0, 1 - Ndotw*Ndotw));
 
     if(Ndotw < 0.0001) {
         return 0.0;
@@ -184,7 +198,7 @@ float SinPhi(float Ndotw, vec3 w) {
 }
 
 float CosPhi(float Ndotw, vec3 w) {
-    float SinTheta = sqrt(max(0, 1 - Ndotw));
+    float SinTheta = sqrt(max(0, 1 - Ndotw*Ndotw));
 
     if(Ndotw < 0.0001) {
         return 1.0;
@@ -197,9 +211,9 @@ vec2 alphabeta(float NdotL, float NdotV) {
     vec2 ab = vec2(0.0);
 
     if(abs(NdotL) > abs(NdotV)) {
-        ab = vec2(sqrt(max(0.0, 1 - NdotV)), sqrt(max(0.0, 1 - NdotL) / max(abs(NdotL), 0.0000001)));
+        ab = vec2(sqrt(max(0.0, 1 - NdotV*NdotV)), sqrt(max(0.0, 1 - NdotL*NdotL) / (NdotL*NdotL)));
     } else {
-        ab = vec2(sqrt(max(0.0, 1 - NdotL)), sqrt(max(0.0, 1 - NdotV) / max(abs(NdotV), 0.0000001)));
+        ab = vec2(sqrt(max(0.0, 1 - NdotL*NdotL)), sqrt(max(0.0, 1 - NdotV*NdotV) / (NdotV*NdotV)));
     }
 
     return ab;
@@ -559,48 +573,62 @@ void main()
 
     // Oren-Nayar model for diffuse and Cook-Torrance for Specular
     else if(reflectanceModel == 0) {
-        float roughness = MaterialParams.r * PI / 2.0;
+        vec3 kD = vec3(1.0f);
+        const float roughness = MaterialParams.r * PI / 2.0;
+        const float metallic = MaterialParams.g;
 
-        float LdotV = max(dot(L, V), 0.0);
-        float NdotL = max(dot(L, N), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
+        const float LdotV = max(dot(L, V), 0.0);
+        const float NdotL = max(dot(N, L), 0.0);
+        const float NdotV = max(dot(N, V), 0.0);
+        const float NdotH = max(dot(N, H), 0.0);
 
-        float sigma2 = roughness * roughness;
-        float A = 1.0 - sigma2 / (2.0 * (sigma2 + 0.33));
-        float B = 0.45 * sigma2 / (sigma2 + 0.09);
+        if(metallic < 0.99f) {
+            // Oren-Nayar has sigma parameter in radians in [0, pi/2], we use [0, 1].
 
-        vec2 ab = alphabeta(NdotL, NdotV);
-        float m = max(0, CosPhi(NdotL, L) * CosPhi(NdotV, V) + SinPhi(NdotL, L) * CosPhi(NdotV, V));
+            const float sigma2 = roughness * roughness;
+            const float A = 1.0 - sigma2 / (2.0 * (sigma2 + 0.33));
+            const float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
-        float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
+            const vec2 cosTheta = vec2(clamp(dot(N, L), 0.0, 1.0), clamp(dot(N, V), 0.00001, 1.0));
+            const vec2 cosThetaSq = cosTheta * cosTheta;
 
-        vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
+            const float sinTheta = sqrt((1 - cosThetaSq.x)*(1 - cosThetaSq.y));
 
-        diffuse = inputColor * L1;
+            vec3 LP = normalize(L - cosTheta.x * N);
+            vec3 VP = normalize(V - cosTheta.y * N);
+            float cosPhi = clamp(dot(LP, VP), 0.0, 1.0);
 
-        if(Specular > 0.0 || MaterialParams.g > 0.0) {
-            float metallic = MaterialParams.g;
-            vec3 F0 = vec3(0.04);
-            F0 = mix(F0, Albedo.rgb, metallic);
+            float C = cosPhi * sinTheta/max(cosTheta.x, cosTheta.y);
+            float orenNayar = cosTheta.x * (A + B * C) / PI;
 
-            float roughness = MaterialParams.r;
+            vec3 Li = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
-            float NDF = GGXDistribution(N, H, roughness);
-            float G = GeometrySmith(N, V, L, roughness);
-            vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-
-            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(NdotL) * abs(NdotV), 0.001);
-
-            vec3 kS = F;
-            vec3 kD = (vec3(1.0) - kS);
-            kD *= 1.0 - metallic;
-
-            vec3 radiance = intensity * emissionColor.rgb;
-            specular = (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
+            diffuse = Li * orenNayar;
         }
+
+        // Cook-Torrance
+        // TODO: Have a material property for index of refraction
+        //		float ior = 1.0;
+        //		vec3 F0 = vec3(abs((1.0 - ior)/(1.0 + ior)));
+        //		F0 *= F0;
+        vec3 F0 = vec3(0.04);
+        F0 = mix(F0, Albedo.rgb, metallic);
+
+        const float roughnessCookTorrance = clamp(MaterialParams.r, 0.001, 1.0);
+
+        vec3 fresnel = FresnelSchlick(max(dot(H, V), 0.0), F0);
+        float visibility = CookTorranceVisibility(N, V, H, L, roughnessCookTorrance);
+        float NDF = BeckmannDistribution(NdotH, roughnessCookTorrance);
+
+        vec3 BRDF = fresnel * visibility * NDF * NdotL;
+
+        vec3 kS = fresnel;
+        kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+        vec3 radiance = intensity * emissionColor.rgb;
+        // combine Cook-Torrance and Oren-Nayar, conserving energy
+        lighting = (kD * diffuse + BRDF * radiance) * lightAttenuation;
     }
-
-
 
     if(debugLights > 0) {
         if(debugLights == 3) {
