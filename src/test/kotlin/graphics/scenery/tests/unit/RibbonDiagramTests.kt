@@ -151,7 +151,6 @@ class RibbonDiagramTests {
         val protein = Protein.fromID("5m9m")
         val ribbon = RibbonDiagram(protein)
         val bb = ribbon.getMaximumBoundingBox()
-        //We use ranges because the first and last guidePoint are created nondeterministically- but in the guaranteed range
         assertTrue { 22.2 < bb.max.x && bb.max.x < 22.6 }
         assertTrue { 33.6 < bb.max.y && 34 > bb.max.y }
         assertTrue { 37.5 < bb.max.z && 37.9 > bb.max.z }
