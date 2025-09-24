@@ -3,10 +3,13 @@ package graphics.scenery.tests.examples.basic
 import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.geometry.Curve
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.DefaultCurve
+import graphics.scenery.geometry.curve.SegmentedShapeList
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.toShape
 
 /**
  * Just a quick example a UniformBSpline with a triangle as a baseShape.
@@ -31,21 +34,21 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
         points.add(Vector3f(0f, 0f, 0f))
         points.add(Vector3f(2f, 1f, 0f))
 
-        fun triangle(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
-            val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+        fun triangle(splineVerticesCount: Int): SegmentedShapeList {
+            val shapeList = ArrayList<Shape>(splineVerticesCount)
             for (i in 0 until splineVerticesCount) {
                 val list = ArrayList<Vector3f>()
                 list.add(Vector3f(0.15f, 0.15f, 0f))
                 list.add(Vector3f(0.15f, -0.15f, 0f))
                 list.add(Vector3f(-0.15f, -0.15f, 0f))
-                shapeList.add(list)
+                shapeList.add(list.toShape())
             }
             return shapeList
         }
 
         val bSpline = UniformBSpline(points, 10)
         val splineSize = bSpline.splinePoints().size
-        val geo = Curve(bSpline) { triangle(splineSize) }
+        val geo = DefaultCurve(bSpline,{ triangle(splineSize) })
 
         scene.addChild(geo)
 

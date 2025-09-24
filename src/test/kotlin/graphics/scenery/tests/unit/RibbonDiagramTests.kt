@@ -38,13 +38,13 @@ class RibbonDiagramTests {
             if (dsspPlant is List<*>) {
                 @Suppress("UNCHECKED_CAST")
                 val guides =
-                    RibbonDiagram.GuidePointCalculation.calculateGuidePoints(it, dsspPlant as List<SecStrucElement>)
+                    RibbonDiagram.calculateGuidePoints(it, dsspPlant as List<SecStrucElement>)
                 val spline = plantRibbon.callPrivateFunc("ribbonSpline", guides) as DummySpline
                 allPlantPoints += spline.splinePoints().size
             }
         }
         //the protein has 46 residues, each section has ten spline points, and the whole spline one starting point
-        assertEquals(allPlantPoints, (46) * (10) +1)
+        assertEquals(allPlantPoints, plantProtein.getResidues().flatten().size * plantRibbon.verticesPerSection + 1)
     }
 
     /**

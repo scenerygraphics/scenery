@@ -32,9 +32,9 @@ class Axis(positions: List<Vector3f?>) {
          * for computing the least square line in three dimensions", Kahn 1989), a detailed mathematical derivation can be
          * found there.
          */
-         fun leastSquare(axis: List<Vector3f>): MathLine {
+         fun leastSquare(axis: List<Vector3f>): PositionDirection {
             if (axis.isEmpty()) {
-                return MathLine(Vector3f(), Vector3f())
+                return PositionDirection(Vector3f(), Vector3f())
             } else {
                 /*
              Summarizing the calculation, first all the points are translated so that their centroid is in the
@@ -59,7 +59,7 @@ class Axis(positions: List<Vector3f?>) {
                 val sumZLength = transPoints.fold(0f) { acc, next -> acc + next.first.z() * next.second.length() }
                 val abs = sqrt(sumXLength * sumXLength + sumYLength * sumYLength + sumZLength * sumZLength)
                 val direction = Vector3f(sumXLength / abs, sumYLength / abs, sumZLength / abs)
-                return MathLine(direction, centroid)
+                return PositionDirection(centroid, direction)
             }
         }
 

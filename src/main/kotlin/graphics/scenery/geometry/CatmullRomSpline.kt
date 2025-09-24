@@ -114,7 +114,7 @@ class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n:
         return controlPoints
     }
 
-    override fun verticesCountPerSection(): Int {
+    override fun pointsPerSection(): Int {
         return n
     }
 

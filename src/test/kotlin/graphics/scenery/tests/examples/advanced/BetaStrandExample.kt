@@ -3,9 +3,13 @@ package graphics.scenery.tests.examples.advanced
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
-import graphics.scenery.geometry.Curve
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.DefaultCurve
+import graphics.scenery.geometry.curve.SegmentedShapeList
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.Vertex
+import org.joml.Vector2f
 import org.joml.Vector3f
 
 /**
@@ -32,34 +36,36 @@ class BetaStrandExample: SceneryBase("BetaStrandExample", windowWidth = 1280, wi
         points.add(Vector3f(0f, 0f, 0f))
         points.add(Vector3f(2f, 1f, 0f))
 
-        fun betaStrand(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
-            val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+        fun betaStrand(splineVerticesCount: Int): SegmentedShapeList {
+            val shapeList = ArrayList<Shape>(splineVerticesCount)
             val seventyeightPercent = (splineVerticesCount*0.78).toInt()
             for (i in 0 until seventyeightPercent) {
-                val list = ArrayList<Vector3f>()
-                list.add(Vector3f(0.08f, 0.3f, 0f))
-                list.add(Vector3f(-0.08f, 0.3f, 0f))
-                list.add(Vector3f(-0.08f, -0.3f, 0f))
-                list.add(Vector3f(0.08f, -0.3f, 0f))
-                shapeList.add(list)
+                val shape = Shape(listOf(
+                    Vertex(Vector3f(0.08f, 0.3f, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(-0.08f, 0.3f, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(-0.08f, -0.3f, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(0.08f, -0.3f, 0f), Vector3f(), Vector2f())
+                ))
+                shapeList += shape
             }
             val twentytwoPercent = splineVerticesCount-seventyeightPercent
             for(i in twentytwoPercent downTo 1) {
                 val y = 0.65f*i/twentytwoPercent
                 val x = 0.08f
-                val arrowHeadList = ArrayList<Vector3f>(twentytwoPercent)
-                arrowHeadList.add(Vector3f(x, y, 0f))
-                arrowHeadList.add(Vector3f(-x, y, 0f))
-                arrowHeadList.add(Vector3f(-x, -y, 0f))
-                arrowHeadList.add(Vector3f(x, -y, 0f))
-                shapeList.add(arrowHeadList)
+                val arrowHead = Shape(listOf(
+                    Vertex(Vector3f(x, y, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(-x, y, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(-x, -y, 0f), Vector3f(), Vector2f()),
+                    Vertex(Vector3f(x, -y, 0f), Vector3f(), Vector2f())
+                ))
+                shapeList += arrowHead
             }
             return shapeList
         }
 
         val catmullRom = CatmullRomSpline(points, 30)
         val splineSize = catmullRom.splinePoints().size
-        val geo = Curve(catmullRom) { betaStrand(splineSize) }
+        val geo = DefaultCurve(catmullRom, { betaStrand(splineSize) })
 
         scene.addChild(geo)
 

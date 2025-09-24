@@ -17,7 +17,7 @@ interface Spline {
 
     /**
      * Returns the spline as a list of points. Please note that this is supposed to be the final
-     * spline because the Curve class takes this very function and builds a geometry around its
+     * spline because the Curve takes this very function and builds a geometry around its
      * points.
      */
     fun splinePoints(): List<Vector3f>
@@ -25,5 +25,5 @@ interface Spline {
     /**
      * Returns the number of points the spline contains in each section.
      */
-    fun verticesCountPerSection(): Int
+    fun pointsPerSection(): Int
 }

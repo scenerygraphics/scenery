@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.curve.*
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
@@ -66,7 +66,7 @@ class CurveTests {
 
         val bSpline = UniformBSpline(points, 10)
 
-        val frenetFrames = Curve(spline = bSpline, partitionAlongControlpoints = false) { shapeGenerator(bSpline.splinePoints().size)  }.computeFrenetFrames(bSpline.splinePoints())
+        val frenetFrames = FrenetCurve.computeFrenetFrames(bSpline)
 
         val distances = ArrayList<Float>()
         val sameFrame = ArrayList<Boolean>()

@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import org.joml.*
@@ -6,8 +6,10 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.proteins.Helix
-import graphics.scenery.proteins.MathLine
+import graphics.scenery.geometry.curve.Helix
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.toShape
+import graphics.scenery.proteins.PositionDirection
 
 /**
  * This is an example of how to set up a helix.
@@ -33,16 +35,16 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
             }
         }
         val spline = CatmullRomSpline(helixSplineControlPoints, 20)
-        fun baseShape(): ArrayList<Vector3f> {
+        fun baseShape(): Shape {
             val list = ArrayList<Vector3f>(4)
             list.add(Vector3f(0.5f, 0f, 0f))
             list.add(Vector3f(0f, 0.1f, 0f))
             list.add(Vector3f(-0.5f, 0f, 0f))
             list.add(Vector3f(0f, -0.1f, 0f))
-            return list
+            return list.toShape()
         }
-        val axis = MathLine(Vector3f(0f, 0f, 1f), Vector3f(0f, 0f, 0f))
-        val curve = Helix(axis, spline) {baseShape()}
+        val axis = PositionDirection(Vector3f(0f, 0f, 0f), Vector3f(0f, 0f, 1f))
+        val curve = Helix(axis, spline) {listOf(baseShape())}
 
         scene.addChild(curve)
 
