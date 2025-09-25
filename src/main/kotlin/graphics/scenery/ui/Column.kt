@@ -27,7 +27,6 @@ open class Column(
     init {
         elements.forEach { this.addChild(it) }
         pack()
-        postUpdate += {pack()}
     }
 
     fun pack() {
