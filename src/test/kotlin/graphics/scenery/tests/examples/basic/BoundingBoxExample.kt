@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
+import graphics.scenery.BoundingGrid
 import graphics.scenery.Box
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -24,7 +25,7 @@ import kotlin.math.sin
 class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
 
     override fun init() {
-        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 1700, 1000))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -35,32 +36,31 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
             scene.addChild(this)
         }
 
-        val boundaryWidth = 13.0f
-        val spacing = 2f
+        val boundaryWidth = 2.0f
+        val spacing = 5f
 
         val boxParent = Mesh()
-        val boxes = (0 until boundaryWidth.pow(3).toInt()).map {
-            Box(Vector3f(0.5f))
+        // Change the boundaryWidth to higher values to get more boxes. Set the power value to 2 or 3 to get
+        // a 2D or 3D grid, respectively. For now, this example tests against single box.
+        val boxes = (0 until boundaryWidth.pow(0).toInt()).map {
+            Box(Vector3f(7f, 4f, 2f))
         }
 
-        boxes.mapIndexed {
-                index, box ->
-
-            val k = index % boundaryWidth
-            val j = (index / boundaryWidth) % boundaryWidth
-            val i = index / (boundaryWidth * boundaryWidth)
+        boxes.mapIndexed { index, box ->
+            val k = index % boundaryWidth.toInt()
+            val j = (index / boundaryWidth.toInt()) % boundaryWidth.toInt()
+            val i = index / (boundaryWidth.toInt() * boundaryWidth.toInt())
 
             box.spatial {
                 position = Vector3f(
-                    spacing * (floor(i).toFloat() - boundaryWidth / 2f),
-                    spacing * (floor(j).toFloat() - boundaryWidth / 2f),
-                    spacing * (floor(k).toFloat() - boundaryWidth / 2f)
+                    spacing * (i - (boundaryWidth - 1) / 2f),
+                    spacing * (j - (boundaryWidth - 1) / 2f),
+                    spacing * (k - (boundaryWidth - 1) / 2f)
                 )
             }
             box.material {
                 diffuse = Vector3f(1.0f, 1.0f, 1.0f)
             }
-
             boxParent.addChild(box)
         }
 
@@ -71,23 +71,21 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
         scene.addChild(intersectionParent)
 
         // Big rotating box for testing intersections
-        val intersectionChild = Box(Vector3f(4f))
+        val intersectionChild = Box(Vector3f(4f, 1.5f, 0.5f))
 
         intersectionChild.spatial {
-            scale = Vector3f(2f, 3f, 5f)
-        }
-
-        intersectionChild.material {
-            wireframe = true
-            wireframeWidth = 5.0f
-            diffuse = Vector3f(0.5f, 1f, 0.4f)
-
+            position = Vector3f(-7f, -2f, -2.0f)
+            scale = Vector3f(3f)
         }
 
         intersectionParent.addChild(intersectionChild)
 
-        var selected = emptyList<Node>()
+        val bb = BoundingGrid()
+        bb.node = intersectionChild
+        bb.lineWidth = 10f
+        bb.gridColor = Vector3f(0.3f, 1f, 0.2f)
 
+        var selected = emptyList<Node>()
         var frame = 0
 
         thread {
@@ -96,11 +94,22 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                     rotation.rotateXYZ(0.006f, 0.004f, 0.003f)
                     needsUpdate = true
                     scale.mul(
-                        sin(frame/140f)/400f+1f,
-                        sin(frame/100f)/400f+1f,
-                        sin(frame/80f)/400f+1f,
+                        sin(frame/140f)/200f+1f,
+                        sin(frame/100f)/200f+1f,
+                        sin(frame/80f)/200f+1f,
                     )
                 }
+                boxParent.spatial {
+                    rotation.rotateXYZ(-0.002f, -0.007f, -0.004f)
+                    needsUpdate = true
+                    scale.mul(
+                        sin(frame/100f+2)/200f+1f,
+                        sin(frame/120f)/200f+1f,
+                        sin(frame/200f)/200f+1f,
+                    )
+                }
+                intersectionParent.spatial().updateWorld(true, true)
+                boxParent.spatial().updateWorld(true, true)
 
                 val hit = boxes.filter { node ->
                     // Only interact with visible nodes
@@ -111,6 +120,13 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
 
                 val new = hit.filter { !selected.contains(it) }
                 val released = selected.filter { !hit.contains(it) }
+
+                // If a change in intersections is detected, briefly pause the simulation so the user can investigate
+                // whether the intersection happened at the right moment.
+                if (released.isNotEmpty() || new.isNotEmpty()) {
+                    Thread.sleep(4000)
+                }
+
                 selected = hit
 
                 new.forEach {
@@ -125,7 +141,7 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                 }
 
                 frame++
-                Thread.sleep(100)
+                Thread.sleep(10)
             }
         }
 
