@@ -260,6 +260,9 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
      * If any of the nodes to test do not have a bounding box defined, the result will be false.
      */
     override fun intersects(other: Node, precise: Boolean): Boolean {
+        println("Testing intersection between:")
+        println("* $node [box ${node.boundingBox}]")
+        println("* $other [box ${node.boundingBox}]")
         node.boundingBox?.let { ownOBB ->
             other.boundingBox?.let { otherOBB ->
                 return ownOBB.intersects(otherOBB, precise)

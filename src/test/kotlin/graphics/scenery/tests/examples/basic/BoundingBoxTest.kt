@@ -79,6 +79,44 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
         boxParent.spatial().updateWorld(true, true)
         intersectionParent.spatial().updateWorld(true, true)
 
+        println()
+        println("What are the bounding boxes?")
+        println("boxParent: ${boxParent.boundingBox}")
+        println("intersectionParent: ${intersectionParent.boundingBox}")
+        println("boxChild: ${boxChild.boundingBox}")
+        println("intersectionChild: ${intersectionChild.boundingBox}")
+        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
+        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
+
+
+        println()
+        println("Generating bounding boxes for parents including children!")
+        boxParent.generateBoundingBox(true)
+        intersectionParent.generateBoundingBox(true)
+
+        println()
+        println("How about now?")
+        println("boxParent: ${boxParent.boundingBox}")
+        println("intersectionParent: ${intersectionParent.boundingBox}")
+        println("boxChild: ${boxChild.boundingBox}")
+        println("intersectionChild: ${intersectionChild.boundingBox}")
+        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
+        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
+
+        println()
+        println("Generating bounding boxes for children directly!")
+        boxChild.generateBoundingBox(true)
+        intersectionChild.generateBoundingBox(true)
+
+        println()
+        println("And now how is it?")
+        println("boxParent: ${boxParent.boundingBox}")
+        println("intersectionParent: ${intersectionParent.boundingBox}")
+        println("boxChild: ${boxChild.boundingBox}")
+        println("intersectionChild: ${intersectionChild.boundingBox}")
+        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
+        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
+
         val hit = intersectionChild.spatial().intersects(boxChild, true)
 
         assertTrue(hit, "Overlapping boxes expected.")
