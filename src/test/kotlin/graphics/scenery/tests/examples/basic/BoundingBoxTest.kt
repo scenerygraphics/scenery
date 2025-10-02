@@ -12,6 +12,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.numerics.Random
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -52,6 +53,7 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
         intersectionParent.spatial {
             scale = Vector3f(2.566f, 1.005f, 1.354f)
             rotation = Quaternionf(5.284e-1f, 3.511e-1f, 2.650e-1f, -7.261e-1f)
+            // CHANGE THIS TO 0.3f for X to let the test pass! (The boxes overlap in both cases)
             position = Vector3f(0.4f, 0f, 0f)
         }
         scene.addChild(intersectionParent)
@@ -72,8 +74,7 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
     /** Test whether two boxes overlap. Each box is a child of a transformed parent. */
     @Test
     fun testOverlap() {
-        val scene = Scene()
-        val (boxChild, boxParent, intersectionChild, intersectionParent) = createTestBoxes(scene)
+        val (boxParent, boxChild, intersectionParent, intersectionChild) = createTestBoxes(scene)
 
         // Since there are no rendered frames and thus no automatic world matrix updates, we do it here
         boxParent.spatial().updateWorld(true, true)
@@ -118,6 +119,10 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
         println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
 
         val hit = intersectionChild.spatial().intersects(boxChild, true)
+
+        boxChild.material {
+            diffuse = if (hit) Vector3f(1.0f, 0.3f, 0.2f) else Vector3f(1f, 1f, 1f)
+        }
 
         assertTrue(hit, "Overlapping boxes expected.")
     }
