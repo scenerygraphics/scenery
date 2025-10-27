@@ -40,9 +40,9 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
         val intersectBox = Box(Vector3f(7f, 4f, 2f))
         intersectBox.spatial {
             // =====================================
-            // CHANGE Y to 4f to let the test pass. In both cases the boxes clearly overlap visually.
+            // CHANGE Y to 3f to let the test pass. In both cases the boxes clearly overlap visually.
             // =====================================
-            position = Vector3f(0f, 3f, 0f)
+            position = Vector3f(0f, 4f, 0f)
             scale = Vector3f( 5.654E-1f, 2.433f, 6.115f)
             rotation = Quaternionf(2.069E-1f, -7.296E-1f, -4.159E-1f, -5.019E-1f).normalize()
         }
