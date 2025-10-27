@@ -4,7 +4,6 @@ import graphics.scenery.BoundingGrid
 import graphics.scenery.Box
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
-import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
@@ -13,8 +12,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import org.joml.Vector3f
 import kotlin.concurrent.thread
-import kotlin.math.floor
-import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -36,61 +33,23 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
             scene.addChild(this)
         }
 
-        val boundaryWidth = 2.0f
-        val spacing = 5f
+        val intersectorBox = Box(Vector3f(7f, 4f, 2f))
+        scene.addChild(intersectorBox)
 
-        val boxParent = Mesh()
-        // Change the boundaryWidth to higher values to get more boxes. Set the power value to 2 or 3 to get
-        // a 2D or 3D grid, respectively. For now, this example tests against single box.
-        val boxes = (0 until boundaryWidth.pow(0).toInt()).map {
-            Box(Vector3f(7f, 4f, 2f))
-        }
+        val baseBox = Box(Vector3f(4f, 1.5f, 0.5f))
+        scene.addChild(baseBox)
 
-        boxes.mapIndexed { index, box ->
-            val k = index % boundaryWidth.toInt()
-            val j = (index / boundaryWidth.toInt()) % boundaryWidth.toInt()
-            val i = index / (boundaryWidth.toInt() * boundaryWidth.toInt())
-
-            box.spatial {
-                position = Vector3f(
-                    spacing * (i - (boundaryWidth - 1) / 2f),
-                    spacing * (j - (boundaryWidth - 1) / 2f),
-                    spacing * (k - (boundaryWidth - 1) / 2f)
-                )
-            }
-            box.material {
-                diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-            }
-            boxParent.addChild(box)
-        }
-
-        scene.addChild(boxParent)
-
-        val intersectionParent = Mesh()
-
-        scene.addChild(intersectionParent)
-
-        // Big rotating box for testing intersections
-        val intersectionChild = Box(Vector3f(4f, 1.5f, 0.5f))
-
-        intersectionChild.spatial {
+        baseBox.spatial {
             position = Vector3f(-7f, -2f, -2.0f)
             scale = Vector3f(3f)
         }
 
-        intersectionParent.addChild(intersectionChild)
-
-        val bb = BoundingGrid()
-        bb.node = intersectionChild
-        bb.lineWidth = 10f
-        bb.gridColor = Vector3f(0.3f, 1f, 0.2f)
-
-        var selected = emptyList<Node>()
         var frame = 0
+        var prevHit = false
 
         thread {
             while (true) {
-                intersectionParent.spatial {
+                baseBox.spatial {
                     rotation.rotateXYZ(0.006f, 0.004f, 0.003f)
                     needsUpdate = true
                     scale.mul(
@@ -99,7 +58,7 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                         sin(frame/80f)/200f+1f,
                     )
                 }
-                boxParent.spatial {
+                intersectorBox.spatial {
                     rotation.rotateXYZ(-0.002f, -0.007f, -0.004f)
                     needsUpdate = true
                     scale.mul(
@@ -108,38 +67,30 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                         sin(frame/200f)/200f+1f,
                     )
                 }
-                intersectionParent.spatial().updateWorld(true, true)
-                boxParent.spatial().updateWorld(true, true)
+                baseBox.spatial().updateWorld(true, true)
+                intersectorBox.spatial().updateWorld(true, true)
 
-                val hit = boxes.filter { node ->
-                    // Only interact with visible nodes
-                    if (!node.visible) { return@filter false }
-                    // Equality check is also a null check here
-                    intersectionChild.spatialOrNull()?.intersects(node, true) == true
-                }.toList()
-
-                val new = hit.filter { !selected.contains(it) }
-                val released = selected.filter { !hit.contains(it) }
+                val hit = baseBox.spatialOrNull()?.intersects(intersectorBox, true) == true
 
                 // If a change in intersections is detected, briefly pause the simulation so the user can investigate
                 // whether the intersection happened at the right moment.
-                if (released.isNotEmpty() || new.isNotEmpty()) {
+                if (hit != prevHit) {
                     Thread.sleep(4000)
                 }
 
-                selected = hit
-
-                new.forEach {
-                    it.material {
+                if (hit && !prevHit) {
+                    baseBox.material {
                         diffuse = Vector3f(1.0f, 0.3f, 0.2f)
                     }
                 }
-                released.forEach {
-                    it.ifMaterial {
+
+                if (!hit && prevHit) {
+                    baseBox.material {
                         diffuse = Vector3f(1.0f, 1f, 1f)
                     }
                 }
 
+                prevHit = hit
                 frame++
                 Thread.sleep(10)
             }

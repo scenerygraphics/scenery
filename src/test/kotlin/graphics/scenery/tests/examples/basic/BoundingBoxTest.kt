@@ -12,7 +12,6 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.numerics.Random
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -24,105 +23,47 @@ import kotlin.test.assertTrue
 
 class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
 
-    data class Quad<out A, out B, out C, out D>(
-        val first: A,
-        val second: B,
-        val third: C,
-        val fourth: D
-    ) {}
+    private fun createTestBoxes(scene: Scene): Pair<Mesh, Mesh> {
 
-    private fun createTestBoxes(scene: Scene): Quad<Mesh, Box, Mesh, Box> {
-        // Box parent and box child are the objects to be tested against
-        val boxParent = Mesh()
-        val boxChild = Box(Vector3f(7f, 4f, 2f))
-        boxParent.addChild(boxChild)
-        boxParent.spatial {
-            rotation = Quaternionf(-1.368e-1f, -4.826e-1f, -2.751e-1f, -8.201e-1f)
-            scale = Vector3f(9.138e-1f, 1.463f, 7.328f)
-        }
-        boxChild.spatial {
-            position = Vector3f(-2.500E+0f, -2.500E+0f, -2.500E+0f)
-        }
-        boxChild.material {
-            diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        scene.addChild(boxParent)
+        val baseBox = Box(Vector3f(4f, 1.5f, 0.5f))
 
-        // Intersection parent and child are the intersection tester objects
-        val intersectionParent = Mesh()
-        intersectionParent.spatial {
-            scale = Vector3f(2.566f, 1.005f, 1.354f)
-            rotation = Quaternionf(5.284e-1f, 3.511e-1f, 2.650e-1f, -7.261e-1f)
-            // CHANGE THIS TO 0.3f for X to let the test pass! (The boxes overlap in both cases)
-            position = Vector3f(0.4f, 0f, 0f)
+        baseBox.spatial {
+            position = Vector3f(-7f, -2f, -2.0f)
+            scale = Vector3f(1.127E+1f,  4.187f, 2.991f)
+            rotation = Quaternionf( 7.071E-1f, 4.699E-1f,  3.546E-1f, -3.917E-1f).normalize()
         }
-        scene.addChild(intersectionParent)
+        baseBox.material {
+            diffuse = Vector3f(1f)
+        }
+        scene.addChild(baseBox)
 
-        val intersectionChild = Box(Vector3f(4f, 1.5f, 0.5f))
-        intersectionChild.spatial {
-            scale = Vector3f(3.0f, 3.0f, 3.0f)
-            position = Vector3f(-7.0f, -2.0f, -2.0f)
+        val intersectBox = Box(Vector3f(7f, 4f, 2f))
+        intersectBox.spatial {
+            // =====================================
+            // CHANGE Y to 4f to let the test pass. In both cases the boxes clearly overlap visually.
+            // =====================================
+            position = Vector3f(0f, 3f, 0f)
+            scale = Vector3f( 5.654E-1f, 2.433f, 6.115f)
+            rotation = Quaternionf(2.069E-1f, -7.296E-1f, -4.159E-1f, -5.019E-1f).normalize()
         }
-        intersectionChild.material {
-            diffuse = Vector3f(0.2f, 1.0f, 0.3f)
+        intersectBox.material {
+            diffuse = Vector3f(1f)
         }
-        intersectionParent.addChild(intersectionChild)
+        scene.addChild(intersectBox)
 
-        return Quad(boxParent, boxChild, intersectionParent, intersectionChild)
+        return Pair(baseBox, intersectBox)
     }
 
     /** Test whether two boxes overlap. Each box is a child of a transformed parent. */
     @Test
     fun testOverlap() {
-        val (boxParent, boxChild, intersectionParent, intersectionChild) = createTestBoxes(scene)
+        val (baseBox, intersectBox) = createTestBoxes(scene)
 
         // Since there are no rendered frames and thus no automatic world matrix updates, we do it here
-        boxParent.spatial().updateWorld(true, true)
-        intersectionParent.spatial().updateWorld(true, true)
+        baseBox.spatial().updateWorld(true, true)
+        intersectBox.spatial().updateWorld(true, true)
 
-        println()
-        println("What are the bounding boxes?")
-        println("boxParent: ${boxParent.boundingBox}")
-        println("intersectionParent: ${intersectionParent.boundingBox}")
-        println("boxChild: ${boxChild.boundingBox}")
-        println("intersectionChild: ${intersectionChild.boundingBox}")
-        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
-        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
-
-
-        println()
-        println("Generating bounding boxes for parents including children!")
-        boxParent.generateBoundingBox(true)
-        intersectionParent.generateBoundingBox(true)
-
-        println()
-        println("How about now?")
-        println("boxParent: ${boxParent.boundingBox}")
-        println("intersectionParent: ${intersectionParent.boundingBox}")
-        println("boxChild: ${boxChild.boundingBox}")
-        println("intersectionChild: ${intersectionChild.boundingBox}")
-        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
-        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
-
-        println()
-        println("Generating bounding boxes for children directly!")
-        boxChild.generateBoundingBox(true)
-        intersectionChild.generateBoundingBox(true)
-
-        println()
-        println("And now how is it?")
-        println("boxParent: ${boxParent.boundingBox}")
-        println("intersectionParent: ${intersectionParent.boundingBox}")
-        println("boxChild: ${boxChild.boundingBox}")
-        println("intersectionChild: ${intersectionChild.boundingBox}")
-        println("Approx overlap? ${intersectionChild.spatial().intersects(boxChild, false)}")
-        println("Precise overlap? ${intersectionChild.spatial().intersects(boxChild, true)}")
-
-        val hit = intersectionChild.spatial().intersects(boxChild, true)
-
-        boxChild.material {
-            diffuse = if (hit) Vector3f(1.0f, 0.3f, 0.2f) else Vector3f(1f, 1f, 1f)
-        }
+        val hit = intersectBox.spatial().intersects(baseBox, true)
 
         assertTrue(hit, "Overlapping boxes expected.")
     }
@@ -139,7 +80,7 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
             scene.addChild(this)
         }
 
-        createTestBoxes(scene)
+        val (baseBox, intersectBox) = createTestBoxes(scene)
 
         val lights = (0..3).map {
             PointLight(radius = 100.0f)
@@ -168,6 +109,12 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
             }
 
             scene.addChild(this)
+        }
+
+        val hit = intersectBox.spatial().intersects(baseBox, true)
+        logger.info("Intersection is $hit")
+        baseBox.material {
+            diffuse = if (hit) Vector3f(1.0f, 0.3f, 0.2f) else Vector3f(1f, 1f, 1f)
         }
     }
 
