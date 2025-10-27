@@ -64,6 +64,9 @@ interface Material {
     /** Flag to make the object wireframe */
     var wireframe: Boolean
 
+    /** Line width of the wireframe */
+    var wireframeWidth: Float
+
     /** Timestamp for creation */
     var timestamp: Long
 

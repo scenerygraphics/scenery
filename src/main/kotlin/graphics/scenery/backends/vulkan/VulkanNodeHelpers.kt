@@ -416,6 +416,7 @@ object VulkanNodeHelpers {
                         material.depthOp,
                         material.blending,
                         material.wireframe,
+                        material.wireframeWidth,
                         s.vertexDescription
                     )
                     pass.registerPipelineForNode(pipeline, renderable)

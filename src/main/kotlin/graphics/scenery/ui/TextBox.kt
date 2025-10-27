@@ -1,11 +1,14 @@
 package graphics.scenery.ui
 
 import graphics.scenery.Box
+import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.RichNode
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
+import org.scijava.util.ListUtils.first
+import kotlin.concurrent.thread
 
 /**
  * Text with a Box behind it.
@@ -42,6 +45,7 @@ open class TextBox(
         }
 
         this.addChild(board)
+        board.createRenderable()
         this.addChild(box)
 
         var textGeom = board.geometry().vertices
@@ -66,15 +70,31 @@ open class TextBox(
                     )
                     needsUpdate = true
                 }
-                box.generateBoundingBox()
+                this.boundingBox = box.generateBoundingBox()
                 width = maxX
                 textGeom = board.geometry().vertices
+                logger.debug("$name geometry size is ${textGeom.capacity()}")
             }
         }
 
-        updateSize(true)
+        thread {
+            while (textGeom.capacity() == 0) {
+                Thread.sleep(50)
+                textGeom = board.geometry().vertices
+            }
+            updateSize(true)
+        }
+
         this.update += { updateSize() }
 
         initGrabable(box)
+    }
+
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
+        return box.generateBoundingBox(includeChildren)
+    }
+
+    override fun getMaximumBoundingBox(): OrientedBoundingBox {
+        return box.boundingBox ?: OrientedBoundingBox(this, 0f, 0f, 0f, 0f, 0f, 0f)
     }
 }

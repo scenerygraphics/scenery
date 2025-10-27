@@ -59,11 +59,11 @@ open class DefaultGeometry(private var node: Node): Geometry {
                 boundingBoxCoords[3] = maxOf(boundingBoxCoords[3], vertex[1])
                 boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], vertex[2])
             }
-            val scale = node.spatialOrNull()?.scale ?: Vector3f(1f)
+
             logger.debug("$node.name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
             return OrientedBoundingBox(
-                node, Vector3f(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]).times(scale),
-                Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]).times(scale)
+                node, Vector3f(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
+                Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5])
             )
         }
     }
