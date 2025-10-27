@@ -51,6 +51,10 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
         }
         scene.addChild(intersectBox)
 
+        // Since there are no rendered frames and thus no automatic world matrix updates, we do it here
+        baseBox.spatial().updateWorld(true, true)
+        intersectBox.spatial().updateWorld(true, true)
+
         return Pair(baseBox, intersectBox)
     }
 
@@ -58,10 +62,6 @@ class BoundingBoxTest : SceneryBase("BoundingBoxTest") {
     @Test
     fun testOverlap() {
         val (baseBox, intersectBox) = createTestBoxes(scene)
-
-        // Since there are no rendered frames and thus no automatic world matrix updates, we do it here
-        baseBox.spatial().updateWorld(true, true)
-        intersectBox.spatial().updateWorld(true, true)
 
         val hit = intersectBox.spatial().intersects(baseBox, true)
 
