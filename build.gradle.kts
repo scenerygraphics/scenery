@@ -40,6 +40,9 @@ val lwjglArtifacts = listOf(
 )
 
 dependencies {
+    // IMPORTANT: When adding dependencies that are not managed by the scijava parent POM,
+    // add the name of the dependency to the `versionedArtifacts` below, otherwise the Maven
+    // POM will be generated incorrectly.
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
     val lwjglVersion = project.properties["lwjglVersion"]
     
@@ -305,7 +308,8 @@ tasks {
                 "jackson-dataformat-yaml",
                 "kryo",
                 "bigvolumeviewer",
-                "snappy-java"
+                "snappy-java",
+		"autofab"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
