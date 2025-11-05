@@ -250,7 +250,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @returns Matrix4f with orientation
      */
     override fun getOrientation(): Quaternionf {
-        //return bodyState[defaultBodyId]?.rotation ?: Quaternionf()
+        // TODO: Return unit quaternion for the moment, until we can figure out whether the rotation is calibrated or not.
         return Quaternionf()
     }
 
@@ -278,7 +278,6 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @return HMD pose as Matrix4f
      */
     override fun getPose(): Matrix4f {
-//        return Matrix4f().set(bodyState[defaultBodyId]?.rotation ?: Quaternionf())
         return Matrix4f().translation((bodyState[defaultBodyId]?.position ?: Vector3f(0.0f)) * (-1.0f))
     }
 
