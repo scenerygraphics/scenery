@@ -72,7 +72,6 @@ class OpenGLSwapchain(device: VulkanDevice,
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-        //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
         glfwWindowHint(GLFW_SRGB_CAPABLE, if(useSRGB) { GLFW_TRUE } else { GLFW_FALSE })
@@ -112,7 +111,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                     height = h
                     swapchainRecreator.mustRecreate = true
                     lastResize = -1L
-                    logger.info("Resize received -> $width x $height")
+                    logger.debug("Resize received -> $width x $height")
                 }
             }
 
@@ -448,7 +447,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x()// / 2
+                window.width = hmd.getRenderTargetSize().x()
                 window.height = hmd.getRenderTargetSize().y()
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height} via HMD")
             }
