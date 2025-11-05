@@ -29,7 +29,7 @@ import kotlin.time.ExperimentalTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @OptIn(ExperimentalTime::class)
-class Lish22Demo: CaveBaseScene("uff") {
+class Lish22Demo: CaveBaseScene("LISH 22 Demo") {
     lateinit var activeObject: Node
     var selectableObjects = ArrayList<Node>()
 
@@ -62,25 +62,6 @@ class Lish22Demo: CaveBaseScene("uff") {
         selectableObjects.forEach { scene.addChild(it) }
 
         activeObject = mariaPlant
-
-//        val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
-//            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
-//            Volume.VolumeFileSource.VolumeType.TIFF),hub)
-//        retina.colormap = Colormap.get("jet")
-//        retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-//        retina.setTransferFunctionRange(200.0f, 36000.0f)
-//        retina.slicingMode = Volume.SlicingMode.None
-//        slicingPlane.addTargetVolume(retina)
-//        retina.origin = Origin.Center
-//        retina.spatial {
-//            scale = Vector3f(2.0f, 2.0f, 6.0f)
-//            position = Vector3f(5.0f, 1.0f, 0.0f)
-//        }
-//        retina.name = "Mouse retina"
-//        retina.loadTransferFunctionFromFile(File("""E:\datasets\retina_test2\transferFunction"""))
-//        scene.addChild(retina)
-//        selectableObjects.add(retina)
-
 
         val ambient = AmbientLight(0.1f)
         scene += ambient
@@ -125,9 +106,6 @@ class Lish22Demo: CaveBaseScene("uff") {
         val volume = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given(folder+"""Hydra/export.xml"""),
             Volume.VolumeFileSource.VolumeType.SPIM),hub)
-        //val volume = Volume.fromXML("""C:\Users\JanCasus\volumes\embo\Drosphila_brain\export.xml""",hub, VolumeViewerOptions())
-//        val volume = Volume.fromXML(folder+"""Hydra/export.xml""", hub, VolumeViewerOptions())
-        //val volume = Volume.fromPath(Path("""C:\Users\JanCasus\volumes\embo\Drosphila_brain\brain.tif"""),hub)
         volume.spatial() {
             scale = Vector3f(1.3934f)
         }
@@ -154,11 +132,9 @@ class Lish22Demo: CaveBaseScene("uff") {
 
 
     fun mariaPlant(hub: Hub): Volume {
-        //val volume = Volume.fromXML("""C:\Users\JanCasus\volumes\embo\MariaPlant\export.xml""",hub, VolumeViewerOptions())
         val volume = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given(folder+"""MariaPlant/plant_MMStack_Default.ome.tif"""),
             Volume.VolumeFileSource.VolumeType.TIFF),hub)
-//            Volume.fromPath(Path(folder+"""MariaPlant/plant_MMStack_Default.ome.tif"""), hub)
         volume.spatial() {
             val openSpimScale15 = Vector3f(.225f, .225f, 1.524f)
             scale = openSpimScale15
@@ -176,12 +152,6 @@ class Lish22Demo: CaveBaseScene("uff") {
         val volume = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given(folder+"""mohammads_mouse_brain/export.xml"""),
             Volume.VolumeFileSource.VolumeType.SPIM),hub)
-//        val volume = Volume.fromXML(
-//            folder+"""mohammads_mouse_brain/export.xml""",
-//            hub,
-//            VolumeViewerOptions()
-//        )
-        //val volume = Volume.fromPath(Path("""C:\Users\JanCasus\volumes\embo\MariaPlant\plant_MMStack_Default.ome.tif"""),hub)
         volume.spatial() {
             scale = Vector3f(1.3323542f, 1.3323542f, 4.992066f ) * 0.2f
         }
