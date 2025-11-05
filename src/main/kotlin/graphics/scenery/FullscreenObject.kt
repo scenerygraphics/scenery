@@ -10,7 +10,7 @@ import graphics.scenery.attribute.material.Material
  */
 class FullscreenObject : Mesh("FullscreenObject") {
 
-    var wantsSync = false
+    override var wantsSync = false
     override fun wantsSync(): Boolean = wantsSync
     init {
         geometry {

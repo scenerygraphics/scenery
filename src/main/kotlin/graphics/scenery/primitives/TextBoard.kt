@@ -6,6 +6,7 @@ import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.RepeatMode
 import org.joml.Vector2i
@@ -34,6 +35,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean
 
                 needsPreUpdate = true
                 geometry().dirty = true
+                updateModifiedAt()
             }
         }
 
@@ -50,6 +52,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean
 
                 needsPreUpdate = true
                 geometry().dirty = true
+                updateModifiedAt()
             }
         }
 
@@ -92,6 +95,25 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", isBillboard: Boolean
 
         needsPreUpdate = true
     }
+
+    override fun getConstructorParameters(): Any? {
+        return "something"
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        return TextBoard()
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is TextBoard) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
+
+        this.text = fresh.text
+        this.fontColor = fresh.fontColor
+        this.backgroundColor = fresh.backgroundColor
+        this.transparent = fresh.transparent
+    }
+
     override fun createRenderable(): Renderable {
         return object: DefaultRenderable(this) {
 

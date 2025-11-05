@@ -56,9 +56,9 @@ class VRSelectionWheel(
             activeWiggler?.deativate()
             activeWiggler = null
 
-        } else if (activeWiggler?.target != closestSphere.representation.spatial()) {
+        } else if (activeWiggler?.target != closestSphere.representation) {
             activeWiggler?.deativate()
-            activeWiggler = Wiggler(closestSphere.representation.spatial(), 0.01f)
+            activeWiggler = Wiggler(closestSphere.representation, 0.01f)
         }
 
     }

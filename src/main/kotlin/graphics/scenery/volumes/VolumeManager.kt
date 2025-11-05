@@ -284,6 +284,7 @@ class VolumeManager(
 
                 is VolatileARGBType,
                 is ARGBType -> VolumeShaderSignature.PixelType.ARGB
+
                 else -> throw IllegalStateException("Unknown volume type ${it.stack.type.javaClass}")
             }
 
@@ -333,7 +334,7 @@ class VolumeManager(
             "slicingPlanes",
             "slicingMode",
             "usedSlicingPlanes",
-            "sceneGraphVisibility"
+            "sceneGraphVisibility",
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
@@ -360,17 +361,17 @@ class VolumeManager(
         var triggered = false
         val additionalBindings = customBindings
             ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
-                                                  segmentInstances: Map<SegmentType, Segment>,
-                                                  volumeIndex: Int ->
+                                                      segmentInstances: Map<SegmentType, Segment>,
+                                                      volumeIndex: Int ->
                 logger.debug("Connecting additional bindings")
 
-                if(!triggered) {
+                if (!triggered) {
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localFar", n)
                     triggered = true
                 }
 
-                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                if (signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
                     segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localNear",
                         volumeIndex,
@@ -393,16 +394,16 @@ class VolumeManager(
                         segmentInstances[SegmentType.Accumulator]
                     )
                 }
-                
+
                 segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
                     "convert",
                     segmentInstances[SegmentType.Convert]
                 )
                 segmentInstances[SegmentType.SampleVolume]?.bind(
-                    "convert", 
+                    "convert",
                     segmentInstances[SegmentType.Convert]
                 )
-                
+
                 segmentInstances[SegmentType.SampleVolume]?.bind(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.Accumulator]
@@ -411,8 +412,8 @@ class VolumeManager(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.AccumulatorMultiresolution]
                 )
-                
             }
+
 
         val newProgvol = MultiVolumeShaderMip(
             VolumeShaderSignature(signatures),

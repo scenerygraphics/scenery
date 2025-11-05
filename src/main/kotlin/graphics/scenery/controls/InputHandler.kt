@@ -7,10 +7,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.lazyLogger
 import net.java.games.input.Component
-import org.scijava.ui.behaviour.Behaviour
-import org.scijava.ui.behaviour.BehaviourMap
-import org.scijava.ui.behaviour.InputTrigger
-import org.scijava.ui.behaviour.InputTriggerMap
+import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.InputTriggerDescription
 import org.scijava.ui.behaviour.io.InputTriggerDescriptionsBuilder
@@ -19,6 +16,7 @@ import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.scijava.ui.behaviour.util.Behaviours
 import java.io.*
 import javax.swing.JFrame
+import kotlin.system.exitProcess
 
 /**
  * Input orchestrator for ClearGL windows
@@ -240,6 +238,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
 
         behaviourMap.put("toggle_vr", ToggleCommand(renderer, "toggleVR"))
 
+        behaviourMap.put("exit", ClickBehaviour { _, _ -> exitProcess(0) })
+
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
         adder.put("gamepad_movement_control")
@@ -268,6 +268,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         adder.put("record_movie", "shift P")
 
         adder.put("toggle_vr", "shift V")
+
+        adder.put("exit", "shift X")
     }
 
     override fun close() {

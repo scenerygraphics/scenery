@@ -20,8 +20,6 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-//    maven("https://jitpack.io")
-//    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -48,6 +46,10 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
+    implementation("graphics.scenery:autofab:0.1"){
+        exclude("org.slf4j", "slf4j-api")
+        exclude("org.slf4j", "slf4j-simple")
+    }
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
@@ -98,7 +100,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
     implementation("org.zeromq:jeromq:0.6.0")
-    implementation("com.esotericsoftware:kryo:5.6.0")
+    implementation("com.esotericsoftware:kryo:5.6.2")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
@@ -416,4 +418,22 @@ plugins.withType<JacocoPlugin> {
 // disable Gradle metadata file in general, as Maven artifacts are our main publication.
 tasks.withType<GenerateModuleMetadata> {
     enabled = false
+}
+tasks.register<Jar>("packageTests") {
+    from(sourceSets.test.get().output)
+    archiveClassifier = "tests"
+}
+
+
+tasks.register("copyDependencies") {
+        val runtimeClasspath =
+            project.configurations.matching { it.name == "testRuntimeClasspath" }
+        runtimeClasspath.all {
+            for (dep in map { file: File -> file.absoluteFile }) {
+                project.copy {
+                    from(dep)
+                    into("${rootProject.projectDir}/build/dependencies")
+                }
+            }
+        }
 }

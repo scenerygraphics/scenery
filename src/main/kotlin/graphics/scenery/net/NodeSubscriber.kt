@@ -70,6 +70,8 @@ class NodeSubscriber(
                 // Interrupted exceptions are expected when closing the Subscriber and no need to worry
                 throw t
             }
+        } catch (t: com.esotericsoftware.kryo.KryoException){
+            logger.warn("Ignoring Kryo Exception:",t)
         }
     }
 
@@ -179,9 +181,15 @@ class NodeSubscriber(
                     return
                 }
 
-                val newNode = event.constructorParameters?.let {
-                    networkable.constructWithParameters(it, hub!!) as Node
-                } ?: networkable
+                val newNode = if (networkable.networkID < -1) {
+                    scene.discover(scene,{ (it as? Networkable)?.networkID == networkable.networkID}).firstOrNull()
+                        ?: throw IllegalStateException("${networkable::class.simpleName} with preset " +
+                            "network id ${networkable.networkID} is missing in scene")
+                } else
+                    event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) as Node
+                    }?: networkable
+
+
                 val newWrapped = NetworkWrapper(
                     networkWrapper.networkID,
                     newNode,
@@ -200,12 +208,27 @@ class NodeSubscriber(
                 // It is an attribute
                 val attributeBaseClass = networkable.getAttributeClass()
                     ?: throw IllegalStateException(
-                        "Received unknown object from server. ${networkable.javaClass.simpleName}" +
+                        "Received unknown object from server. ${networkable.javaClass.simpleName} " +
                             "Maybe an attribute missing a getAttributeClass implementation?"
                     )
 
-                val newAttribute = event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) }
-                    ?: networkable
+                val newAttribute = if (networkable.networkID < -1) {
+                    // look for a node which has an attribute with the desired network ID
+                    val parent = scene.discover(scene, {
+                        (it as? Networkable)?.getSubcomponents()
+                            ?.any { it.networkID == networkable.networkID } ?: false
+                    }).firstOrNull() as? Networkable
+
+                    parent?.getSubcomponents()?.firstOrNull { it.networkID == networkable.networkID }
+                        ?: throw IllegalStateException(
+                            "${networkable::class.simpleName} with preset " +
+                                "network id ${networkable.networkID} is missing in scene"
+                        )
+                } else {
+                    event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) }
+                        ?: networkable
+                }
+
                 val newWrapped = NetworkWrapper(
                     networkWrapper.networkID,
                     newAttribute,

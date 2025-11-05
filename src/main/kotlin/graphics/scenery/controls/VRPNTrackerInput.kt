@@ -110,7 +110,7 @@ class VRPNTrackerInput(trackerAddress: String = "device@localhost:5500") : Track
      * @return HMD pose as Matrix4f
      */
     override fun getPose(): Matrix4f {
-        return Matrix4f().set(cachedOrientation)
+        return Matrix4f().translation(cachedPosition * (-1.0f))
     }
 
     /**

@@ -19,6 +19,8 @@ import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import org.zeromq.ZContext
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
@@ -28,6 +30,7 @@ import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.io.path.absolute
 
 /**
  * Base class to use scenery with, keeping the needed boilerplate
@@ -144,14 +147,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
     /**
      * Main routine for [SceneryBase]
-     *
-     * This routine will construct a internal [ClearGLDefaultEventListener], and initialize
-     * with the [init] function. Override this in your subclass and be sure to call `super.main()`.
-     *
-     * The [ClearGLDefaultEventListener] will take care of usually used window functionality, like
-     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [InputHandler],
-     * based on the [applicationName], from the file `~/.[applicationName].bindings
-     *
      */
     open suspend fun sceneryMain() {
 
@@ -346,9 +341,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     open fun close() {
         // Terminate main loop.
         shouldClose = true
+        gracePeriod = 3
 
         renderer?.close()
-        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
@@ -455,26 +450,28 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
-        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val serverAddress = System.getProperty("scenery.ServerAddress") ?: "tcp://localhost"
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
-
-        if (!server && serverAddress != null) {
-            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort, context = ZContext())
-            hub.add(subscriber)
-            scene.postUpdate += {subscriber.networkUpdate(scene)}
-        } else if (server) {
-            applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort, context = ZContext())
-            hub.add(publisher)
-            publisher.register(scene)
-            scene.postUpdate += { publisher.scanForChanges()}
-        }
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
 
         settings.set("System.PID", getProcessID())
+
+        if (!server && serverAddress != null) {
+            val subscriber = NodeSubscriber(hub, serverAddress, mainPort, backchannelPort, context = ZContext())
+            hub.add(subscriber)
+            scene.postUpdate += {subscriber.networkUpdate(scene)}
+        } else if (server) {
+            applicationName += " [Server]"
+            val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort, context = ZContext())
+
+            hub.add(publisher)
+            publisher.register(scene)
+            scene.postUpdate += { publisher.scanForChanges()}
+        }
+
 
         // initialize renderer, etc first in init, then setup key bindings
         init()

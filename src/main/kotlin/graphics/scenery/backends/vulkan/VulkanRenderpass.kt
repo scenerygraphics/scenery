@@ -848,10 +848,20 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * Closes this renderpass and deallocates its resources.
      */
     override fun close() {
+        val closedPipelines = ArrayList<VulkanPipeline>()
         logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }
-        configuredPipelines.forEach { it.value.close() }
+        configuredPipelines.forEach {
+            it.value.close()
+            closedPipelines.add(it.value)
+        }
+        pipelines.forEach {
+            if(!closedPipelines.contains(it.value)) {
+                it.value.close()
+            }
+        }
         pipelines.clear()
+        closedPipelines.clear()
         UBOs.forEach { it.value.close() }
         ownDescriptorSetLayouts.forEach {
             logger.debug("Destroying DSL ${it.toHexString()}")

@@ -5,6 +5,7 @@ import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.utils.lazyLogger
+import graphics.scenery.utils.extensions.times
 import kotlinx.coroutines.*
 import org.joml.*
 import org.scijava.ui.behaviour.*
@@ -19,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0"): TrackerInput {
+class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0", var positonScale: Vector3f = Vector3f(1f)): TrackerInput {
     private var sdk: DTrackSDK = DTrackSDK(InetAddress.getByName(host), port)
     private val logger by lazyLogger()
 
@@ -51,7 +52,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
     protected val behaviourMap = BehaviourMap()
 
     init {
-        logger.debug("Connected to $host:$port.")
+        logger.info("Connected to $host:$port.")
 
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
@@ -60,13 +61,13 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
             throw IllegalStateException("DTrack initialisation error, could not talk to DTrack on $host, port $port.")
         }
 
-        logger.debug("Data interface for $host:$port is valid.")
+        logger.info("Data interface for $host:$port is valid.")
 
         if(!sdk.startMeasurement()) {
             throw IllegalStateException("Could not start DTrack measurement on $host, port $port.")
         }
 
-        logger.debug("Measurement for $host:$port has started.")
+        logger.info("Measurement for $host:$port has started.")
 
         connected = true
 
@@ -82,8 +83,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val rotation = sdk.getBody(bodyId).rot
 
                         val x = loc[0].toFloat()/1000.0f
-                        val y = loc[2].toFloat()/1000.0f
-                        val z = loc[1].toFloat()/1000.0f
+                        val y = loc[1].toFloat()/1000.0f
+                        val z = -loc[2].toFloat()/1000.0f
 
                         val state = bodyState.getOrPut( "body-$bodyId", {
                             DTrackBodyState(
@@ -95,7 +96,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
 
                         state.quality = quality
                         state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
-                        state.position.set(x, y, z)
+                        state.position.set(x, y, z).mul(positonScale)
                     }
 
                     for(flystickId in 0 until sdk.numFlystick) {
@@ -105,8 +106,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val rotation = flystick.rot
 
                         val x = loc[0].toFloat()/1000.0f
-                        val y = loc[2].toFloat()/1000.0f
-                        val z = loc[1].toFloat()/1000.0f
+                        val y = loc[1].toFloat()/1000.0f
+                        val z = -loc[2].toFloat()/1000.0f
 
                         val joystickX = flystick.joystick[0].toFloat()
                         val joystickY = flystick.joystick[1].toFloat()
@@ -249,7 +250,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @returns Matrix4f with orientation
      */
     override fun getOrientation(): Quaternionf {
-        return bodyState[defaultBodyId]?.rotation ?: Quaternionf()
+        // TODO: Return unit quaternion for the moment, until we can figure out whether the rotation is calibrated or not.
+        return Quaternionf()
     }
 
     /**
@@ -276,7 +278,11 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @return HMD pose as Matrix4f
      */
     override fun getPose(): Matrix4f {
-        return Matrix4f().set(bodyState[defaultBodyId]?.rotation ?: Quaternionf())
+        return Matrix4f().translation((bodyState[defaultBodyId]?.position ?: Vector3f(0.0f)) * (-1.0f))
+    }
+
+    private fun DTrackBodyState.pose(): Matrix4f {
+        return Matrix4f().translation(this.position).rotate(this.rotation)
     }
 
     /**
@@ -285,7 +291,13 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @return Pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
-        return listOf(TrackedDevice(TrackedDeviceType.HMD, "DTrack", getPose(), System.nanoTime()))
+        return if(type == TrackedDeviceType.Controller) {
+            bodyState.filter { it.key.startsWith("flystick") }.map {
+                TrackedDevice(type, it.key, it.value.pose(), System.nanoTime())
+            }.toList()
+        } else {
+            listOf(TrackedDevice(TrackedDeviceType.HMD, "DTrack", getPose(), System.nanoTime()))
+        }
     }
 
     /**

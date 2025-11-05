@@ -1,5 +1,6 @@
 package graphics.scenery.proteins
 
+import graphics.scenery.Hub
 import graphics.scenery.geometry.Curve
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.geometry.Spline
@@ -7,6 +8,7 @@ import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
+import graphics.scenery.net.Networkable
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -86,6 +88,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
      * Returns the final Ribbon Diagram
      */
     init {
+
         chains.forEach{ chain ->
             if(chain.isProtein) {
                 val aminoList = ArrayList<Group>(chain.atomGroups.size)
@@ -108,6 +111,22 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             }
             this.addChild(subProtein)
         }
+
+        children.forEach { (it as? Mesh)?.wantsSync = false }
+    }
+
+    override fun getConstructorParameters(): Any? {
+        return "something"
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        val id = protein.id
+        val p = if(id != null) {
+            Protein.fromID(id)
+        } else {
+            protein
+        }
+        return RibbonDiagram(p, showSecondaryStructures)
     }
 
     /**

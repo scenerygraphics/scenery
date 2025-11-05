@@ -67,6 +67,12 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
+import kotlin.concurrent.thread
+import kotlin.io.path.isDirectory
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.VolatileByteType
@@ -79,6 +85,8 @@ import org.jfree.data.statistics.SimpleHistogramDataset
 import org.scijava.Context
 import kotlin.math.*
 import kotlin.time.measureTimedValue
+import kotlin.streams.toList
+import kotlin.time.Duration.Companion.nanoseconds
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -182,6 +190,10 @@ open class Volume(
     var slicingMode = SlicingMode.None
 
     var multiResolutionLevelLimits: Pair<Int, Int>? = null
+        set(value) {
+            field = value
+            modifiedAt = System.nanoTime()
+        }
 
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
@@ -207,16 +219,16 @@ open class Volume(
     var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
-            return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
+            return if (dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
-                viewerState.currentTimepoint
+                field
             }
         }
         set(value) {
+            field = value
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
-            field = value
         }
 
     val bytesPerVoxel: Int
@@ -405,13 +417,25 @@ open class Volume(
     }
 
 
+    override fun getAdditionalUpdateData(): Any? {
+        return converterSetups.map { it.displayRangeMin to it.displayRangeMax }.toList()
+    }
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
+        this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
+        this.origin = fresh.origin
 
+        val displayRanges = additionalData as List<Pair<Double,Double>>
+        displayRanges.forEachIndexed{index, range ->
+            converterSetups[index].setDisplayRange(range.first,range.second)
+        }
+
+        logger.info("Going to timepoint ${fresh.currentTimepoint} of ${this.timepointCount}")
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
         }
@@ -652,6 +676,7 @@ open class Volume(
     @JvmOverloads
     open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
         converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())
+        updateModifiedAt()
     }
 
     companion object {
@@ -1067,16 +1092,16 @@ open class Volume(
                         // Same as above, with the difference that we only use one reader to
                         // simply read bytes Plane-wise sequentially, and add them to the buffer.
                         val bytes = localReader.openPlane(0, plane).bytes
-                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-                        view.put(bytes)
+                        imageData.put(bytes)
                     }
+                    imageData.flip()
 
                     val duration = (System.nanoTime() - start) / 10e5
                     logger.debug("Reading took $duration ms, no parallel readers.")
                 }
+
+                volumes.add(BufferedVolume.Timepoint(id, imageData))
             }
-
-
 
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
             val volume = when(type) {
@@ -1221,12 +1246,14 @@ open class Volume(
 
     }
 
-    open class VolumeSpatial(val volume: Volume): DefaultSpatial(volume) {
+    open class VolumeSpatial(volume: Volume): DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
          * into account.
          */
         override fun composeModel() {
+            val volume = node as? Volume ?: return
+
             model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
             model.scale(scale)
@@ -1242,5 +1269,3 @@ open class Volume(
         }
     }
 }
-
-
