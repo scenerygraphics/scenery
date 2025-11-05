@@ -77,8 +77,6 @@ class CaveDemoWithSlicing: CaveBaseScene("CAVE Slicing Demo") {
         scene.addChild(drosophila)
         selectableObjects.add(drosophila)
 
-//        TransferFunctionEditor.showTFFrame(drosophila)
-
         val bile = initBile()
 
         val ferry = RichNode()
@@ -103,8 +101,6 @@ class CaveDemoWithSlicing: CaveBaseScene("CAVE Slicing Demo") {
         scene += ferry
         selectableObjects.add(ferry)
 
-//        TransferFunctionEditor.showTFFrame(cryoEM)
-
         val ambient = AmbientLight(0.1f)
         scene += ambient
 
@@ -117,12 +113,6 @@ class CaveDemoWithSlicing: CaveBaseScene("CAVE Slicing Demo") {
         val croppingHandle = Box(Vector3f(0.1f,0.005f,0.1f))
         cam += croppingHandle
 
-
-//        scene.findByClassname("Volume").forEach {
-//            val vol = it as Volume
-//            slicingPlane.addTargetVolume(vol)
-//            vol.slicingMode = Volume.SlicingMode.Cropping
-//        }
         croppingHandle.addChild(slicingPlane)
         croppingHandle.update += {
             val headPose = (hmd?.tracker as? DTrackTrackerInput)?.getPose()
