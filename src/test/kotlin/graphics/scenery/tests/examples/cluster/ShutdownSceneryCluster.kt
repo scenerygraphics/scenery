@@ -9,7 +9,7 @@ import kotlin.system.exitProcess
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class KillAllOnClients {
+class ShutdownSceneryCluster {
 
     companion object {
         private val logger by lazyLogger()
