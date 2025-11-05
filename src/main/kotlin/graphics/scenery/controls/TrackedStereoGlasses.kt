@@ -25,7 +25,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     var tracker = initializeTracker(address)
     var currentOrientation = Matrix4f()
-    var ipd = 0.055f
+    var ipd = 0.062f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
@@ -124,6 +124,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return True if the HMD has a compositor
      */
     override fun hasCompositor(): Boolean {
+        // we will always treat the TrackedStereoGlasses as if they have a compositor
         return true
     }
 
@@ -156,7 +157,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, image: Long) {
-        //logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
+        // Although we treat the TrackedStereoGlasses as if they have a compositor, they
+        // actually don't, so we're not doing anything here.
     }
 
     /**
