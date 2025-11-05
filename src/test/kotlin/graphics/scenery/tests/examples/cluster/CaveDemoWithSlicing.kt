@@ -27,7 +27,7 @@ import kotlin.time.ExperimentalTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @OptIn(ExperimentalTime::class)
-class CaveDemoWithSlicing: CaveBaseScene("uff") {
+class CaveDemoWithSlicing: CaveBaseScene("CAVE Slicing Demo") {
     lateinit var activeObject: Node
     var selectableObjects = ArrayList<Node>()
 
