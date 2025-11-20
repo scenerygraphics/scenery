@@ -20,8 +20,7 @@ import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Image.SCALE_SMOOTH
 import java.awt.event.MouseEvent
-import java.awt.event.MouseEvent.BUTTON1
-import java.awt.event.MouseEvent.BUTTON1_DOWN_MASK
+import javax.swing.SwingUtilities
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
