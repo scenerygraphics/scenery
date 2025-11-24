@@ -188,7 +188,6 @@ interface Node : Networkable {
         } else {
             if (includeChildren) {
                 boundingBox = geometry.generateBoundingBox(children)
-                println("Calculated bounding box! $boundingBox")
                 return boundingBox
             } else {
                 boundingBox = geometry.generateBoundingBox(listOf())
