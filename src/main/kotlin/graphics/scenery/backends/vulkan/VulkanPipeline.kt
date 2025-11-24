@@ -286,7 +286,8 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     override fun close() {
         val removedLayouts = ArrayList<Long>()
 
-        pipeline.forEach { _, pipeline ->
+        pipeline.forEach { (_, pipeline) ->
+            logger.debug("Destroying pipeline ${pipeline.pipeline.toHexString()}")
             vkDestroyPipeline(device.vulkanDevice, pipeline.pipeline, null)
 
             if(!removedLayouts.contains(pipeline.layout)) {

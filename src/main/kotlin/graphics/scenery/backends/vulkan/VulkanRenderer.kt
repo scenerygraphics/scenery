@@ -2318,10 +2318,12 @@ open class VulkanRenderer(hub: Hub,
      * Closes the current instance of [VulkanRenderer].
      */
     override fun close() {
+        logger.debug("close() called")
         shouldClose = true
     }
 
     fun closeInternal() {
+        logger.debug("closeInternal() called")
         if(!initialized) {
             return
         }

@@ -53,7 +53,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - uses: gradle/actions/wrapper-validation@v4
       - name: configure Pagefile
-        uses: al-cheb/configure-pagefile-action@v1.4
+        uses: al-cheb/configure-pagefile-action@v1.5
         with:
           minimum-size: 8GB
           maximum-size: 32GB

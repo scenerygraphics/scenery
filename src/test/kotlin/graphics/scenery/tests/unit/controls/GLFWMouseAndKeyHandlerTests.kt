@@ -213,7 +213,7 @@ class GLFWMouseAndKeyHandlerTests {
         val (inputHandler, _, glfwHandler) = prepareInputHandler()
 
         repeat(100) { i ->
-            val button = Random.nextInt(1, 4)
+            val button = Random.nextInt(0, 3)
             var keyPressed = false
 
             val modifiers = listOf(
@@ -227,7 +227,15 @@ class GLFWMouseAndKeyHandlerTests {
                 "shift"
             ).random()
 
-            val modifiersFull = (1 shl 9+button) or modifiers.toMask()
+            // Map GLFW button IDs to AWT button down masks
+            // GLFW: 0=left, 1=right, 2=middle
+            // AWT: BUTTON1_DOWN_MASK=left, BUTTON3_DOWN_MASK=right, BUTTON2_DOWN_MASK=middle
+            val buttonMask = when(button) {
+                0 -> 1024  // BUTTON1_DOWN_MASK (left)
+                1 -> 4096  // BUTTON3_DOWN_MASK (right)
+                else -> 2048  // BUTTON2_DOWN_MASK (middle)
+            }
+            val modifiersFull = buttonMask or modifiers.toMask()
             val modifierEvents = modifiers.toEvents()
 
             // we create a press and release event here, otherwise
@@ -251,9 +259,9 @@ class GLFWMouseAndKeyHandlerTests {
             }
 
             val buttonString = when(button) {
-                1 -> "button1"
-                2 -> "button2"
-                else -> "button3"
+                0 -> "button1"
+                1 -> "button3"
+                else -> "button2"
             }
 
             logger.debug("Mask is ${modifiersFull.toBinaryString()}, modifiers=$modifiers")
@@ -377,7 +385,15 @@ class GLFWMouseAndKeyHandlerTests {
 //                "alt",
                 "shift").random()
 
-            val modifiersFull = 2.0.pow(10.0 + button).toInt() or modifiers.toMask()
+            // Map GLFW button IDs to AWT button down masks
+            // GLFW: 0=left, 1=right, 2=middle
+            // AWT: BUTTON1_DOWN_MASK=left, BUTTON3_DOWN_MASK=right, BUTTON2_DOWN_MASK=middle
+            val buttonMask = when(button) {
+                0 -> 1024  // BUTTON1_DOWN_MASK (left)
+                1 -> 4096  // BUTTON3_DOWN_MASK (right)
+                else -> 2048  // BUTTON2_DOWN_MASK (middle)
+            }
+            val modifiersFull = buttonMask or modifiers.toMask()
             val modifierEvents = modifiers.toEvents()
 
             // we create a press and release event here, otherwise
@@ -428,8 +444,8 @@ class GLFWMouseAndKeyHandlerTests {
 
             val buttonString = when(button) {
                 0 -> "button1"
-                1 -> "button2"
-                else -> "button3"
+                1 -> "button3"
+                else -> "button2"
             }
 
             logger.debug("Mask is $modifiersFull, modifiers=$modifiers")

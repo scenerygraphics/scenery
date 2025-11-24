@@ -6,29 +6,29 @@ screenHeight: 1600
 screens:
   front:
     match:
-      type: Property
-      value: front
+      type: Hostname
+      value: cave-client-2
     lowerLeft: -1.92, 0.00, 1.92
     lowerRight: 1.92, 0.00, 1.92
     upperLeft: -1.92, 2.40, 1.92
   left:
       match:
-        type: Property
-        value: left
+        type: Hostname
+        value: cave-client-1
       lowerLeft: -1.92, 0.00, -1.92
       lowerRight: -1.92, 0.00, 1.92
       upperLeft: -1.92, 2.40, -1.92
   right:
       match:
-        type: Property
-        value: right
+        type: Hostname
+        value: cave-client-3
       lowerLeft: 1.92, 0.00, 1.92
       lowerRight: 1.92, 0.00, -1.92
       upperLeft: 1.92, 2.40, 1.92
   floor:
       match:
-        type: Property
-        value: floor
+        type: Hostname
+        value: cave-client-4
       lowerLeft: -1.92, 0.00, -0.48
       lowerRight: 1.92, 0.00, -0.48
       upperLeft: -1.92, 0.00, 1.92

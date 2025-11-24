@@ -1,22 +1,23 @@
 package graphics.scenery.tests.unit.network
 
-import graphics.scenery.Box
-import graphics.scenery.DefaultNode
-import graphics.scenery.Hub
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Before
 import org.junit.Test
 import org.zeromq.ZContext
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 
 /**
  * Integration tests for [NodePublisher] and [NodeSubscriber] containing test, that don't use the agent threads but debug
@@ -30,7 +31,6 @@ class NodePublisherNodeSubscriberDryTest {
     private lateinit var scene2: Scene
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
-    private lateinit var zContext: ZContext
 
     /**
      * Starts [NodePublisher] and [NodeSubscriber] and immediately cancels their worker threads. All tests now need to
@@ -46,11 +46,10 @@ class NodePublisherNodeSubscriberDryTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        zContext = ZContext()
-        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = zContext)
+        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = Companion.zContext)
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = zContext)
+        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = Companion.zContext)
         hub2.add(sub)
 
         //stop agent threads
@@ -59,12 +58,18 @@ class NodePublisherNodeSubscriberDryTest {
         p.join()
     }
 
-    /**
-     * Cleans the zcontext.
-     */
-    @After
-    fun teardown() {
-        zContext.destroy()
+    companion object {
+        var zContext = ZContext()
+
+
+        /**
+         * Cleans the zcontext.
+         */
+        @AfterClass @JvmStatic
+        fun cleanZMQ(): Unit {
+            zContext.destroy()
+            Thread.sleep(2000)
+        }
     }
 
     /**
@@ -195,6 +200,52 @@ class NodePublisherNodeSubscriberDryTest {
         assertEquals(3f, result.position.x)
         //should not fail
         result.position = Vector3f(3f, 0f, 0f)
+    }
+
+    /**
+     * Tests sync of scene names.
+     */
+    @Test
+    fun integrationSceneName() {
+
+        scene1.name = "lol"
+
+        pub.register(scene1)
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        assertEquals("lol", scene2.name)
+    }
+
+    @Test
+    fun childConstructedWithParams(){
+        class VolInt: Volume.VolumeInitializer{
+            override fun initializeVolume(hub: Hub): Volume {
+                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+            }
+        }
+
+        pub.register(scene1)
+
+        val volume = Volume.forNetwork(
+            VolInt(),
+            hub1
+        )
+        scene1.addChild(
+            RichNode().apply {
+                this.name = "parent"
+                this.addChild(volume)
+            }
+        )
+
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        val parent = scene2.find("parent")
+        assertNotNull(parent)
+        val volume2 = parent.children.firstOrNull()
+        assertNotNull(volume2)
+        assertIs<Volume>(volume2)
     }
 }
 

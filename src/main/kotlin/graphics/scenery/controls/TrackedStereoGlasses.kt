@@ -6,6 +6,8 @@ import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.Mesh
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyzw
 import org.joml.*
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -35,7 +37,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override var events = TrackerInputEventHandlers()
 
     init {
-        logger.info("My screen is ${ScreenConfig.getScreen(config)}")
+        logger.info("My screen is ${ScreenConfig.getScreen(config)}/${config.name}")
         screen = ScreenConfig.getScreen(config)
         rotation = Quaternionf()
 
@@ -84,21 +86,16 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             }
 
             val position = getPosition() + Vector3f(eyeShift, 0.0f, 0.0f)
-            val position4 = Vector4f(position.x(), position.y(), position.z(), 1.0f)
 
-            val result = screen.getTransform().transform(position4)
+            val result = screen.getTransform().transform(position.xyzw())
 
             val left = -result.x()
             val right = screen.width - result.x()
             val bottom = -result.y()
             val top = screen.height - result.y()
-            var near = -result.z()
+            val near = maxOf(-result.z(), 0.0001f)
 
-            if(near < 0.0001f) {
-                near = 0.0001f
-            }
-
-            val scaledNear = nearPlane / maxOf(near, 0.001f)
+            val scaledNear = nearPlane / near
 
             //logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
@@ -127,7 +124,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return True if the HMD has a compositor
      */
     override fun hasCompositor(): Boolean {
-        return false
+        // we will always treat the TrackedStereoGlasses as if they have a compositor
+        return true
     }
 
     /**
@@ -159,7 +157,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, image: Long) {
-        logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
+        // Although we treat the TrackedStereoGlasses as if they have a compositor, they
+        // actually don't, so we're not doing anything here.
     }
 
     /**
@@ -208,8 +207,10 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         val trackerPos = tracker.getPosition()
 
         currentOrientation.identity()
-        currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
+        currentOrientation.translation(-trackerPos.x(), -trackerPos.y(), trackerPos.z())//.transpose()
+        currentOrientation.rotate(trackerOrientation)
 
+        //logger.info("Returning $currentOrientation")
         return currentOrientation
     }
 

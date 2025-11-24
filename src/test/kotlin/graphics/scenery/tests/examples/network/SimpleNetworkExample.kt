@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.cluster
+package graphics.scenery.tests.examples.network
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.DefaultMaterial

@@ -111,11 +111,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         this.farPlaneDistance = fresh.farPlaneDistance
         this.fov = fresh.fov
 
-        this.width = fresh.width
-        this.height = fresh.height
-
         this.projectionType = fresh.projectionType
-
     }
 
     /**
@@ -343,12 +339,14 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         size: Float = 0.05f,
         messageColor: Vector4f = Vector4f(1.0f),
         backgroundColor: Vector4f = Vector4f(0.0f),
+        transparent: Boolean = true,
         duration: Int = 3000,
         centered: Boolean = false
     ) {
         val tb = TextBoard(inFront = true)
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
+        tb.transparent = if(transparent) { 1 } else { 0 }
         tb.text = message
         var textGeom = tb.geometry().vertices
 
@@ -410,7 +408,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             if (fresh !is CameraSpatial) throw IllegalArgumentException("Update called with object of foreign class")
             super.update(fresh, getNetworkable, additionalData)
 
-            this.projection = fresh.projection
+            //this.projection = fresh.projection
         }
 
         /** View matrix of the camera. Setting the view matrix will re-set the forward

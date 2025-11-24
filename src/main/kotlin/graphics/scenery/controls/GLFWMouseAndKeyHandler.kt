@@ -64,10 +64,10 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
             mask = mask or InputEvent.BUTTON1_DOWN_MASK
         }
         if(buttonKey == GLFW_MOUSE_BUTTON_RIGHT) {
-            mask = mask or InputEvent.BUTTON2_DOWN_MASK
+            mask = mask or InputEvent.BUTTON3_DOWN_MASK
         }
         if(buttonKey == GLFW_MOUSE_BUTTON_MIDDLE) {
-            mask = mask or InputEvent.BUTTON3_DOWN_MASK
+            mask = mask or InputEvent.BUTTON2_DOWN_MASK
         }
 
         return mask

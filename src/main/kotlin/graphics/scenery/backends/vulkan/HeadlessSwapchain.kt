@@ -9,6 +9,9 @@ import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.VK10.vkDestroyFence
+import org.lwjgl.vulkan.VK10.vkDestroyImage
+import org.lwjgl.vulkan.VK10.vkFreeMemory
 import org.lwjgl.vulkan.VK10.vkQueueWaitIdle
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
@@ -36,6 +39,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
     protected lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
 
     protected val WINDOW_RESIZE_TIMEOUT = 600 * 10e5
+    protected var vulkanImages: MutableList<VulkanImage> = arrayListOf()
 
     /**
      * Special resize handler for HeadlessSwapchain, as resize events
@@ -116,7 +120,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         }
         presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
-        val vulkanImages = (0 until bufferCount).map {
+        vulkanImages = (0 until bufferCount).map {
             VulkanImage.create(
                 device,
                 window.width,
@@ -128,7 +132,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 1
             )
-        }
+        }.toMutableList()
 
         images = vulkanImages.map { it.image }.toLongArray()
 
@@ -296,6 +300,16 @@ open class HeadlessSwapchain(device: VulkanDevice,
      */
     override fun close() {
         vkQueueWaitIdle(queue.queue)
+
+        closeSyncPrimitives()
+
+        vulkanImages.forEach {
+            vkFreeMemory(device.vulkanDevice, it.memory, null)
+            vkDestroyImage(device.vulkanDevice, it.image, null)
+        }
+        vulkanImages.clear()
+        images = longArrayOf()
+
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)

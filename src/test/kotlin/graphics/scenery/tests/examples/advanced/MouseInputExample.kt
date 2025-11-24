@@ -17,9 +17,19 @@ import kotlin.concurrent.thread
  * Test for [SelectCommand], produces a lot of (clickable) spheres, that
  * wiggle when selected by double-click.
  *
- * Drag nodes along a sphere around the camera by holding "1" and moving the mouse.
- * Drag nodes along a plane parallel to the view plane by holding "2" and moving the mouse.
- * Rotate nodes by holding "3" and moving the mouse.
+ * Mouse button bindings:
+ * - Left button drag: Rotate camera (default arcball control)
+ * - Left double-click + drag on object: Rotate object
+ * - Right button drag: Drag objects along a sphere around the camera
+ * - Middle button drag: Drag objects along a plane parallel to the view plane
+ * - Right double-click on object: Make object wiggle
+ *
+ * Keyboard + mouse bindings (for testing without mouse buttons):
+ * - Hold "1" + drag: Same as left button drag (rotate camera)
+ * - Hold "2" + drag: Same as middle button drag (drag objects along plane)
+ * - Hold "3" + drag: Same as right button drag (drag objects along sphere)
+ * - Hold "4" + drag: Same as left double-click + drag (rotate object)
+ * - Hold "5" + click on object: Same as right double-click (make object wiggle)
  *
  * The green sphere is an example of how to restrict dragging.
  *
@@ -92,23 +102,30 @@ class MouseInputExample : SceneryBase("MouseInputExample", 1280, 720) {
         }
 
         renderer?.let { r ->
+            // Left double-click - rotate object
             inputHandler?.addBehaviour(
-                "select", SelectCommand(
-                    "select", r, scene,
+                "leftClickRotate", MouseRotate(
+                    "leftClickRotate",
+                    { scene.findObserver() }, debugRaycast = false
+                )
+            )
+            inputHandler?.addKeyBinding("leftClickRotate", "double-click button1")
+
+            // Right double-click - wiggle object
+            inputHandler?.addBehaviour(
+                "rightClickWiggle", SelectCommand(
+                    "rightClickWiggle", r, scene,
                     { scene.findObserver() }, action = wiggle, debugRaycast = false
                 )
             )
-            inputHandler?.addKeyBinding("select", "double-click button1")
+            inputHandler?.addKeyBinding("rightClickWiggle", "double-click button3")
         }
 
-        inputHandler?.addBehaviour(
-            "sphereDragObject", MouseDragSphere(
-                "sphereDragObject",
-                { scene.findObserver() }, debugRaycast = false
-            )
-        )
-        inputHandler?.addKeyBinding("sphereDragObject", "1")
+        // Keyboard binding "1" - mimics left button (camera rotation)
+        // Note: "1" is added as an additional trigger to the default mouse_control behavior
+        inputHandler?.addKeyBinding("mouse_control", "1")
 
+        // Keyboard binding "2" - mimics middle button (drag along plane)
         inputHandler?.addBehaviour(
             "planeDragObject", MouseDragPlane(
                 "planeDragObject",
@@ -117,13 +134,53 @@ class MouseInputExample : SceneryBase("MouseInputExample", 1280, 720) {
         )
         inputHandler?.addKeyBinding("planeDragObject", "2")
 
+        // Keyboard binding "3" - mimics right button (drag along sphere)
+        inputHandler?.addBehaviour(
+            "sphereDragObject", MouseDragSphere(
+                "sphereDragObject",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("sphereDragObject", "3")
+
+        // Keyboard binding "4" - mimics left double-click (rotate object)
         inputHandler?.addBehaviour(
             "rotateObject", MouseRotate(
                 "rotateObject",
                 { scene.findObserver() }, debugRaycast = false
             )
         )
-        inputHandler?.addKeyBinding("rotateObject", "3")
+        inputHandler?.addKeyBinding("rotateObject", "4")
+
+        // Keyboard binding "5" - mimics right double-click (wiggle object)
+        renderer?.let { r ->
+            inputHandler?.addBehaviour(
+                "wiggleObject", SelectCommand(
+                    "wiggleObject", r, scene,
+                    { scene.findObserver() }, action = wiggle, debugRaycast = false
+                )
+            )
+            inputHandler?.addKeyBinding("wiggleObject", "5")
+        }
+
+        // Additional mouse button bindings for testing cross-platform button mapping
+        // Right button (button3) - drag along sphere
+        inputHandler?.addBehaviour(
+            "rightButtonSphereDrag", MouseDragSphere(
+                "rightButtonSphereDrag",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("rightButtonSphereDrag", "button3")
+
+        // Middle button (button2) - drag along plane
+        inputHandler?.addBehaviour(
+            "middleButtonPlaneDrag", MouseDragPlane(
+                "middleButtonPlaneDrag",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("middleButtonPlaneDrag", "button2")
 
     }
 
