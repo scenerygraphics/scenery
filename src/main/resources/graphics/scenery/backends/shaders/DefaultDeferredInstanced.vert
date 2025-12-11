@@ -56,7 +56,7 @@ mat4 mv;
     mv = ViewMatrices[currentEye.eye] * iModelMatrix;
 	projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
 
-    // Temporarily commented out to fix https://github.com/scenerygraphics/sciview/issues/620
+    // TODO Temporarily commented out to fix https://github.com/scenerygraphics/sciview/issues/620
 //	if(ubo.isBillboard > 0) {
 //		mv[0][0] = 1.0f;
 //		mv[0][1] = .0f;

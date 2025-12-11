@@ -68,6 +68,7 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
         return BoundingSphere(origin, radius)
     }
 
+    /** TODO This is a temporary fix for https://github.com/JOML-CI/JOML/issues/379 */
     fun testObbIntersection(
         b0c: Vector3f, b0uX: Vector3f, b0uY: Vector3f, b0uZ: Vector3f, b0hs: Vector3f,
         b1c: Vector3f, b1uX: Vector3f, b1uY: Vector3f, b1uZ: Vector3f, b1hs: Vector3f
