@@ -1,15 +1,15 @@
 package graphics.scenery.tests.examples.basic
 
-import graphics.scenery.BoundingGrid
 import graphics.scenery.Box
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
-import graphics.scenery.Node
 import graphics.scenery.PointLight
+import graphics.scenery.Scene
 import graphics.scenery.SceneryBase
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.tests.unit.BoundingBoxScenarios
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 import kotlin.math.sin
@@ -22,6 +22,13 @@ import kotlin.math.sin
 class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
 
     override fun init() {
+
+        /** Whether to render an animated pair of bounding boxes or to visualize
+         * the test scenes from the BoundingBoxTest unit test instead. */
+        val showAnimatedScene = true
+        /** Index of the test scenario if showAnimatedScene is false */
+        val boundingBoxTestScenarioIndex = 3
+
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 1700, 1000))
 
         val cam: Camera = DetachedHeadCamera()
@@ -33,6 +40,64 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
             scene.addChild(this)
         }
 
+        if (showAnimatedScene) {
+            setupAnimatedScene(scene)
+        } else {
+            setupBoundingBoxTestScene(scene, boundingBoxTestScenarioIndex)
+        }
+
+
+        val lights = (0..10).map {
+            PointLight(radius = 200.0f)
+        }.map {
+            it.spatial {
+                position = Random.random3DVectorFromRange(-100.0f, 100.0f)
+            }
+            it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+            it.intensity = Random.randomFromRange(0.5f, 2f)
+            it
+        }
+
+        lights.forEach { scene.addChild(it) }
+
+        val hullbox = Box(Vector3f(100.0f, 100.0f, 100.0f), insideNormals = true)
+        with(hullbox) {
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 0.0f)
+            }
+
+            material {
+                ambient = Vector3f(0.6f, 0.6f, 0.6f)
+                diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+                specular = Vector3f(0.0f, 0.0f, 0.0f)
+                cullingMode = Material.CullingMode.Front
+            }
+
+            scene.addChild(this)
+        }
+    }
+
+    /** Takes a test scenario from BoundingBoxTest and visualizes it. */
+    fun setupBoundingBoxTestScene(scene: Scene, scenarioIndex: Int = 0) {
+        val scenario = BoundingBoxScenarios.scenarios[scenarioIndex]
+        logger.info("Visualizing scenario: ${scenario.name}")
+
+        val (baseBox, intersectBox) = BoundingBoxScenarios.createTestBoxes(scene, scenario)
+
+        // Visualize result
+        val hit = intersectBox.spatial().intersects(baseBox, true)
+        logger.info("Intersection result: $hit (expected: ${scenario.shouldIntersect})")
+
+        baseBox.material {
+            diffuse = if (hit) Vector3f(1.0f, 0.3f, 0.2f) else Vector3f(0.8f, 0.9f, 0.87f)
+        }
+        intersectBox.material {
+            diffuse = if (hit) Vector3f(0.9f, 0.2f, 0.08f) else Vector3f(0.7f, 0.8f, 0.8f)
+        }
+    }
+
+    /** Creates an animated pair of continuously rotating and randomly scaled boxes that change color when interacting. */
+    fun setupAnimatedScene(scene: Scene) {
         val intersectorBox = Box(Vector3f(7f, 4f, 2f))
         scene.addChild(intersectorBox)
 
@@ -82,11 +147,17 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                     baseBox.material {
                         diffuse = Vector3f(1.0f, 0.3f, 0.2f)
                     }
+                    intersectorBox.material {
+                        diffuse = Vector3f(0.9f, 0.2f, 0.08f)
+                    }
                 }
 
                 if (!hit && prevHit) {
                     baseBox.material {
-                        diffuse = Vector3f(1.0f, 1f, 1f)
+                        diffuse = Vector3f(0.8f, 0.9f, 0.87f)
+                    }
+                    intersectorBox.material {
+                        diffuse = Vector3f(0.7f, 0.8f, 0.8f)
                     }
                 }
 
@@ -94,36 +165,6 @@ class BoundingBoxExample : SceneryBase("BoundingBoxExample") {
                 frame++
                 Thread.sleep(10)
             }
-        }
-
-
-        val lights = (0..10).map {
-            PointLight(radius = 200.0f)
-        }.map {
-            it.spatial {
-                position = Random.random3DVectorFromRange(-100.0f, 100.0f)
-            }
-            it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            it.intensity = Random.randomFromRange(0.5f, 2f)
-            it
-        }
-
-        lights.forEach { scene.addChild(it) }
-
-        val hullbox = Box(Vector3f(100.0f, 100.0f, 100.0f), insideNormals = true)
-        with(hullbox) {
-            spatial {
-                position = Vector3f(0.0f, 0.0f, 0.0f)
-            }
-
-            material {
-                ambient = Vector3f(0.6f, 0.6f, 0.6f)
-                diffuse = Vector3f(0.4f, 0.4f, 0.4f)
-                specular = Vector3f(0.0f, 0.0f, 0.0f)
-                cullingMode = Material.CullingMode.Front
-            }
-
-            scene.addChild(this)
         }
     }
 
