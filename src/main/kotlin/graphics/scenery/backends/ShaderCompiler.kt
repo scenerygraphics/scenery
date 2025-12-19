@@ -257,9 +257,9 @@ class ShaderCompiler(private val logger: Lazy<Logger>? = this.lazyLogger()): Aut
 
             if(!out.exists()) {
                 out.createNewFile()
-            } else {
-                out.writeBytes(bytecode)
             }
+            out.writeBytes(bytecode)
+
         } catch (sce: ShaderCompilationException){
             System.err.println("💥 $inputName -> $outputName COMPILATION FAILED")
             System.err.println("   ${sce.localizedMessage}")
