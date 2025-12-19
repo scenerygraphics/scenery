@@ -72,6 +72,8 @@ mat4 mv;
 //		mv[2][1] = .0f;
 //		mv[2][2] = 1.0f;
 //	}
+    // TODO Placeholder to prevent the compiler from removing the ubo and causing layout inconsistencies
+    if (ubo.isBillboard < -1000) { mv[0][0] = 0.0; }
 
 	nMVP = projectionMatrix*mv;
 
