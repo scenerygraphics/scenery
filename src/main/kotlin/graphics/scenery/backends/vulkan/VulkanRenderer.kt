@@ -2430,7 +2430,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     override fun reshape(newWidth: Int, newHeight: Int) {
-
+        window.width = newWidth
+        window.height = newHeight
+        swapchainRecreator.mustRecreate = true
     }
 
     @Suppress("UNUSED")
