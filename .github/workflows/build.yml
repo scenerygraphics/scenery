@@ -20,7 +20,7 @@ jobs:
             java: 21
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
       - uses: gradle/actions/wrapper-validation@v4
@@ -48,7 +48,7 @@ jobs:
             java: 21
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
       - uses: gradle/actions/wrapper-validation@v4
@@ -80,7 +80,7 @@ jobs:
             java: 21
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
       - uses: gradle/actions/wrapper-validation@v4
