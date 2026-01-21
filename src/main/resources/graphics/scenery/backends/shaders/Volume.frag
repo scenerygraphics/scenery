@@ -77,7 +77,12 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     int occlusionSteps;
     float maxOcclusionDistance;
     float time;
+    int numActiveBlocks;
+    vec3 blockPositions[MAX_BLOCKS];
+    vec3 blockDimensions;
 };
+
+layout(set = 4, binding = 0) uniform sampler3D volumeBlocks[MAX_BLOCKS];
 
 layout(push_constant) uniform currentEye_t {
     int eye;
@@ -336,7 +341,7 @@ void main()
     if(renderingMethod == 0) {
          float opacity = 1.0f;
          for(int i = 0; i <= steps; i++, pos += vecstep) {
-              float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+              float volumeSample = sampleVolume(pos.xyz).r * dataRangeMax;
               newVal = clamp(ta * volumeSample + tb,0.f,1.f);
               colVal = max(colVal, opacity*newVal);
 
@@ -355,7 +360,7 @@ void main()
     // Maximum Intensity Projection
     else if(renderingMethod == 1) {
          for(int i = 0; i <= steps; i++, pos += vecstep) {
-          float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+          float volumeSample = sampleVolume(pos.xyz).r * dataRangeMax;
           float newVal = clamp(ta * volumeSample + tb,0.f,1.f);
           colVal = max(colVal, newVal);
         }
@@ -371,7 +376,7 @@ void main()
         pos += vec3(random(vec3(Vertex.textureCoord.s, Vertex.textureCoord.t, time)))/10000.0f;
 
          for(int i = 0; i <= steps; i++, pos += vecstep) {
-            float rawSample = texture(VolumeTextures, pos.xyz).r;
+            float rawSample = sampleVolume(pos.xyz).r;
             float volumeSample = rawSample * dataRangeMax;
             float shadowing = 0.0f;
             volumeSample = clamp(ta * volumeSample + tb,0.f,1.f);
@@ -410,3 +415,14 @@ void main()
     }
 }
 
+vec4 sampleVolume(vec3 texCoord) {
+    for (int i = 0; i < numActiveBlocks; i++) {
+        vec3 blockMin = blockPositions[i];
+        vec3 blockMax = blockMin + blockDimensions;
+        if (all(greaterThanEqual(texCoord, blockMin)) && all(lessThan(texCoord, blockMax))) {
+            vec3 localTexCoord = (texCoord - blockMin) / blockDimensions;
+            return texture(volumeBlocks[i], localTexCoord);
+        }
+    }
+    return vec4(0.0);  // Return transparent if not in any block
+}

@@ -46,6 +46,7 @@ import net.imagej.ops.OpService
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.histogram.Histogram1d
+import net.imglib2.img.cell.CellImg
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -327,6 +328,17 @@ open class Volume(
         }
     }
 
+    var resolutionLevels: List<ResolutionLevel> = listOf()
+    var currentResolutionLevel: Int = 0
+    var activeBlocks: MutableSet<BlockKey> = mutableSetOf()
+
+    data class ResolutionLevel(
+        val cellImg: CellImg<*, *>,
+        val blockDimensions: Vector3i
+    )
+
+    data class BlockKey(val level: Int, val position: Vector3i)
+
     /**
      * Enum class for selecting a rendering method.
      */
@@ -416,6 +428,18 @@ open class Volume(
         }
     }
 
+    fun switchResolutionLevel(level: Int, camera: Camera) {
+        if (level in resolutionLevels.indices) {
+            currentResolutionLevel = level
+            activeBlocks.clear()
+            updateVisibleBlocks(camera)
+        }
+    }
+
+    open fun updateVisibleBlocks(camera: Camera) {
+        // Implement logic to determine which blocks are visible
+        // and should be loaded for the current resolution level
+    }
 
     override fun getAdditionalUpdateData(): Any? {
         return converterSetups.map { it.displayRangeMin to it.displayRangeMax }.toList()
