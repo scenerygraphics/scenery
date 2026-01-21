@@ -305,7 +305,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         System.arraycopy(buffer.toByteArray(), 0, a, 0, buffer.size)
 
         // we want to arrive at 64x64 per glyph
-        val scale = 64.0/charSize
+        val scale = 128.0/charSize
 
         val scaledImage = BufferedImage((texWidth*scale).toInt(), (texHeight*scale).toInt(), BufferedImage.TYPE_BYTE_GRAY)
         val at = AffineTransform.getScaleInstance(scale, scale)
