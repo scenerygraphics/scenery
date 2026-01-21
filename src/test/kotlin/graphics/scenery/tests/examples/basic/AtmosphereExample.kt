@@ -44,7 +44,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
-
+        renderer?.pushMode = true
         if (useVR) {
             hmd = OpenVRHMD(useCompositor = true)
             hub.add(SceneryElement.HMDInput, hmd)
@@ -82,7 +82,8 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            perspectiveCamera(70.0f, 512, 768)
+            perspectiveCamera(70.0f, 768, 512)
+            if (!useVR) toggleOrientationOverlay()
             scene.addChild(this)
         }
 
