@@ -17,6 +17,7 @@ import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.tan
 
 /**
@@ -395,6 +396,35 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             this.removeChild(tb)
             messages?.remove(tb)
         }
+    }
+
+    /** Takes this camera and orients it towards a given node such that the whole bounding box is visible, plus margin.
+     * The node needs to support a bounding box.
+     * The bounding box size can be adjusted with [sceneScale].
+     * @return true if camera was successfully centered on the node, otherwise false.
+     * */
+    fun centerOnNode(node: Node, sceneScale: Float = 1f) : Boolean {
+        val bb = node.boundingBox ?: node.generateBoundingBox()
+        if (bb == null) {
+            logger.info("Couldn't reuse or generate a bounding box for this node. Can't center camera on this node.")
+            return false
+        }
+        // get the extent of the bounding box in sciview coordinates
+        val nodeSize = (bb.max - bb.min) * sceneScale
+        val hFOVRad = Math.toRadians((this.fov).toDouble())
+        val aspectRatio = this.aspectRatio()
+        val vFOVRad = 2 * atan(tan(hFOVRad / 2.0) / aspectRatio)
+        // calculate the maximum distances for vertical and horizontal FOV
+        val distanceHeight = (nodeSize.y / 2f) / tan(vFOVRad / 2.0)
+        val distanceWidth = (nodeSize.x / 2f) / tan(hFOVRad / 2.0)
+        // add a little margin
+        val maxDistance = max(distanceWidth, distanceHeight) * 1.2f
+
+        this.spatial {
+            rotation = Quaternionf().lookAlong(Vector3f(0f, 0f, 1f), Vector3f(0f, 1f, 0f))
+            position = Vector3f(0f, 0f, maxDistance.toFloat())
+        }
+        return true
     }
 
     companion object {
