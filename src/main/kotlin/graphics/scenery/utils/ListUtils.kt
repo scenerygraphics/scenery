@@ -1,6 +1,7 @@
 package graphics.scenery.utils
 
 import org.joml.Vector3f
+import kotlin.math.sqrt
 
 /**
  * Convert a 3-element [DoubleArray] to a [Vector3f].
@@ -27,4 +28,12 @@ fun localMaxima(list: List<Float>): List<Pair<Int, Float>> {
             null
         }
     }.filterNotNull()
+}
+
+/**
+ * Returns the standard deviation of the elements in a [Float] collection.
+ * */
+fun Iterable<Float>.stdDev() : Float {
+    val average = this.average()
+    return sqrt((this.sumOf { (it - average) * (it - average) } / this.count())).toFloat()
 }
