@@ -1,5 +1,6 @@
 package graphics.scenery.utils.extensions
 
+import org.joml.Vector3f
 import org.joml.Vector4f
 
 /**
@@ -24,4 +25,12 @@ fun Int.toRGBA() : Int {
     val g = this shr 8 and 0xff
     val b = this and 0xff
     return a shl 24 or (b shl 16) or (g shl 8) or r
+}
+
+/**
+ * Stretches/Compresses an RGB vector so that the brightest color equals 1,
+ * scaling the other two channels proportionally.
+ * */
+fun Vector3f.stretchColor(): Vector3f {
+    return this.div(this.max())
 }
