@@ -699,7 +699,7 @@ class VolumeManager(
              */
             override fun preDraw(): Boolean {
                 logger.debug("Running predraw")
-                context.bindTexture(textureCache)
+                //context.bindTexture(textureCache)
 
                 if (nodes.any { it.transferFunction.stale }) {
                     transferFunctionTextures.clear()

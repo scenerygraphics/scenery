@@ -353,26 +353,39 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
         val material = node.material()
         if (texture is TextureCache) {
-            if(currentlyBoundCache != null && material.textures["volumeCache"] == currentlyBoundCache && dimensionsMatch(texture, material.textures["volumeCache"])) {
-                return 0
+            val cacheName = bindings[texture]?.uniformName
+            val db = { name: String ->
+                if (!(currentlyBoundCache != null && material.textures[name] == currentlyBoundCache && dimensionsMatch(
+                        texture,
+                        material.textures[name]
+                    ))
+                ) {
+    //            logger.warn("Binding and updating cache $texture")
+                    val gt = UpdatableTexture(
+                        Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
+                        channels,
+                        type,
+                        null,
+                        repeat.all(),
+                        BorderColor.TransparentBlack,
+                        normalized,
+                        false,
+                        minFilter = Texture.FilteringMode.Linear,
+                        maxFilter = Texture.FilteringMode.Linear
+                    )
+
+                    material.textures[name] = gt
+
+                    currentlyBoundCache = gt
+                }
+            }
+            if(cacheName == null) {
+                deferredBindings[texture] = db
+                return -1
+            } else {
+                db.invoke(cacheName)
             }
 
-//            logger.warn("Binding and updating cache $texture")
-            val gt = UpdatableTexture(
-                Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
-                channels,
-                type,
-                null,
-                repeat.all(),
-                BorderColor.TransparentBlack,
-                normalized,
-                false,
-                minFilter = Texture.FilteringMode.Linear,
-                maxFilter = Texture.FilteringMode.Linear)
-
-            material.textures["volumeCache"] = gt
-
-            currentlyBoundCache = gt
         } else {
             val textureName = bindings[texture]?.uniformName
             logger.debug("lutName is $textureName for $texture")
@@ -385,7 +398,8 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                  */
                 if (!(material.textures[name] != null
                     && currentlyBoundTextures[name] != null
-                    && material.textures[name] == currentlyBoundTextures[name])) {
+                    && material.textures[name] == currentlyBoundTextures[name]))
+                {
                     val contents = when(texture) {
                         is LookupTextureARGB -> null
                         is VolumeManager.SimpleTexture2D -> texture.data
