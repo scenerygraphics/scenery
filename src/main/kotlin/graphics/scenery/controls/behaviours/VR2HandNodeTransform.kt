@@ -92,7 +92,7 @@ class VR2HandNodeTransform(
             }
             if (!scaleLocked) {
                 target.ifSpatial {
-                    scale * scaleDelta
+                    scale *= scaleDelta
                 }
             }
             if (!positionLocked) {
