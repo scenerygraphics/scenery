@@ -11,9 +11,12 @@ import kotlin.getValue
 
 /**
  * A spherical cursor that can be attached to VR controllers via [attachCursor].
+ * You can access the cursor's world position via [getPosition].
  * The cursor can be scaled up or down with [scaleByFactor] or set directly with [setRadius].
  * The radius is constrained by [minRadius] and [maxRadius].
- * Its color is defined by [defaultColor], but can be adjusted with [setColor] and reset with [resetColor]. */
+ * Its color is defined by [defaultColor], but can be adjusted with [setColor] and reset with [resetColor].
+ * @author Samuel Pantze
+ * */
 class CursorTool(
     radius: Float = 0.007f,
     val initPos: Vector3f = Vector3f(-0.01f, -0.05f, -0.03f),
