@@ -9,7 +9,7 @@ import kotlin.concurrent.thread
 
 /** A button with text field for VR interaction.
  * @param command is executed when the user interacts with the button.
- * @param color default color of the button
+ * @param defaultColor default color of the button
  * @param pressedColor color after being pressed
  * @param touchingColor optional color input for touch feedback
  * @param byTouch allows the button to be pressed by simply touching it. If this is set to false, the user needs to press Grab.
@@ -25,9 +25,9 @@ open class Button(
     val byTouch: Boolean = false,
     var stayPressed: Boolean = false,
     val depressDelay: Int = 0,
-    val color: Vector3f = Vector3f(1f),
-    val pressedColor: Vector3f = Vector3f(0.4f),
-    val touchingColor: Vector3f = Vector3f(0.7f)
+    var defaultColor: Vector3f = Vector3f(1f),
+    var pressedColor: Vector3f = Vector3f(0.4f),
+    var touchingColor: Vector3f = Vector3f(0.7f)
 ) :
     TextBox(text, height = height) {
     /** Flag that determines whether the button is ready to be released from depressDelay. */
@@ -67,7 +67,7 @@ open class Button(
                     position.z = 0f
                     needsUpdate = true
                 }
-                box.changeColorWithTouchable(color)
+                box.changeColorWithTouchable(defaultColor)
             }
         }
 
@@ -75,6 +75,7 @@ open class Button(
         box.addAttribute(Touchable::class.java, Touchable(
             onTouch = {
                 enteredTouchTime = System.currentTimeMillis()
+                box.changeColorWithTouchable(touchingColor)
                 this.spatial {
                     scale.z = 0.8f
                     position.z = -0.1f
@@ -98,8 +99,7 @@ open class Button(
                         release()
                     }
                 }
-            },
-            onHoldChangeDiffuseTo = touchingColor
+            }
         ))
         box.addAttribute(
             Pressable::class.java, SimplePressable(
@@ -116,7 +116,7 @@ open class Button(
                 }
             ))
 
-        box.material().diffuse = color
+        box.material().diffuse = defaultColor
 
     }
 
