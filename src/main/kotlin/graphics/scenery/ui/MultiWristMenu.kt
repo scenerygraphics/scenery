@@ -5,6 +5,21 @@ import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
+/**
+ * Manages a set of wrist-mounted menu columns on a VR controller, with support for cycling between them.
+ * Columns can contain [Button]s directly or grouped inside [Row]s (or any other [Gui3DElement]).
+ *
+ * Usage:
+ * ```
+ *      val menu = MultiWristMenu(parentNode = leftVRController?.model!!)
+ *      menu.addColumn("Tools")
+ *      menu.addButton("Tools") { doSomething() }
+ *      menu.addButton("Tools") { doSomethingElse() }
+ *      menu.addRow("Tools", buttonA, buttonB, buttonC) // Define these buttons somewhere first
+ *      // Somewhere in your controller input handling:
+ *      menu.cycleNext()
+ * ```
+ */
 class MultiWristMenu(
     /** The scene node to which all menu columns will be parented (e.g. a controller model node). */
     private val parentNode: Node,
@@ -101,9 +116,43 @@ class MultiWristMenu(
         return button
     }
 
+    /**
+     * Creates a [ToggleButton] with the class-level color presets (or the optionally
+     * supplied per-button colors) and appends it to the column named [columnName].
+     * @param columnName   Target column (must have been created with [addColumn]).
+     * @param labelFalse   The button's display text if toggled off.
+     * @param labelTrue    The button's display text if toggled on.
+     * @param command      Action executed when the button is activated.
+     * @param byTouch      If true the button fires on touch-hold; otherwise on press.
+     * @param color        Resting color override (defaults to [defaultColor]).
+     * @param pressedColor Pressed color override (defaults to [defaultPressedColor]).
+     * @param touchingColor Touch-hover color override (defaults to [defaultTouchingColor]).
+     * @param defaultState Default state of the button.
+     * @return The newly created [ToggleButton], so you can store a reference if needed.
+     */
+    fun addToggleButton(
+        columnName: String,
+        labelFalse: String,
+        labelTrue: String,
+        command: () -> Unit,
+        byTouch: Boolean = true,
+        color: Vector3f = defaultColor,
+        pressedColor: Vector3f = defaultPressedColor,
+        touchingColor: Vector3f = defaultTouchingColor,
+        defaultState: Boolean = false
+    ): ToggleButton {
+        val column = requireColumn(columnName)
+
+        val button = ToggleButton(labelFalse, labelTrue, command = command, byTouch = byTouch,
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState)
+
+        column.addChild(button)
+        column.pack()
+        return button
+    }
+
     /** Creates a [Row] from the supplied pre-built [Gui3DElement]s and appends it to the column named [columnName].
-     * This is the natural way to add a horizontal group of buttons that were constructed elsewhere
-     * (e.g. when a button needs to be referenced later for programmatic control):
+     * This is the natural way to add a horizontal group of buttons that were constructed elsewhere.
 
      * Note: if the elements were already added to a column via [addButton] you will want to remove them first,
      * or simply build the buttons manually and pass them here directly.
@@ -114,13 +163,13 @@ class MultiWristMenu(
      * @return The newly created [Row]. */
     fun addRow(
         columnName: String,
-        elements: List<Gui3DElement>,
+        vararg elements: Gui3DElement,
         margin: Float = 0.5f,
         middleAlign: Boolean = true
     ): Row {
         val column = requireColumn(columnName)
 
-        val row = Row(*elements.toTypedArray(), margin = margin, middleAlign = middleAlign)
+        val row = Row(*elements, margin = margin, middleAlign = middleAlign)
         column.addChild(row)
         column.pack()
         return row
