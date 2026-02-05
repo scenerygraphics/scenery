@@ -19,26 +19,38 @@ import org.joml.Vector3f
  *      // Somewhere in your controller input handling:
  *      menu.cycleNext()
  * ```
+ * @param parentNode The node to attach this menu to (typically the VR controller model)
+ * @param columnScale Allows scaling the menu down. A good default value is 0.05 for Quest 2 controllers
+ * @param columnBasePosition Adjust this value to move the position relative to the controller
+ * @param columnRotation menu rotation. Default value fits the left controller
+ * @author Samuel Pantze
  */
 class MultiWristMenu(
     /** The scene node to which all menu columns will be parented (e.g. a controller model node). */
     private val parentNode: Node,
     /** Scale applied to every column when it is attached to the parent. */
-    private val columnScale: Float = 0.05f,
+    private val columnScale: Float = 0.04f,
     /** Base position offset for the columns relative to the parent. The z-component is
      *  adjusted per-column based on its packed height; see [attachColumn]. */
     private val columnBasePosition: Vector3f = Vector3f(0.05f, 0.05f, 0.1f),
     /** Rotation applied to every column (matches the default wrist orientation). */
     private val columnRotation: Quaternionf = Quaternionf().rotationXYZ(-1.57f, 1.57f, 0f),
-    /** Default resting color for buttons. */
-    var defaultColor: Vector3f = Vector3f(0.8f),
-    /** Default pressed color for buttons. */
-    var defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
-    /** Default touch-hover color for buttons. */
-    var defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f)
+
+    defaultColor: Vector3f = Vector3f(0.8f),
+    defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
+    defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f)
 ) {
     private val logger by lazyLogger()
 
+    /** Default resting color for buttons. */
+    var defaultColor = defaultColor
+        private set
+    /** Default pressed color for buttons. */
+    var defaultPressedColor = defaultPressedColor
+        private set
+    /** Default touch-hover color for buttons. */
+    var defaultTouchingColor = defaultTouchingColor
+        private set
     /** Ordered map: column name → its [Column] node.
      * Insertion order is preserved (LinkedHashMap), so cycling follows the order
      * in which [addColumn] was called. */
@@ -56,7 +68,7 @@ class MultiWristMenu(
         }
 
         // Empty column; elements are added later via addButton / addRow / addElement.
-        val column = Column(centerVertically = true, centerHorizontally = true)
+        val column = Column(centerVertically = false, centerHorizontally = true)
         column.name = name
         // hidden by default; only the "current" one is shown
         column.visible = false
@@ -64,11 +76,6 @@ class MultiWristMenu(
         attachColumn(column)
         columns[name] = column
 
-        // If this is the very first column, make it visible and treat it as current.
-        if (columns.size == 1) {
-            column.visible = true
-            currentIndex = 0
-        }
     }
 
     /** Returns the [Column] registered under [name], or null.
@@ -110,9 +117,8 @@ class MultiWristMenu(
             text = label, command = command, byTouch = byTouch, stayPressed = stayPressed, depressDelay = depressDelay,
             defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor
         )
-
         column.addChild(button)
-        column.pack()
+        column.onGeometryReady { column.pack() }
         return button
     }
 
@@ -147,7 +153,7 @@ class MultiWristMenu(
             defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState)
 
         column.addChild(button)
-        column.pack()
+        column.onGeometryReady { column.pack() }
         return button
     }
 
@@ -188,15 +194,10 @@ class MultiWristMenu(
     private fun attachColumn(column: Column) {
         column.ifSpatial {
             scale = Vector3f(columnScale)
-            position = Vector3f(
-                columnBasePosition.x,
-                columnBasePosition.y,
-                column.height / 20f + columnBasePosition.z
-            )
+            position = columnBasePosition
             rotation = columnRotation
         }
         parentNode.addChild(column)
-        column.pack()
     }
 
     /** Looks up a column by name or throws an exception. */
