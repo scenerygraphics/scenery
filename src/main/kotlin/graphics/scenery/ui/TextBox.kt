@@ -85,8 +85,6 @@ open class TextBox(
             updateSize(true)
         }
 
-        this.update += { updateSize() }
-
         initGrabable(box)
     }
 
