@@ -17,7 +17,6 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix4f
 import org.joml.Vector3f
@@ -900,13 +899,17 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
          */
         override fun composeModel() {
 
-            model.translation(position)
-            model.mul(Matrix4f().set(this.rotation))
-            model.scale(scale)
-            if (origin == Origin.Center) {
-                val shift = node.boundingBox?.let { (it.min + it.max) * -0.5f } ?: Vector3f(0f)
-                model.translate(shift)
+            val originShift = when (origin) {
+                is Origin.Center -> Vector3f(node.boundingBox?.localCenter)
+                is Origin.Custom -> (origin as Origin.Custom).origin
+                is Origin.FrontBottomLeft -> Vector3f(0f)
             }
+
+            model.translation(position)
+            model.translate(originShift.times(scale))
+            model.mul(Matrix4f().set(this.rotation))
+            model.translate(originShift.times(scale).times(-1f))
+            model.scale(scale)
         }
 
         override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
