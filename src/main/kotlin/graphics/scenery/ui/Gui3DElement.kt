@@ -1,7 +1,8 @@
 package graphics.scenery.ui
 
+import graphics.scenery.Mesh
 import graphics.scenery.attribute.geometry.HasGeometry
-import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.controls.behaviours.Grabable
 
 /**
@@ -9,7 +10,7 @@ import graphics.scenery.controls.behaviours.Grabable
  * Anchor point is usually front bottom left corner for elements and front bottom middle for collections
  *  @author Jan Tiemann
  */
-interface Gui3DElement: HasSpatial {
+interface Gui3DElement: HasCustomSpatial<Mesh.MeshSpatial> {
     /**
      * Assuming no scaling
      */
@@ -38,5 +39,8 @@ interface Gui3DElement: HasSpatial {
         }, lockRotation = true)
         node.addAttribute(Grabable::class.java, grab)
     }
+
+    /** Around which position to rotate this element. */
+    enum class Anchor {Top, Bottom, Left, Right, Center}
 
 }
