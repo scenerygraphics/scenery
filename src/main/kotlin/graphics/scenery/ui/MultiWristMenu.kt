@@ -1,7 +1,8 @@
 package graphics.scenery.ui
 
+import graphics.scenery.BoundingGrid
+import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
@@ -39,8 +40,7 @@ class MultiWristMenu(
     defaultColor: Vector3f = Vector3f(0.8f),
     defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
     defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f)
-) {
-    private val logger by lazyLogger()
+): Mesh() {
 
     /** Default resting color for buttons. */
     var defaultColor = defaultColor
@@ -68,7 +68,12 @@ class MultiWristMenu(
         }
 
         // Empty column; elements are added later via addButton / addRow / addElement.
-        val column = Column(centerVertically = false, centerHorizontally = true)
+        val column = Column(
+            centerVertically = false,
+            centerHorizontally = true,
+            invertedYOrder = true,
+            anchor = Gui3DElement.Anchor.Top
+        )
         column.name = name
         // hidden by default; only the "current" one is shown
         column.visible = false
@@ -118,7 +123,13 @@ class MultiWristMenu(
             defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor
         )
         column.addChild(button)
-        column.onGeometryReady { column.pack() }
+        column.onGeometryReady {
+            column.pack()
+            column.ifSpatial {
+                position.y = -column.height * columnScale + columnBasePosition.y
+                needsUpdate = true
+            }
+        }
         return button
     }
 
@@ -193,9 +204,9 @@ class MultiWristMenu(
      * The z-offset is nudged by the column's height so that taller menus don't clip into the controller model. */
     private fun attachColumn(column: Column) {
         column.ifSpatial {
-            scale = Vector3f(columnScale)
-            position = columnBasePosition
-            rotation = columnRotation
+            scale.set(columnScale)
+            position.set(columnBasePosition)
+            rotation.set(columnRotation)
         }
         parentNode.addChild(column)
     }
@@ -247,7 +258,7 @@ class MultiWristMenu(
     fun hideAll() { columns.values.forEach { it.visible = false } }
 
     /** Shows or hides the entire menu (only the currently-selected column is affected). */
-    fun setVisible(visible: Boolean) {
+    fun toggleVisibility(visible: Boolean) {
         columns.values.toList().getOrNull(currentIndex)?.visible = visible
     }
 
