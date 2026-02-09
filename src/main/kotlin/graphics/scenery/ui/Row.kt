@@ -1,5 +1,6 @@
 package graphics.scenery.ui
 
+import graphics.scenery.Mesh
 import graphics.scenery.RichNode
 import kotlin.concurrent.thread
 
@@ -12,7 +13,7 @@ open class Row(
     vararg elements: Gui3DElement,
     val margin: Float = 0.5f,
     var middleAlign: Boolean = true
-) : RichNode("UI Row"), Gui3DElement {
+) : Mesh("UI Row"), Gui3DElement {
 
     final override var width = 0f
         private set
@@ -46,7 +47,7 @@ open class Row(
     }
 
     /** Register a callback to be executed once this row has been packed with valid geometry. */
-    fun onPacked(callback: () -> Unit) {
+    fun onGeometryReady(callback: () -> Unit) {
         if (hasExecutedCallbacks) {
             // Geometry already ready, execute immediately
             callback()
