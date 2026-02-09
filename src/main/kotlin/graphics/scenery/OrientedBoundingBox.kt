@@ -3,7 +3,6 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.joml.Intersectionf
 import org.joml.Vector3f
 import java.lang.Math.max
 import java.lang.Math.min
@@ -32,12 +31,19 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
      */
     constructor(n: Node, boundingBox: FloatArray) : this(n, Vector3f(boundingBox[0], boundingBox[2], boundingBox[4]), Vector3f(boundingBox[1], boundingBox[3], boundingBox[5]))
 
-    val center: Vector3f
+    /** Center of this bounding box in world coordinates. */
+    val worldCenter: Vector3f
         get() {
             val worldMin = n.spatialOrNull()!!.worldPosition(min)
             val worldMax = n.spatialOrNull()!!.worldPosition(max)
 
             return worldMin + (worldMax - worldMin) * 0.5f
+        }
+
+    /** Center of this bounding box in local space. */
+    val localCenter: Vector3f
+        get() {
+            return min + (max - min) * 0.5f
         }
 
     val halfSize: Vector3f
@@ -216,12 +222,12 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
             other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
         return if(precise && approxResult) {
             testObOb(
-                this.center,
+                this.worldCenter,
                 this.n.spatialOrNull()!!.localX,
                 this.n.spatialOrNull()!!.localY,
                 this.n.spatialOrNull()!!.localZ,
                 this.halfSize,
-                other.center,
+                other.worldCenter,
                 other.n.spatialOrNull()!!.localX,
                 other.n.spatialOrNull()!!.localY,
                 other.n.spatialOrNull()!!.localZ,
