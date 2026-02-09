@@ -1,9 +1,11 @@
 package graphics.scenery.ui
 
 import graphics.scenery.Box
+import graphics.scenery.Mesh
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.RichNode
 import graphics.scenery.primitives.TextBoard
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -18,7 +20,7 @@ open class TextBox(
     text: String, var padding: Float = 0.2f, var minSize: Float = 0f,
     final override var height: Float = 1.0f, thickness: Float = 0.5f
 ) :
-    RichNode("TextBox"), Gui3DElement {
+    Mesh("TextBox"), Gui3DElement {
     val box = Box(Vector3f(1f, height, thickness))
     val board = TextBoard()
 
@@ -70,7 +72,7 @@ open class TextBox(
                     )
                     needsUpdate = true
                 }
-                this.boundingBox = box.generateBoundingBox()
+                this.boundingBox = generateBoundingBox()
                 width = maxX
                 textGeom = board.geometry().vertices
                 logger.debug("$name geometry size is ${textGeom.capacity()}")
@@ -89,7 +91,11 @@ open class TextBox(
     }
 
     override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
-        return box.generateBoundingBox(includeChildren)
+        box.generateBoundingBox(includeChildren)
+        // Box doesn't take its scaling into account, so we do that here
+        val min = box.boundingBox!!.min.mul(box.spatial().scale).plus(box.spatial().position)
+        val max = box.boundingBox!!.max.mul(box.spatial().scale).plus(box.spatial().position)
+        return OrientedBoundingBox(this, min, max)
     }
 
     override fun getMaximumBoundingBox(): OrientedBoundingBox {
