@@ -401,9 +401,13 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     /** Takes this camera and orients it towards a given node such that the whole bounding box is visible, plus margin.
      * The node needs to support a bounding box.
      * The bounding box size can be adjusted with [sceneScale].
+     * @param node The node who's bounding box will be used for calculation
+     * @param resetPosition if true, resets the camera to the Z axis and positions it so that the whole bounding box is seen.
+     * If false, use the camera's current position to rotate and distance it accordingly.
+     * @param sceneScale Scales the bounding box by this value.
      * @return true if camera was successfully centered on the node, otherwise false.
      * */
-    fun centerOnNode(node: Node, sceneScale: Float = 1f) : Boolean {
+    fun centerOnNode(node: Node, resetPosition: Boolean = false, sceneScale: Float = 1f) : Boolean {
         val bb = node.boundingBox ?: node.generateBoundingBox()
         if (bb == null) {
             logger.info("Couldn't reuse or generate a bounding box for this node. Can't center camera on this node.")
@@ -418,11 +422,26 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         val distanceHeight = (nodeSize.y / 2f) / tan(vFOVRad / 2.0)
         val distanceWidth = (nodeSize.x / 2f) / tan(hFOVRad / 2.0)
         // add a little margin
-        val maxDistance = max(distanceWidth, distanceHeight) * 1.2f
+        val maxDistance = (max(distanceWidth, distanceHeight) * 1.2f).toFloat()
 
-        this.spatial {
-            rotation = Quaternionf().lookAlong(Vector3f(0f, 0f, 1f), Vector3f(0f, 1f, 0f))
-            position = Vector3f(0f, 0f, maxDistance.toFloat())
+        val nodeCenter = bb.worldCenter
+
+        if (resetPosition) {
+            // Reset the position to sit on the Z axis and face the node along the Z axis
+             this.spatial {
+                 rotation = Quaternionf().lookAlong(Vector3f(0f, 0f, 1f), Vector3f(0f, 1f, 0f))
+                 position = Vector3f(0f, 0f, -maxDistance)
+             }
+        } else {
+            // Keep the direction between camera and node and only move/rotate the camera so that it faces & frames the node
+            val toNode = nodeCenter - (this.spatial().position)
+            // Direction camera should face
+            val requiredDirection = toNode.normalize().times(-1f)
+            this.spatial {
+                rotation = Quaternionf().lookAlong(requiredDirection, Vector3f(0f, 1f, 0f))
+                position = nodeCenter.add(requiredDirection.times(-maxDistance))
+                logger.info("Set camera position to $position")
+            }
         }
         return true
     }
