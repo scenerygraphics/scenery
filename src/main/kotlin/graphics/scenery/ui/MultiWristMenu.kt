@@ -24,6 +24,9 @@ import org.joml.Vector3f
  * @param columnScale Allows scaling the menu down. A good default value is 0.05 for Quest 2 controllers
  * @param columnBasePosition Adjust this value to move the position relative to the controller
  * @param columnRotation menu rotation. Default value fits the left controller
+ * @param defaultColor Base color of new buttons. Can be overwritten in [addButton]
+ * @param defaultPressedColor Color when button is pressed. Can be overwritten in [addButton]
+ * @param defaultTouchingColor Color when the button is touched. Can be overwritten in [addButton]
  * @author Samuel Pantze
  */
 class MultiWristMenu(
@@ -125,6 +128,7 @@ class MultiWristMenu(
         column.addChild(button)
         column.onGeometryReady {
             column.pack()
+            // Make column top-aligned
             column.ifSpatial {
                 position.y = -column.height * columnScale + columnBasePosition.y
                 needsUpdate = true
@@ -164,7 +168,14 @@ class MultiWristMenu(
             defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState)
 
         column.addChild(button)
-        column.onGeometryReady { column.pack() }
+        column.onGeometryReady {
+            column.pack()
+            // Make column top-aligned
+            column.ifSpatial {
+                position.y = -column.height * columnScale + columnBasePosition.y
+                needsUpdate = true
+            }
+        }
         return button
     }
 
@@ -248,7 +259,7 @@ class MultiWristMenu(
             for (child in column.children) {
                 when (child) {
                     is Button -> action(child)
-                    is Row    -> child.children.filterIsInstance<Button>().forEach(action)
+                    is Row -> child.children.filterIsInstance<Button>().forEach(action)
                 }
             }
         }
