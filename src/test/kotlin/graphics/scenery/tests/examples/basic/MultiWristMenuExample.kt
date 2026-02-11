@@ -12,6 +12,10 @@ import graphics.scenery.ui.MultiWristMenu
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
+/**
+ * Simple example to test out [MultiWristMenu]s.
+ * @author Samuel Pantze
+ * */
 class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
     override fun init() {
         renderer = hub.add(
@@ -41,9 +45,9 @@ class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
                 columnRotation = Quaternionf().rotateXYZ(0f, 0f, 0.5f)
             )
         menu.addColumn("Default")
-        menu.addButton("Default", "bla", {})
-        menu.addButton("Default", "blub", {})
-        menu.addButton("Default", "blubee", {})
+        menu.addButton("Default", "up", {})
+        menu.addButton("Default", "middle", {})
+        menu.addButton("Default", "down", {})
 
         val lights = (0..5).map {
             PointLight(radius = 100.0f)
