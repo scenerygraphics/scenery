@@ -8,6 +8,7 @@ import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.ui.Button
 import graphics.scenery.ui.MultiWristMenu
 import org.joml.Quaternionf
 import org.joml.Vector3f
@@ -47,6 +48,9 @@ class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
         menu.addColumn("Default")
         menu.addButton("Default", "up", {})
         menu.addButton("Default", "middle", {})
+        val buttonLeft = Button("left", command = {})
+        val buttonRight = Button("right", command = {})
+        menu.addRow("Default", buttonLeft, buttonRight)
         menu.addButton("Default", "down", {})
 
         val lights = (0..5).map {
