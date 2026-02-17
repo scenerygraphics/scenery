@@ -9,6 +9,7 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
+import org.joml.getVector3f
 import org.scijava.util.ListUtils.first
 import kotlin.concurrent.thread
 
@@ -18,7 +19,7 @@ import kotlin.concurrent.thread
  */
 open class TextBox(
     text: String, var padding: Float = 0.2f, var minSize: Float = 0f,
-    final override var height: Float = 1.0f, thickness: Float = 0.5f
+    final override var height: Float = 1.0f, var thickness: Float = 0.5f
 ) :
     Mesh("TextBox"), Gui3DElement {
     val box = Box(Vector3f(1f, height, thickness))
@@ -91,11 +92,28 @@ open class TextBox(
     }
 
     override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
-        box.generateBoundingBox(includeChildren)
-        // Box doesn't take its scaling into account, so we do that here
-        val min = box.boundingBox!!.min.mul(box.spatial().scale).plus(box.spatial().position)
-        val max = box.boundingBox!!.max.mul(box.spatial().scale).plus(box.spatial().position)
-        return OrientedBoundingBox(this, min, max)
+        val vb = board.geometry().vertices.duplicate().rewind()
+        if (vb.capacity() == 0) return null
+
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+
+        while (vb.hasRemaining()) {
+            val x = vb.get(); val y = vb.get(); vb.get() // skip Z
+            minX = minOf(minX, x)
+            maxX = maxOf(maxX, x)
+            minY = minOf(minY, y)
+            maxY = maxOf(maxY, y)
+        }
+
+        val scale = board.spatial().scale
+        return OrientedBoundingBox(
+            this,
+            Vector3f(minX * scale.x, minY * scale.y, -thickness),
+            Vector3f(maxX * scale.x, maxY * scale.y, 0f)
+        )
     }
 
     override fun getMaximumBoundingBox(): OrientedBoundingBox {
