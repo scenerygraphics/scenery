@@ -36,13 +36,14 @@ class MultiWristMenu(
     private val columnScale: Float = 0.04f,
     /** Base position offset for the columns relative to the parent. The z-component is
      *  adjusted per-column based on its packed height; see [attachColumn]. */
-    private val columnBasePosition: Vector3f = Vector3f(0.05f, 0.05f, 0.1f),
+    private val columnBasePosition: Vector3f = Vector3f(0.0f),
     /** Rotation applied to every column (matches the default wrist orientation). */
-    private val columnRotation: Quaternionf = Quaternionf().rotationXYZ(-1.57f, 1.57f, 0f),
+    private val columnRotation: Quaternionf = Quaternionf().rotationXYZ(0f, 0f, 0f),
 
     defaultColor: Vector3f = Vector3f(0.8f),
     defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
-    defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f)
+    defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f),
+    val debug: Boolean = false
 ): Mesh() {
 
     /** Default resting color for buttons. */
@@ -130,8 +131,14 @@ class MultiWristMenu(
             column.pack()
             // Make column top-aligned
             column.ifSpatial {
+                position.set(columnBasePosition)
                 position.y = -column.height * columnScale + columnBasePosition.y
                 needsUpdate = true
+            }
+            if (debug) {
+                val bb = BoundingGrid()
+                bb.lineWidth = 3f
+                bb.node = column
             }
         }
         return button
@@ -172,6 +179,7 @@ class MultiWristMenu(
             column.pack()
             // Make column top-aligned
             column.ifSpatial {
+                position.set(columnBasePosition)
                 position.y = -column.height * columnScale + columnBasePosition.y
                 needsUpdate = true
             }
@@ -199,7 +207,15 @@ class MultiWristMenu(
 
         val row = Row(*elements, margin = margin, middleAlign = middleAlign)
         column.addChild(row)
-        column.pack()
+        row.onGeometryReady {
+            row.pack()
+            column.pack()
+            column.ifSpatial {
+                position.set(columnBasePosition)
+                position.y = -column.height * columnScale + columnBasePosition.y
+                needsUpdate = true
+            }
+        }
         return row
     }
 

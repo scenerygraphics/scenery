@@ -1,7 +1,11 @@
 package graphics.scenery.ui
 
 import graphics.scenery.Mesh
+import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.RichNode
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 /**
@@ -77,6 +81,27 @@ open class Row(
                 }
             }
             height = uiChildren.maxOf { it.height }
+
+            this.generateBoundingBox()
         }
+    }
+
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
+        val localMin = Vector3f(Float.POSITIVE_INFINITY)
+        val localMax = Vector3f(Float.NEGATIVE_INFINITY)
+        // Iteratively expand the min/max values of this BB based on the column's children
+        children.filterIsInstance<Gui3DElement>().forEach { element ->
+            element.boundingBox?.let { bb ->
+                localMin.min(bb.min + element.spatial().position)
+                localMax.max(bb.max + element.spatial().position)
+            }
+        }
+        boundingBox = if(includeChildren) OrientedBoundingBox(this, localMin, localMax) else null
+        return boundingBox
+    }
+
+    override fun getMaximumBoundingBox(): OrientedBoundingBox {
+        val bb = boundingBox ?: generateBoundingBox(true)
+        return bb ?: OrientedBoundingBox(this, Vector3f(0f), Vector3f(0f))
     }
 }
