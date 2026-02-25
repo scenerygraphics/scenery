@@ -14,5 +14,11 @@ fun <R : Any> R.lazyLogger(logLevel: String? = null): Lazy<Logger> {
     if(logLevel != null) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", logLevel)
     }
-    return lazyOf(LoggerFactory.getLogger(this::class.java.simpleName))
+    return lazyOf(
+        LoggerFactory.getLogger(
+            this::class.qualifiedName
+                ?: this::class.simpleName
+                ?: "UnknownLogger"
+        )
+    )
 }
