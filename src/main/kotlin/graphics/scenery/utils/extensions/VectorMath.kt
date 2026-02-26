@@ -124,6 +124,11 @@ fun Vector3f.toDoubleArray(): DoubleArray {
     return doubleArrayOf(this.x.toDouble(), this.y.toDouble(), this.z.toDouble())
 }
 
+fun DoubleArray.toVector3f(): Vector3f {
+    require(size == 3) { "DoubleArray must have exactly 3 elements" }
+    return Vector3f(this[0].toFloat(), this[1].toFloat(), this[2].toFloat())
+}
+
 /* Vector4f */
 
 operator fun Vector4f.plus(other: Vector4fc): Vector4f {
