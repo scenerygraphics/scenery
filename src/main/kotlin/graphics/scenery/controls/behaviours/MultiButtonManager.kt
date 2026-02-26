@@ -7,11 +7,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.set
 
-/** Keep track of which VR buttons are currently being pressed. This is useful if you want to assign the same button
+/**
+ * Keep track of which VR buttons are currently being pressed. This is useful if you want to assign the same button
  * to different behaviors with different combinations. This class helps with managing the button states.
  * Buttons to track first need to be registered with [registerButtonConfig]. Call [pressButton] and [releaseButton]
  * in your behavior init/end methods. You can check if both hands are in use with [isTwoHandedActive] or if a specific
- * button is currently pressed with [isButtonPressed]. */
+ * button is currently pressed with [isButtonPressed].
+ * */
 class MultiButtonManager {
     data class ButtonConfig (
         val button: OpenVRHMD.OpenVRButton,

@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture
  * [onEndCallback] is an optional lambda that is executed once the behavior ends.
  * @author Jan Tiemann
  * @author Samuel Pantze */
-class VR2HandNodeTransform(
+class VRTwoHandNodeTransform(
     name: String,
     controller: Spatial,
     offhand: VRTwoHandDragOffhand,
@@ -136,7 +136,7 @@ class VR2HandNodeTransform(
             onEndCallback: (() -> Unit)? = null,
             resetRotationBtnManager: MultiButtonManager? = null,
             resetRotationButton: MultiButtonManager.ButtonConfig? = null,
-        ): CompletableFuture<VR2HandNodeTransform> {
+        ): CompletableFuture<VRTwoHandNodeTransform> {
             @Suppress("UNCHECKED_CAST") return createAndSet(
                 hmd, button
             ) { controller: Spatial, offhand: VRTwoHandDragOffhand ->
@@ -145,7 +145,7 @@ class VR2HandNodeTransform(
                     resetRotationBtnManager?.registerButtonConfig(it.button, it.trackerRole)
                 }
                 resetRotationBtnManager?.registerButtonConfig(button, TrackerRole.RightHand)
-                VR2HandNodeTransform(
+                VRTwoHandNodeTransform(
                     "Scaling",
                     controller,
                     offhand,
@@ -161,7 +161,7 @@ class VR2HandNodeTransform(
                     resetRotationBtnManager,
                     resetRotationButton
                 )
-            } as CompletableFuture<VR2HandNodeTransform>
+            } as CompletableFuture<VRTwoHandNodeTransform>
         }
     }
 }
