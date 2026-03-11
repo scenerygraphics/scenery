@@ -82,24 +82,30 @@ void main() {
 //
 //        pattern = aastep(0.5, D);
     float dist = texture(ObjectTextures[1], Vertex.TexCoord).r;
-    float width = fwidth(dist);
+    float width = 0.3 * fwidth(dist);
     pattern = contour(dist, width);
 
-    const float dscale = 0.554;
+    float center = samp(Vertex.TexCoord, width);
+    const float dscale = 0.5554;
     vec2 deltaUV = dscale * (dFdx(Vertex.TexCoord) + dFdy(Vertex.TexCoord));
     vec4 box = vec4(Vertex.TexCoord - deltaUV, Vertex.TexCoord + deltaUV);
 
-    alphaSum = samp(box.xy, width) + samp(box.zw, width) + samp(box.xw, width) + samp(box.zy, width);
+    alphaSum = 0.5*center
+        + 0.125*(samp(box.xy, width)
+        + samp(box.zw, width)
+        + samp(box.xw, width)
+        + samp(box.zy, width));
 
     if(transparent == 1) {
         // pre-multiplied alpha is very important here to not get artifacts.
-        pattern = pattern * alphaSum/4.0;
-        FragColor = vec4(mix(vec3(0.0f), fontColor.rgb, pattern), pattern);
+        pattern = pattern * alphaSum;
+        float a = smoothstep(0.2, 0.8, pattern);
+        FragColor = vec4(mix(vec3(0.0f), fontColor.rgb, a), a);
     } else {
         // we use a slightly different sampling here to get larger contours
         // that end up at the same width as in the transparent case.
-        pattern = (pattern + 0.5 * alphaSum)/3.0;
-        float a = smoothstep(0.1, 0.9, pattern);
+        pattern = pattern * alphaSum*2;
+        float a = smoothstep(0.2, 0.8, pattern);
         rgb = mix(backgroundColor.rgb, fontColor.rgb, a);
 
         FragColor = vec4(rgb, 1.0);
