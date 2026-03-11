@@ -28,7 +28,7 @@ val lwjglArtifacts = listOf(
         "lwjgl-jemalloc",
         "lwjgl-vulkan",
         "lwjgl-opengl",
-        "lwjgl-openvr",
+//        "lwjgl-openvr",
         "lwjgl-xxhash",
         "lwjgl-remotery",
         "lwjgl-spvc",
@@ -45,6 +45,8 @@ dependencies {
     // POM will be generated incorrectly.
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
     val lwjglVersion = project.properties["lwjglVersion"]
+    // Temporary workaround because OpenVR isn't available in 3.4.1 yet
+    val lwjglOpenVRVersion = "3.3.6"
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
@@ -98,6 +100,14 @@ dependencies {
             }
         }
     }
+
+    api("org.lwjgl:lwjgl-openvr:${lwjglOpenVRVersion}")
+    lwjglNatives.forEach { native ->
+        if (!(native.contains("macos") && native.contains("arm64"))) {
+            runtimeOnly("org.lwjgl:lwjgl-openvr:$lwjglOpenVRVersion:$native")
+        }
+    }
+
     implementation("org.xerial.snappy:snappy-java:1.1.10.5")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
