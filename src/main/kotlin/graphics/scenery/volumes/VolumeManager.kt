@@ -75,13 +75,33 @@ class VolumeManager(
     var context = SceneryContext(this, useCompute)
         protected set
 
-    /** Texture cache. */
-    @Volatile
-    protected var textureCache: TextureCache
+    private class TextureCacheAndPboChain(
+        format: Texture.InternalFormat,
+        blockSize: IntArray,
+        maxCacheSizeInMB: Int
+    ) {
+        val textureCache: TextureCache
+        val pboChain: PboChain
 
-    /** PBO chain for temporary data storage. */
+        init {
+            val cacheSpec = CacheSpec(format, blockSize)
+            val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxCacheSizeInMB)
+
+            textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+            pboChain = PboChain(5, 100, textureCache)
+        }
+
+        fun textureCache() = textureCache
+        fun pboChain() = pboChain
+    }
+
+    /** Texture cache and PBO chain for 8-bit images. */
     @Volatile
-    protected var pboChain: PboChain
+    private var cacheR8: TextureCacheAndPboChain
+
+    /** Texture cache and PBO chain for 16-bit images. */
+    @Volatile
+    private var cacheR16: TextureCacheAndPboChain
 
     /** Flexible [ShaderProperty] storage */
     @ShaderProperty
@@ -93,9 +113,6 @@ class VolumeManager(
         protected set
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
-
-    /** Cache specification. */
-    private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
     private val renderStacksStates = CopyOnWriteArrayList<StackState>()
 
@@ -185,10 +202,9 @@ class VolumeManager(
         val maxCacheSize =
             (hub?.get(SceneryElement.Settings) as? Settings)?.get("Renderer.MaxVolumeCacheSize", 512) ?: 512
 
-        val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxCacheSize)
-        textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+        cacheR8 = TextureCacheAndPboChain(Texture.InternalFormat.R8,intArrayOf(32, 32, 32),maxCacheSize)
 
-        pboChain = PboChain(5, 100, textureCache)
+        cacheR16 = TextureCacheAndPboChain(Texture.InternalFormat.R16,intArrayOf(32, 32, 32),maxCacheSize)
 
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)
@@ -448,6 +464,77 @@ class VolumeManager(
         }
     }
 
+    private fun updateBlocks(context: SceneryContext,
+                             multiResStacks:List<MultiResolutionStack3D<*>>,
+                             volumes:List<VolumeBlocks>,
+                             cachePBO: TextureCacheAndPboChain,
+                             vpWidth: Int,
+                             vp: Matrix4f): Boolean {
+
+        var numTasks = 0
+        val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
+
+        val taskCreationDuration = measureTimeMillis {
+            volumes.forEachIndexed { i, volume ->
+                    volume.init(multiResStacks[i], cachePBO.textureCache, vpWidth, vp)
+                    val tasks = volume.fillTasks
+                    numTasks += tasks.size
+                    fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, multiResStacks[i].resolutions().size - 1))
+            }
+        }
+
+        val fillTasksDuration = measureTimeMillis {
+            taskLoop@ while (numTasks > cachePBO.textureCache.maxNumTiles) {
+                fillTasksPerVolume.sortByDescending { it.numTasks() }
+                for (vat in fillTasksPerVolume) {
+                    val baseLevel = vat.volume.baseLevel
+                    if (baseLevel < vat.maxLevel) {
+                        vat.volume.baseLevel = baseLevel + 1
+                        numTasks -= vat.numTasks()
+                        vat.tasks.clear()
+                        vat.tasks.addAll(vat.volume.fillTasks)
+                        numTasks += vat.numTasks()
+
+                        continue@taskLoop
+                    }
+                }
+                break
+            }
+        }
+
+        val durationFillTaskProcessing = measureTimeMillis {
+            val fillTasks = ArrayList<FillTask>()
+            fillTasksPerVolume.forEach {
+                fillTasks.addAll(it.tasks)
+            }
+            logger.debug("Got ${fillTasks.size} fill tasks (vs max=${cachePBO.textureCache.maxNumTiles})")
+
+            if (fillTasks.size > cachePBO.textureCache.maxNumTiles) {
+                fillTasks.subList(cachePBO.textureCache.maxNumTiles, fillTasks.size).clear()
+            }
+
+            ProcessFillTasks.parallel(cachePBO.textureCache, cachePBO.pboChain, context, forkJoinPool, fillTasks)
+//            ProcessFillTasks.sequential(textureCache, pboChain, context, fillTasks)
+        }
+
+        // TODO: is repaint necessary?
+        // var repaint = false
+        val durationLutUpdate = measureTimeMillis {
+            volumes.forEachIndexed { i, volumeBlocks ->
+                val timestamp = cachePBO.textureCache.nextTimestamp()
+                volumeBlocks.makeLut(timestamp)
+                //val complete = volumeBlocks.makeLut(timestamp)
+                // if (!complete) {
+                //    repaint = true
+                // }
+                context.bindTexture(volumeBlocks.lookupTexture)
+                volumeBlocks.lookupTexture.upload(context)
+            }
+        }
+
+        return true;
+    }
+
     /**
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
@@ -480,73 +567,30 @@ class VolumeManager(
         currentProg.use(context)
         currentProg.setUniforms(context)
 
-        var numTasks = 0
-        val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
+        val multiResStacksR8 = mutableListOf<MultiResolutionStack3D<*>>()
+        val volumesR8 = mutableListOf<VolumeBlocks>()
 
-        val taskCreationDuration = measureTimeMillis {
-            renderStacksStates.forEachIndexed { i, state ->
-                if (state.stack is MultiResolutionStack3D) {
-                    val volume = outOfCoreVolumes[i]
+        val multiResStacksR16 = mutableListOf<MultiResolutionStack3D<*>>()
+        val volumesR16 = mutableListOf<VolumeBlocks>()
 
-                    volume.init(state.stack, textureCache, cam.width, vp)
-
-                    val tasks = volume.fillTasks
-                    numTasks += tasks.size
-                    fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, state.stack.resolutions().size - 1))
+        renderStacksStates.forEachIndexed { i, state ->
+            if (state.stack is MultiResolutionStack3D) {
+                val volume = outOfCoreVolumes[i]
+                if (bvv.core.blocks.TileAccess.getPrimitiveType(state.stack.type) == net.imglib2.type.PrimitiveType.BYTE) {
+                    volumesR8.add(volume)
+                    multiResStacksR8.add(state.stack)
+                }
+                if (bvv.core.blocks.TileAccess.getPrimitiveType(state.stack.type) == net.imglib2.type.PrimitiveType.SHORT) {
+                    volumesR16.add(volume)
+                    multiResStacksR16.add(state.stack)
                 }
             }
         }
-
-        val fillTasksDuration = measureTimeMillis {
-            taskLoop@ while (numTasks > textureCache.maxNumTiles) {
-                fillTasksPerVolume.sortByDescending { it.numTasks() }
-                for (vat in fillTasksPerVolume) {
-                    val baseLevel = vat.volume.baseLevel
-                    if (baseLevel < vat.maxLevel) {
-                        vat.volume.baseLevel = baseLevel + 1
-                        numTasks -= vat.numTasks()
-                        vat.tasks.clear()
-                        vat.tasks.addAll(vat.volume.fillTasks)
-                        numTasks += vat.numTasks()
-
-                        continue@taskLoop
-                    }
-                }
-                break
-            }
+        if( volumesR8.size > 0) {
+            updateBlocks(context, multiResStacksR8, volumesR8, cacheR8, cam.width, vp)
         }
-
-        val durationFillTaskProcessing = measureTimeMillis {
-            val fillTasks = ArrayList<FillTask>()
-            fillTasksPerVolume.forEach {
-                fillTasks.addAll(it.tasks)
-            }
-            logger.debug("Got ${fillTasks.size} fill tasks (vs max=${textureCache.maxNumTiles})")
-
-            if (fillTasks.size > textureCache.maxNumTiles) {
-                fillTasks.subList(textureCache.maxNumTiles, fillTasks.size).clear()
-            }
-
-            ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
-//            ProcessFillTasks.sequential(textureCache, pboChain, context, fillTasks)
-        }
-
-        // TODO: is repaint necessary?
-        // var repaint = false
-        val durationLutUpdate = measureTimeMillis {
-            renderStacksStates.forEachIndexed { i, state ->
-                if (state.stack is MultiResolutionStack3D) {
-                    val volumeBlocks = outOfCoreVolumes[i]
-                    val timestamp = textureCache.nextTimestamp()
-                    volumeBlocks.makeLut(timestamp)
-                    //val complete = volumeBlocks.makeLut(timestamp)
-                    // if (!complete) {
-                    //    repaint = true
-                    // }
-                    context.bindTexture(volumeBlocks.lookupTexture)
-                    volumeBlocks.lookupTexture.upload(context)
-                }
-            }
+        if(volumesR16.size > 0) {
+            updateBlocks(context, multiResStacksR16, volumesR16, cacheR16, cam.width, vp)
         }
 
         var minWorldVoxelSize = Double.POSITIVE_INFINITY
@@ -604,14 +648,14 @@ class VolumeManager(
             currentProg.bindSamplers(context)
         }
 
-        logger.debug(
-            "Task creation: {}ms, Fill task creation: {}ms, Fill task processing: {}ms, LUT update: {}ms, Bindings: {}ms",
-            taskCreationDuration,
-            fillTasksDuration,
-            durationFillTaskProcessing,
-            durationLutUpdate,
-            durationBinding
-        )
+   //     logger.debug(
+   //         "Task creation: {}ms, Fill task creation: {}ms, Fill task processing: {}ms, LUT update: {}ms, Bindings: {}ms",
+   //         taskCreationDuration,
+   //         fillTasksDuration,
+    //        durationFillTaskProcessing,
+    //        durationLutUpdate,
+     //       durationBinding
+     //   )
         // TODO: check if repaint can be made sufficient for triggering rendering
         return true
     }
@@ -933,11 +977,10 @@ class VolumeManager(
 
     fun recreateCache(newMaxSize: Int) {
         logger.warn("Recreating cache, new size: $newMaxSize MB ")
-        val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, newMaxSize)
 
-        textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+        cacheR8 = TextureCacheAndPboChain(Texture.InternalFormat.R8,intArrayOf(32, 32, 32),newMaxSize)
+        cacheR16 = TextureCacheAndPboChain(Texture.InternalFormat.R16,intArrayOf(32, 32, 32),newMaxSize)
 
-        pboChain = PboChain(5, 100, textureCache)
 
         prog.clear()
 //        updateRenderState()
