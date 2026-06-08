@@ -125,6 +125,6 @@ data class ButtonMapping(
     val label: String? = null,
     val offset: Vector3f? = null,
     val rotation: Quaternionf? = null,
-    val color: Vector3f? = Vector3f(0.18f, 0.22f, 0.27f),
+    val color: Vector3f? = Vector3f(0.6f, 0.82f, 0.88f),
     var uiNode: TextBoard? = null
 )
