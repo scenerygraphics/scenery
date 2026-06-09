@@ -1,6 +1,5 @@
 package graphics.scenery.controls
 
-import edu.mines.jtk.opt.Vect
 import graphics.scenery.Node
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.controls.OpenVRHMD.OpenVRButton
@@ -96,20 +95,39 @@ class VRInputMapper {
 
     /** Gets all labels for a specific tracker [role] with the current mapping
      * and attaches them as [TextBoard]s to the controller. */
-    fun attachUIForRole(role: TrackerRole, model: Node, textScale: Vector3f = Vector3f(0.03f)) {
-
+    fun attachUIForRole(role: TrackerRole, parent: Node, textScale: Float = 0.02f) {
         getMappingsForRole(role).forEach { mapping ->
             if (mapping.label == null && mapping.offset == null) return@forEach
 
-            val uiNode = TextBoard(mapping.label!!).apply {
+            val uiNode = TextBoard(inFront = true).apply {
                 fontColor = mapping.color?.xyzw() ?: Vector4f(0.9f)
+                text = mapping.label!!
                 spatial {
                     position = mapping.offset ?: Vector3f(0f)
-                    scale = textScale
+                    rotation = mapping.rotation ?: Quaternionf()
+                    scale = Vector3f(textScale)
                 }
             }
-            model.addChild(uiNode)
+            uiNode.name = "Label $role ${mapping.label}"
+            parent.addChild(uiNode)
             mapping.uiNode = uiNode
+            logger.debug("$role: Attached label ${mapping.label}")
+        }
+    }
+
+    /** Replaces the UI button label for a specific [actionName] with a new label,
+     * and the current color with a [newColor], if either was provided. */
+    fun updateLabel(actionName: String, newLabel: String? = null, newColor: Vector3f? = null) {
+        val mapping = getMapping(actionName)
+        mapping?.let {
+            if (newLabel != null) {
+                it.label = newLabel
+                it.uiNode?.text = newLabel
+            }
+            if (newColor != null) {
+                it.color = newColor
+                it.uiNode?.fontColor = newColor.xyzw()
+            }
         }
     }
 }
@@ -122,9 +140,9 @@ class VRInputMapper {
 data class ButtonMapping(
     val role: TrackerRole,
     val button: OpenVRButton,
-    val label: String? = null,
+    var label: String? = null,
     val offset: Vector3f? = null,
     val rotation: Quaternionf? = null,
-    val color: Vector3f? = Vector3f(0.6f, 0.82f, 0.88f),
+    var color: Vector3f? = Vector3f(0.6f, 0.82f, 0.88f),
     var uiNode: TextBoard? = null
 )
