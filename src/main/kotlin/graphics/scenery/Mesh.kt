@@ -112,7 +112,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
             }
         }
 
-        logger.info("Importing materials from MTL file $filename")
+        logger.debug("Importing materials from MTL file $filename")
         // The MTL file is read line-by-line and tokenized, based on spaces.
         // The first non-whitespace token encountered will be evaluated as command to
         // set up the properties of the [Material], which include e.g. textures and colors.
@@ -299,7 +299,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         val quadIndices = intArrayOf(0, 1, 2, 0, 2, 3)
         val quintIndices = intArrayOf(0, 1, 2, 0, 2, 3, 0, 3, 4)
 
-        logger.info("Importing geometry from OBJ file $filename")
+        logger.debug("Importing geometry from OBJ file $filename")
         // OBJ files are read line-by-line, then tokenized after removing trailing
         // and leading whitespace. The first non-whitespace string encountered is
         // evaluated as command, according to the OBJ spec.
@@ -320,12 +320,12 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         }
 
         if(o > 0 && g > 0 && useGroupHeuristic) {
-            logger.info("Using g/o heuristic for groups in OBJ file. Set useGroupHeuristic = false to disable.")
+            logger.debug("Using g/o heuristic for groups in OBJ file. Set useGroupHeuristic = false to disable.")
             groupDelimiter = 'o'
         }
 
         val preparseStart = System.nanoTime()
-        logger.info("Starting preparse")
+        logger.debug("Starting preparse")
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd()
@@ -350,7 +350,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
             }
         }
         val preparseDuration = (System.nanoTime() - preparseStart) / 10e5
-        logger.info("Preparse took $preparseDuration ms")
+        logger.debug("Preparse took $preparseDuration ms")
 
         vertexCountMap[currentName] = vertexCount
         vertexCount = 0
@@ -617,7 +617,7 @@ open class Mesh(name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMa
         }
 
         generateBoundingBox()
-        logger.info("Read ${vertexCount / meshGeometry.vertexSize}/${normalCount / meshGeometry.vertexSize}/${uvCount / meshGeometry.texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
+        logger.debug("Read ${vertexCount / meshGeometry.vertexSize}/${normalCount / meshGeometry.vertexSize}/${uvCount / meshGeometry.texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
         return this
     }
 
