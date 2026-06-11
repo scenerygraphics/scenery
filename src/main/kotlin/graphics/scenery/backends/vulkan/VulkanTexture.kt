@@ -201,131 +201,133 @@ open class VulkanTexture(
         tex?.gpuMutex?.acquire()
         val commandPools = ArrayList<Long>()
 
-        val t = CoroutineScope(TextureDispatcher).launch {
+        val t = textureScope.launch {
+            // Command pools are now created AND destroyed inside the coroutine,
+            // eliminating the race where the caller destroyed them prematurely.
             val threadLocalTransferPool = device.createCommandPool(device.queueIndices.transferQueue.first)
             val threadLocalGraphicsPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
 
-            commandPools.add(threadLocalTransferPool)
-            commandPools.add(threadLocalGraphicsPool)
-
-            with(VU.newCommandBuffer(device, threadLocalTransferPool, autostart = true)) {
-                val fence = if(block) {
-                    null
-                } else {
-                    val f = this@VulkanTexture.device.createFence()
-
-                    // We are going to check every 50ms if the texture is done uploading.
-                    CoroutineScope(TextureDispatcher).launchPeriodicAsync(50.milliseconds) {
-                        isTextureDoneUpdating(tex, f)
-                    }
-
-                    f
-                }
-
-                val requiredCapacity =
-                    if (tex is UpdatableTexture && tex.hasConsumableUpdates()) {
-                        tex.getConsumableUpdates().sumOf { it.contents.remaining() }.toLong()
+            try {
+                with(VU.newCommandBuffer(device, threadLocalTransferPool, autostart = true)) {
+                    val fence = if(block) {
+                        null
                     } else {
-                        sourceBuffer.remaining().toLong()
+                        val f = this@VulkanTexture.device.createFence()
+                        textureScope.launchPeriodicAsync(50.milliseconds) {
+                            isTextureDoneUpdating(tex, f)
+                        }
+                        f
                     }
 
-                logger.debug(
-                    "{} has {} consumable updates",
-                    this@VulkanTexture,
-                    (tex as? UpdatableTexture)?.getConsumableUpdates()?.size
-                )
+                    val requiredCapacity =
+                        if (tex is UpdatableTexture && tex.hasConsumableUpdates()) {
+                            tex.getConsumableUpdates().sumOf { it.contents.remaining() }.toLong()
+                        } else {
+                            sourceBuffer.remaining().toLong()
+                        }
 
-                if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
                     logger.debug(
-                        "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                        "{} has {} consumable updates",
                         this@VulkanTexture,
-                        tmpBuffer?.size,
-                        requiredCapacity.toFloat()/1024.0f/1024.0f
+                        (tex as? UpdatableTexture)?.getConsumableUpdates()?.size
                     )
 
-                    tmpBuffer?.close()
-                    // reserve a bit more space if the texture is small, to avoid reallocations
-                    val reservedSize = if(tex is UpdatableTexture && requiredCapacity < 1024*1024*8) {
-                        (requiredCapacity * 1.33).roundToLong()
-                    } else {
-                        requiredCapacity
+                    if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
+                        logger.debug(
+                            "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                            this@VulkanTexture,
+                            tmpBuffer?.size,
+                            requiredCapacity.toFloat()/1024.0f/1024.0f
+                        )
+
+                        tmpBuffer?.close()
+                        // reserve a bit more space if the texture is small, to avoid reallocations
+                        val reservedSize = if(tex is UpdatableTexture && requiredCapacity < 1024*1024*8) {
+                            (requiredCapacity * 1.33).roundToLong()
+                        } else {
+                            requiredCapacity
+                        }
+
+                        tmpBuffer = VulkanBuffer(
+                            this@VulkanTexture.device,
+                            max(reservedSize, 1024 * 1024),
+                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            wantAligned = false
+                        )
                     }
 
-                    tmpBuffer = VulkanBuffer(
-                        this@VulkanTexture.device,
-                        max(reservedSize, 1024 * 1024),
-                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        wantAligned = false
-                    )
-                }
+                    tmpBuffer?.let { buffer ->
+                        transitionLayout(
+                            image.image,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            commandBuffer = this
+                        )
 
-                tmpBuffer?.let { buffer ->
-                    transitionLayout(
-                        image.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this
-                    )
+                        // An updatable texture can be either filled with it's updates,
+                        // or, if it's loaded for the first time, with it's default
+                        // byte buffer contents
+                        if(tex is UpdatableTexture && tex.hasConsumableUpdates()) {
+                            val contents = tex.getConsumableUpdates().map { it.contents }
 
-                    // An updatable texture can be either filled with it's updates,
-                    // or, if it's loaded for the first time, with it's default
-                    // byte buffer contents
-                    if(tex is UpdatableTexture && tex.hasConsumableUpdates()) {
-                        val contents = tex.getConsumableUpdates().map { it.contents }
+                            tex.mutex.acquire()
+                            buffer.copyFrom(contents, keepMapped = true)
+                            image.copyFrom(this, buffer, tex.getConsumableUpdates())
+                            tex.mutex.release()
+                        } else {
+                            tex?.mutex?.acquire()
+                            buffer.copyFrom(sourceBuffer)
+                            image.copyFrom(this, buffer)
+                            tex?.mutex?.release()
+                        }
 
-                        tex.mutex.acquire()
-                        buffer.copyFrom(contents, keepMapped = true)
-                        image.copyFrom(this, buffer, tex.getConsumableUpdates())
-                        tex.mutex.release()
-                    } else {
-                        tex?.mutex?.acquire()
-                        buffer.copyFrom(sourceBuffer)
-                        image.copyFrom(this, buffer)
-                        tex?.mutex?.release()
+                        transitionLayout(
+                            image.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            commandBuffer = this
+                        )
                     }
-
-                    transitionLayout(
-                        image.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        commandBuffer = this
-                    )
-
-                }
-
-                endCommandBuffer(
-                    this@VulkanTexture.device,
-                    threadLocalTransferPool,
-                    transferQueue,
-                    flush = true,
-                    // FIXME: make deallocation work again when running async
-                    dealloc = false,
-                    block = block,
-                    fence = fence
-                )
-            }
-
-            if(mipLevels > 1) {
-                with(VU.newCommandBuffer(device, threadLocalGraphicsPool, autostart = true)) {
-                    logger.debug("Updating {} with {} miplevels", this, mipLevels)
-                    // maybeCreateMipmaps will immediately return if there's only one level requested
-                    image.maybeCreateMipmaps(this, mipLevels)
 
                     endCommandBuffer(
                         this@VulkanTexture.device,
-                        threadLocalGraphicsPool,
-                        queue,
+                        threadLocalTransferPool,
+                        transferQueue,
                         flush = true,
-                        // FIXME: make deallocation work again when running async
+                        // FIXME: make deallocation work again when running async <- is this fixed now?
                         dealloc = false,
-                        block = block
+                        block = block,
+                        fence = fence
                     )
                 }
+
+                if(mipLevels > 1) {
+                    with(VU.newCommandBuffer(device, threadLocalGraphicsPool, autostart = true)) {
+                        logger.debug("Updating {} with {} miplevels", this, mipLevels)
+                        // maybeCreateMipmaps will immediately return if there's only one level requested
+                        image.maybeCreateMipmaps(this, mipLevels)
+
+                        endCommandBuffer(
+                            this@VulkanTexture.device,
+                            threadLocalGraphicsPool,
+                            queue,
+                            flush = true,
+                            // FIXME: make deallocation work again when running async <- is this fixed now?
+                            dealloc = false,
+                            block = block
+                        )
+                    }
+                }
+            } finally {
+                // Command pools are always destroyed here, inside the coroutine,
+                // after all GPU work using them has completed or been cancelled.
+                device.destroyCommandPool(threadLocalTransferPool)
+                device.destroyCommandPool(threadLocalGraphicsPool)
             }
         }
 
@@ -346,7 +348,7 @@ open class VulkanTexture(
             memFree(sourceBuffer)
         }
 
-        commandPools.forEach { device.destroyCommandPool(it) }
+        // commandPools.forEach { device.destroyCommandPool(it) }  -- removed, now handled inside coroutine
         initialised = true
         return this
     }
@@ -580,7 +582,8 @@ open class VulkanTexture(
         @JvmStatic private val logger by lazyLogger()
 
         private val cache = HashMap<Texture, VulkanTexture>()
-        private val TextureDispatcher = newFixedThreadPoolContext(4, "VulkanTextureWorker")
+        val TextureDispatcher = newFixedThreadPoolContext(4, "VulkanTextureWorker")
+        lateinit var textureScope: CoroutineScope
 
         fun getReference(texture: Texture): VulkanTexture? {
             return cache.get(texture)
