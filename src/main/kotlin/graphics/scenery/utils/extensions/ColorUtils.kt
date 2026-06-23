@@ -2,6 +2,8 @@ package graphics.scenery.utils.extensions
 
 import org.joml.Vector3f
 import org.joml.Vector4f
+import java.awt.Color
+import java.util.Vector
 
 /**
  * Takes an integer-encoded RGB value and returns it as [Vector4f] where alpha is 1.0f.
@@ -12,6 +14,11 @@ fun Int.unpackRGB(): Vector4f {
     val b = (this and 0x000000FF) / 255f
     return Vector4f(r, g, b, 1.0f)
 }
+
+/**
+ * Convert a [Vector4f] into a [Color] from AWT.
+ * */
+fun Vector4f.toAwt() = Color(x, y, z, w)
 
 /**
  * Transforms an 8-bit ARGB integer to 8bit RGBA by extracting each 8-bit channel
