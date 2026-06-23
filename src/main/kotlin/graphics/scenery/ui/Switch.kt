@@ -1,6 +1,7 @@
 package graphics.scenery.ui
 
 import graphics.scenery.Box
+import graphics.scenery.Mesh
 import graphics.scenery.RichNode
 import graphics.scenery.controls.behaviours.Pressable
 import graphics.scenery.controls.behaviours.SimplePressable
@@ -24,7 +25,7 @@ class Switch(label: String, start: Boolean, middleAlign: Boolean = false, onChan
                        val onColor: Vector3f = Vector3f(0f,0.8f,0f),
                        val offColor: Vector3f = Vector3f(0.5f),
                        val onChange: (Boolean) -> Unit)
-        : RichNode("Knob"), Gui3DElement{
+        : Mesh("Knob"), Gui3DElement{
 
         //background
         val bg = Box(Vector3f(2f,1f,0.3f))

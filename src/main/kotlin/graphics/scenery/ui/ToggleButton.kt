@@ -9,7 +9,7 @@ import org.joml.Vector3f
  * @param textFalse shown when the button state is false
  * @param textTrue shown when the button state is true
  * @param command is executed when the user interacts with the button.
- * @param color default color of the button
+ * @param defaultColor default color of the button
  * @param pressedColor color after being pressed
  * @param touchingColor optional color input for touch feedback
  * @param byTouch allows the button to be pressed by simply touching it. If this is set to false, the user needs to press Grab.
@@ -23,7 +23,7 @@ class ToggleButton(
     height: Float = 1f,
     command: () -> Unit,
     byTouch: Boolean = false,
-    color: Vector3f = Vector3f(1f),
+    defaultColor: Vector3f = Vector3f(1f),
     pressedColor: Vector3f = Vector3f(0.4f),
     touchingColor: Vector3f = Vector3f(0.7f),
     val default: Boolean = false
@@ -32,7 +32,7 @@ class ToggleButton(
     height,
     command,
     byTouch,
-    color = color,
+    defaultColor = defaultColor,
     pressedColor = pressedColor,
     touchingColor = touchingColor
 ) {
@@ -46,7 +46,7 @@ class ToggleButton(
                     needsUpdate = true
                 }
                 text = textTrue
-                box.changeColorWithTouchable(pressedColor)
+                box.changeColorWithTouchable(this.pressedColor)
 
             } else {
                 this.spatial {
@@ -55,7 +55,7 @@ class ToggleButton(
                     needsUpdate = true
                 }
                 text = textFalse
-                box.changeColorWithTouchable(color)
+                box.changeColorWithTouchable(this.defaultColor)
             }
         }
 
@@ -64,6 +64,7 @@ class ToggleButton(
             Touchable::class.java, Touchable(
                 onTouch = {
                     enteredTouchTime = System.currentTimeMillis()
+                    box.changeColorWithTouchable(this.touchingColor)
                     this.spatial {
                         scale.z = 0.5f
                         position.z = -0.25f
@@ -83,8 +84,7 @@ class ToggleButton(
                 },
                 onRelease = {
                     isTouching = false
-                },
-                onHoldChangeDiffuseTo = touchingColor
+                }
         )
         )
         box.addAttribute(
@@ -101,6 +101,6 @@ class ToggleButton(
                 }
             ))
 
-        box.material().diffuse = if (default) pressedColor else color
+        box.material().diffuse = if (default) this.pressedColor else this.defaultColor
     }
 }

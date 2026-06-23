@@ -11,6 +11,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.HasSpatial
 import org.joml.Matrix4f
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 open class InstancedNode(template: Node, name: String = "InstancedNode") : DefaultNode(name), DelegatesRenderable,
     DelegatesGeometry, DelegatesMaterial {
@@ -19,6 +20,9 @@ open class InstancedNode(template: Node, name: String = "InstancedNode") : Defau
     /** instanced properties */
     val instancedProperties = LinkedHashMap<String, () -> Any>()
     private val delegationType: DelegationType = DelegationType.ForEachNode
+
+    var maxInstanceUpdateCount: AtomicInteger? = null
+
     override fun getDelegationType(): DelegationType {
         return delegationType
     }
@@ -62,6 +66,13 @@ open class InstancedNode(template: Node, name: String = "InstancedNode") : Defau
     override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         //TODO? generate joint boundingbox of all instances, set bounding box
         return template?.generateBoundingBox()
+    }
+
+    /** This extension function pushes updated instance buffers to the GPU.
+     * When [maxInstanceUpdateCount] is not null, calling this function is required for instances to be updated.
+     * @param numFrames Number of consecutive frames that are pushed to the GPU. Defaults to one. */
+    fun updateInstanceBuffers(numFrames: Int = 1) {
+        this.maxInstanceUpdateCount = AtomicInteger(numFrames)
     }
 
     class Instance(val instancedParent : InstancedNode, name: String = "Instance") : DefaultNode(name),

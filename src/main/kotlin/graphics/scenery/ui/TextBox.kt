@@ -1,12 +1,15 @@
 package graphics.scenery.ui
 
 import graphics.scenery.Box
+import graphics.scenery.Mesh
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.RichNode
 import graphics.scenery.primitives.TextBoard
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
+import org.joml.getVector3f
 import org.scijava.util.ListUtils.first
 import kotlin.concurrent.thread
 
@@ -16,9 +19,9 @@ import kotlin.concurrent.thread
  */
 open class TextBox(
     text: String, var padding: Float = 0.2f, var minSize: Float = 0f,
-    final override var height: Float = 1.0f, thickness: Float = 0.5f
+    final override var height: Float = 1.0f, var thickness: Float = 0.5f
 ) :
-    RichNode("TextBox"), Gui3DElement {
+    Mesh("TextBox"), Gui3DElement {
     val box = Box(Vector3f(1f, height, thickness))
     val board = TextBoard()
 
@@ -70,7 +73,7 @@ open class TextBox(
                     )
                     needsUpdate = true
                 }
-                this.boundingBox = box.generateBoundingBox()
+                this.boundingBox = generateBoundingBox()
                 width = maxX
                 textGeom = board.geometry().vertices
                 logger.debug("$name geometry size is ${textGeom.capacity()}")
@@ -85,13 +88,32 @@ open class TextBox(
             updateSize(true)
         }
 
-        this.update += { updateSize() }
-
         initGrabable(box)
     }
 
     override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
-        return box.generateBoundingBox(includeChildren)
+        val vb = board.geometry().vertices.duplicate().rewind()
+        if (vb.capacity() == 0) return null
+
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+
+        while (vb.hasRemaining()) {
+            val x = vb.get(); val y = vb.get(); vb.get() // skip Z
+            minX = minOf(minX, x)
+            maxX = maxOf(maxX, x)
+            minY = minOf(minY, y)
+            maxY = maxOf(maxY, y)
+        }
+
+        val scale = board.spatial().scale
+        return OrientedBoundingBox(
+            this,
+            Vector3f(minX * scale.x, minY * scale.y, -thickness),
+            Vector3f(maxX * scale.x, maxY * scale.y, 0f)
+        )
     }
 
     override fun getMaximumBoundingBox(): OrientedBoundingBox {

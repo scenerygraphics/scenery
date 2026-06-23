@@ -9,6 +9,7 @@ import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
+import kotlin.concurrent.thread
 
 /**
  * Creating bounding boxes for [Node]s
@@ -198,6 +199,28 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         this.lineWidth = fresh.lineWidth
         this.numLines = fresh.numLines
         this.ticksOnly = fresh.ticksOnly
+    }
+
+    /** Flash this [BoundingGrid] with a given [intervalMillis] time and a given [flashColor]. */
+    fun flashGrid(
+        flashColor: Vector3f = Vector3f(0.95f, 0.25f, 0.15f),
+        count: Int = 7,
+        intervalMillis: Long = 100
+    ) {
+        val initVisibility = this.visible
+        val initColor = this.gridColor
+        thread {
+            this.gridColor = flashColor
+            var i = count
+            while (i > 0) {
+                this.visible = !this.visible
+                this.spatial().needsUpdate = true
+                Thread.sleep(intervalMillis)
+                i -= 1
+            }
+            this.visible = initVisibility
+            this.gridColor = initColor
+        }
     }
 
     /**

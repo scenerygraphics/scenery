@@ -4,6 +4,7 @@ import bvv.core.backend.GpuContext
 import bvv.core.backend.Texture3D
 import bvv.core.multires.SimpleStack3D
 import bvv.core.render.*
+import graphics.scenery.utils.extensions.toRGBA
 import graphics.scenery.utils.lazyLogger
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.type.numeric.ARGBType
@@ -292,15 +293,7 @@ open class SceneryStackManager: SimpleStackManager {
         val sdata = buffer.asIntBuffer()
         var i = 0
         while (cursor.hasNext())
-            sdata.put(i++, toRGBA(cursor.next().get()))
-    }
-
-    private fun toRGBA(argb : Int) : Int {
-        val a = argb shr 24 and 0xff
-        val r = argb shr 16 and 0xff
-        val g = argb shr 8 and 0xff
-        val b = argb and 0xff
-        return a shl 24 or (b shl 16) or (g shl 8) or r
+            sdata.put(i++, cursor.next().get().toRGBA())
     }
 
     fun clearReferences(t: Texture3D) {
