@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.util.concurrent.CompletableFuture
@@ -34,6 +35,8 @@ class VRTwoHandNodeTransform(
     private val resetRotationButton: MultiButtonManager.ButtonConfig? = null,
 ) : VRTwoHandDragBehavior(name, controller, offhand) {
 
+    val logger by lazyLogger()
+
     /** To trigger the [onStartCallback] regardless of which order of buttons was used. */
     private var startCallbackTriggered = false
 
@@ -58,9 +61,10 @@ class VRTwoHandNodeTransform(
         lastPositionMain: Vector3f,
         lastPositionOff: Vector3f
     ) {
+        if (!bothPressed) return
 
         // Test whether we now press both buttons but the startCallback wasn't triggered yet.
-        if (bothPressed && !startCallbackTriggered) {
+        if (!startCallbackTriggered) {
             onStartCallback?.invoke()
             startCallbackTriggered = true
         }
@@ -107,8 +111,9 @@ class VRTwoHandNodeTransform(
     }
 
     override fun end(x: Int, y: Int) {
-        super.end(x, y)
-        onEndCallback?.invoke()
+        if (bothPressed) {
+            onEndCallback?.invoke()
+        }
         // Find the button that doesn't lock the y Axis and indicate that it is now released
         val transformBtn = resetRotationBtnManager?.getRegisteredButtons()?.filter { it.key != resetRotationButton }?.map {it.key}?.firstOrNull()
         if (transformBtn != null) {
@@ -116,6 +121,7 @@ class VRTwoHandNodeTransform(
         }
         // Reset this flag for the next event
         startCallbackTriggered = false
+        super.end(x, y)
     }
 
     companion object {
