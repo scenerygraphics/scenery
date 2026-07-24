@@ -134,7 +134,7 @@ class MultiWristMenu(
 
         val button = Button(
             text = label, command = command, byTouch = byTouch, stayPressed = stayPressed, depressDelay = depressDelay,
-            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, textInFront = true
         )
         column.addChild(button)
         column.onGeometryReady {
@@ -183,7 +183,8 @@ class MultiWristMenu(
         val column = requireColumn(columnName)
 
         val button = ToggleButton(labelFalse, labelTrue, command = command, byTouch = byTouch,
-            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState)
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState, textInFront = true
+        )
 
         column.addChild(button)
         column.onGeometryReady {

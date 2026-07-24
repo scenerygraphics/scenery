@@ -27,9 +27,10 @@ open class Button(
     val depressDelay: Int = 0,
     var defaultColor: Vector3f = Vector3f(1f),
     var pressedColor: Vector3f = Vector3f(0.4f),
-    var touchingColor: Vector3f = Vector3f(0.7f)
+    var touchingColor: Vector3f = Vector3f(0.7f),
+    textInFront: Boolean = false
 ) :
-    TextBox(text, height = height) {
+    TextBox(text, height = height, textInFront = textInFront) {
     /** Flag that determines whether the button is ready to be released from depressDelay. */
     private var depressReady = true
 
