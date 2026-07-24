@@ -19,11 +19,12 @@ import kotlin.concurrent.thread
  */
 open class TextBox(
     text: String, var padding: Float = 0.2f, var minSize: Float = 0f,
-    final override var height: Float = 1.0f, var thickness: Float = 0.5f
+    final override var height: Float = 1.0f, var thickness: Float = 0.5f,
+    textInFront: Boolean = false
 ) :
     Mesh("TextBox"), Gui3DElement {
     val box = Box(Vector3f(1f, height, thickness))
-    val board = TextBoard()
+    val board = TextBoard(inFront = textInFront)
 
     var text by board::text
     var fontColor by board::fontColor

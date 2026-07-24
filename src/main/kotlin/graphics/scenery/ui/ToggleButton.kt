@@ -26,7 +26,8 @@ class ToggleButton(
     defaultColor: Vector3f = Vector3f(1f),
     pressedColor: Vector3f = Vector3f(0.4f),
     touchingColor: Vector3f = Vector3f(0.7f),
-    val default: Boolean = false
+    val default: Boolean = false,
+    textInFront: Boolean = false
 ) : Button(
     if (default) textTrue else textFalse,
     height,
@@ -34,7 +35,8 @@ class ToggleButton(
     byTouch,
     defaultColor = defaultColor,
     pressedColor = pressedColor,
-    touchingColor = touchingColor
+    touchingColor = touchingColor,
+    textInFront = textInFront
 ) {
     override var pressed: Boolean = default
         set(value) {
