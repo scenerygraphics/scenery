@@ -85,6 +85,7 @@ layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURE
 layout(set = 5, binding = 0) uniform ShaderProperties {
     float lensingRadius;
     vec3 lensingPosition;
+    bool enableLens;
 };
 
 
@@ -143,6 +144,17 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
+
+    if (enableLens) {
+        vec3 dp = Vertex.FragPosition - lensingPosition;
+        float distSq = dot(dp, dp);
+        float sigma2 = lensingRadius * lensingRadius;
+
+        if (distSq > 7.0 * sigma2) {
+            discard;
+        }
+    }
+
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     //DiffuseAlbedo.rgb = Material.Kd;
