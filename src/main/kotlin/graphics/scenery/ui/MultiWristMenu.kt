@@ -43,7 +43,7 @@ class MultiWristMenu(
 
     defaultColor: Vector3f = Vector3f(0.8f),
     defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
-    defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f),
+    defaultTouchingColor: Vector3f = Vector3f(0.8f, 0.71f, 0.71f),
     val debug: Boolean = false
 ): Mesh() {
 
@@ -63,6 +63,12 @@ class MultiWristMenu(
 
     /** Index into [columns.values] that points to the currently visible column. */
     private var currentIndex = 0
+
+    var isMenuVisible = true
+        set(value) {
+            columns.values.toList().getOrNull(currentIndex)?.visible = value
+            field = value
+        }
 
     /** Creates a new, empty [Column] and registers it under [name].
      * The column is immediately parented to [parentNode] and hidden.
@@ -85,7 +91,6 @@ class MultiWristMenu(
 
         attachColumn(column)
         columns[name] = column
-
     }
 
     /** Returns the [Column] registered under [name], or null.
@@ -268,7 +273,8 @@ class MultiWristMenu(
         val columnList = columns.values.toList()
         columnList[currentIndex].visible = false
         currentIndex = (currentIndex + 1) % columnList.size
-        columnList[currentIndex].visible = true
+        // Inherit global visibility
+        columnList[currentIndex].visible = isMenuVisible
 
         this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
 
@@ -302,8 +308,8 @@ class MultiWristMenu(
     fun hideAll() { columns.values.forEach { it.visible = false } }
 
     /** Shows or hides the entire menu (only the currently-selected column is affected). */
-    fun toggleVisibility(visible: Boolean) {
-        columns.values.toList().getOrNull(currentIndex)?.visible = visible
+    fun toggleVisibility(wantVisible: Boolean? = null) {
+        isMenuVisible = wantVisible ?: !isMenuVisible
     }
 
     /**
