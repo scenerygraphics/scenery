@@ -78,8 +78,8 @@ open class Button(
                 enteredTouchTime = System.currentTimeMillis()
                 box.changeColorWithTouchable(touchingColor)
                 this.spatial {
-                    scale.z = 0.8f
-                    position.z = -0.1f
+                    scale.z = 0.9f
+                    position.z = -0.05f
                     needsUpdate = true
                 }
             },
@@ -94,13 +94,13 @@ open class Button(
                 }
             },
             onRelease = {
-                if (byTouch && enabled.get()) {
-                    isTouching = false
-                    if (!stayPressed) {
-                        release()
-                    }
+                isTouching = false
+                if (!stayPressed) {
+                    release()
                 }
-            }
+                box.changeColorWithTouchable(if (pressed) pressedColor else defaultColor)
+            },
+            onHoldChangeDiffuseTo = null
         ))
         box.addAttribute(
             Pressable::class.java, SimplePressable(

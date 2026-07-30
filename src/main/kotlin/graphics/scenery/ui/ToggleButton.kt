@@ -8,7 +8,7 @@ import org.joml.Vector3f
 /** A toggleable button with text field for VR interaction.
  * @param textFalse shown when the button state is false
  * @param textTrue shown when the button state is true
- * @param command is executed when the user interacts with the button.
+ * @param command is executed when the user interacts with the button. Executes both on toggle on and toggle off.
  * @param defaultColor default color of the button
  * @param pressedColor color after being pressed
  * @param touchingColor optional color input for touch feedback
@@ -86,19 +86,17 @@ class ToggleButton(
                 },
                 onRelease = {
                     isTouching = false
-                }
-        )
+                    box.changeColorWithTouchable(if (pressed) pressedColor else defaultColor)
+                },
+                onHoldChangeDiffuseTo = null
+            )
         )
         box.addAttribute(
             Pressable::class.java, SimplePressable(
                 onPress = { _, _ ->
                     if (!byTouch && enabled.get()) {
-                        if (!pressed) {
-                            command()
-                            pressed = true
-                        } else {
-                            pressed = false
-                        }
+                        pressed = !pressed
+                        command()
                     }
                 }
             ))
