@@ -389,11 +389,6 @@ open class VulkanRenderer(hub: Hub,
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
 
-    val textureDispatcherJob = SupervisorJob()
-    val textureScope = CoroutineScope(
-        VulkanTexture.TextureDispatcher + textureDispatcherJob
-    )
-
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
@@ -617,8 +612,6 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
             transferQueue = device.getQueue(device.queueIndices.transferQueue.first)
             logger.debug("Have {} and {}", queue, transferQueue)
-
-            VulkanTexture.textureScope = textureScope
 
             with(commandPools) {
                 Render = device.createCommandPool(device.queueIndices.graphicsQueue.first)
@@ -2340,10 +2333,8 @@ open class VulkanRenderer(hub: Hub,
         logger.info("Renderer teardown started.")
         // Cancel all pending texture coroutines and wait for any currently
         // executing ones to finish before touching any Vulkan resources.
-        textureDispatcherJob.cancelChildren()
-        runBlocking {
-            textureScope.coroutineContext[Job]?.children?.forEach { it.join() }
-        }
+
+        textureCache.values.forEach { it.close() }
 
         // Drain both queues — closeInternal previously only waited on the
         // graphics queue, but texture uploads submit to transferQueue.

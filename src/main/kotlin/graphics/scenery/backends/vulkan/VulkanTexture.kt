@@ -85,6 +85,8 @@ open class VulkanTexture(
     var texture: Texture? = null
         internal set
 
+    private val textureScope = CoroutineScope(TextureDispatcher + SupervisorJob())
+
     init {
         var usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT
         if(device.formatFeatureSupported(format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT, optimalTiling = true)) {
@@ -549,6 +551,7 @@ open class VulkanTexture(
      * related to it.
      */
     override fun close() {
+        runBlocking { textureScope.coroutineContext[Job]?.cancelAndJoin() }
         texture?.let { cache.remove(it) }
 
         if (image.view != -1L) {
@@ -583,7 +586,6 @@ open class VulkanTexture(
 
         private val cache = HashMap<Texture, VulkanTexture>()
         val TextureDispatcher = newFixedThreadPoolContext(4, "VulkanTextureWorker")
-        lateinit var textureScope: CoroutineScope
 
         fun getReference(texture: Texture): VulkanTexture? {
             return cache.get(texture)
