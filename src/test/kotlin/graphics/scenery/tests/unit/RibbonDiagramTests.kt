@@ -124,6 +124,8 @@ class RibbonDiagramTests {
             // Ugly, but we try to GC here, as some proteins accrue large string allocations
             // stemming from the Biojava CIF/PDB parser.
             System.gc()
+            // We're slowing down the requests here or the RCSB server might throw 429s
+            Thread.sleep(1000)
         }
         logger.info("Max memory use was $max MB")
     }

@@ -119,7 +119,7 @@ interface ExtractsNatives {
                     val outputStream = out.outputStream()
                     f.copyTo(outputStream)
                     outputStream.close()
-                    logger.info("Extracted native library $nativeLibrary to ${out.absolutePath}")
+                    logger.debug("Extracted native library $nativeLibrary to ${out.absolutePath}")
                 }
 
                 if(load) {
