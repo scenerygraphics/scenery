@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
@@ -22,7 +22,7 @@ class VRGrabTheWorld (
     controllerHitbox: Node,
     private val cam: Spatial,
     private val grabButtonmanager: MultiButtonManager? = null,
-    val button: OpenVRHMD.OpenVRButton,
+    val button: OpenXRHMD.OpenXRButton,
     private val trackerRole: TrackerRole,
     private val multiplier: Float
 ) : DragBehaviour {
@@ -61,8 +61,8 @@ class VRGrabTheWorld (
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            buttons: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            buttons: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             buttonManager: MultiButtonManager? = null,
             multiplier: Float = 1f

@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
@@ -83,7 +83,7 @@ open class VRTouch(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
+            hmd: OpenXRHMD,
             controllerSide: List<TrackerRole>,
             vibrate: Boolean,
             onTouch: (() -> Unit)? = null,
@@ -99,7 +99,7 @@ open class VRTouch(
                                 customTip ?: controller.children.first(),
                                 device,
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Touchable::class.java) != null }) },
-                                if (vibrate) fun() { (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
+                                if (vibrate) fun() { (hmd as? OpenXRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
                         }
                     }
                 }
