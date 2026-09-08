@@ -4,7 +4,7 @@ import bdv.util.AxisOrder
 import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
 import graphics.scenery.volumes.Colormap
@@ -37,7 +37,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
     // hand over a fixed direction to not mess up the Argos tests
     private var atmos = Atmosphere(Vector3f(0.2f, 0.6f, -1f))
 
-    private lateinit var hmd: OpenVRHMD
+    private lateinit var hmd: OpenXRHMD
 
     override fun init() {
 
@@ -46,7 +46,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         if (useVR) {
-            hmd = OpenVRHMD(useCompositor = true)
+            hmd = OpenXRHMD(useCompositor = true)
             hub.add(SceneryElement.HMDInput, hmd)
             renderer?.toggleVR()
         }

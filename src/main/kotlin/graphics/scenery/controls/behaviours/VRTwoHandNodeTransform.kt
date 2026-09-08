@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
@@ -129,8 +129,8 @@ class VRTwoHandNodeTransform(
          * Convenience method for adding scale behaviour
          */
         fun createAndSet(
-            hmd: OpenVRHMD,
-            button: OpenVRHMD.OpenVRButton,
+            hmd: OpenXRHMD,
+            button: OpenXRHMD.OpenXRButton,
             scene: Scene,
             scaleLocked: Boolean = false,
             rotationLocked: Boolean = false,

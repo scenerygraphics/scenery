@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.lazyLogger
@@ -111,7 +111,7 @@ abstract class VRTwoHandDragBehavior(
          * Convenience method for adding behaviour
          */
         fun createAndSet(
-            hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, createBehavior: (
+            hmd: OpenXRHMD, button: OpenXRHMD.OpenXRButton, createBehavior: (
                 controller: Spatial, offhand: VRTwoHandDragOffhand
             ) -> VRTwoHandDragBehavior
         ): CompletableFuture<VRTwoHandDragBehavior> {

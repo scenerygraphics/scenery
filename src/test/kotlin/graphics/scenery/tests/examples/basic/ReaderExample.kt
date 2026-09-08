@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
@@ -26,7 +26,7 @@ import kotlin.math.sqrt
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
-    var hmd: OpenVRHMD? = null
+    var hmd: OpenXRHMD? = null
     var loadedFilename: String? = null
     lateinit var loadedObject: Node
 
@@ -43,7 +43,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         val cam = DetachedHeadCamera()
         hmd = try {
-            OpenVRHMD()
+            OpenXRHMD()
         } catch (e: Error) {
             null
         }
@@ -227,7 +227,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         hmd.addBehaviour("trigger_move", move)
         hmd.addKeyBinding("trigger_move", "U")
 
-        hmd.allowRepeats += OpenVRHMD.OpenVRButton.Trigger to TrackerRole.RightHand
+        hmd.allowRepeats += OpenXRHMD.OpenXRButton.Trigger to TrackerRole.RightHand
     }
 
     /**

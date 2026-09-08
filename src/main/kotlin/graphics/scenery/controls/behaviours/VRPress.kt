@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
@@ -28,7 +28,7 @@ open class VRPress(
     protected val name: String,
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
-    protected val button: OpenVRHMD.OpenVRButton,
+    protected val button: OpenXRHMD.OpenXRButton,
     protected val multiTarget: Boolean = false,
     val controllerDevice: TrackedDevice,
     protected val onPress: ((Node) -> Unit)? = null
@@ -138,10 +138,10 @@ open class VRPress(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            buttons: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            buttons: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
-            onPress: ((Node, OpenVRHMD.OpenVRButton) -> Unit)? = null,
+            onPress: ((Node, OpenXRHMD.OpenXRButton) -> Unit)? = null,
             customTip: Node? = null
         ): Future<List<VRPress>> {
             val future = CompletableFuture<List<VRPress>>()
@@ -164,7 +164,7 @@ open class VRPress(
                                     false,
                                     device
                                 ) {
-                                    (hmd as? OpenVRHMD)?.vibrate(device)
+                                    (hmd as? OpenXRHMD)?.vibrate(device)
                                     onPress?.invoke(it, button)
                                 }
 
@@ -207,4 +207,4 @@ open class SimplePressable(
 /**
  * Like [SimplePressable] but for each button.
  */
-open class PerButtonPressable(open val actions: Map<OpenVRHMD.OpenVRButton, SimplePressable>) : Pressable()
+open class PerButtonPressable(open val actions: Map<OpenXRHMD.OpenXRButton, SimplePressable>) : Pressable()

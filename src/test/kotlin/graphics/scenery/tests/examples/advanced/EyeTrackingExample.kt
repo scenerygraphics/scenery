@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.eyetracking.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
  */
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker()
-    val hmd = OpenVRHMD(seated = false, useCompositor = true)
+    val hmd = OpenXRHMD(seated = false, useCompositor = true)
     val referenceTarget = Icosphere(0.004f, 2)
     val calibrationTarget = Icosphere(0.02f, 2)
     val confidenceThreshold = 0.65f

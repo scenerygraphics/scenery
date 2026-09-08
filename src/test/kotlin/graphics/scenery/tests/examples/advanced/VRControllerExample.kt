@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
@@ -23,12 +23,12 @@ import kotlin.system.exitProcess
  */
 class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
-    private lateinit var hmd: OpenVRHMD
+    private lateinit var hmd: OpenXRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
 
     override fun init() {
-        hmd = OpenVRHMD(useCompositor = true)
+        hmd = OpenXRHMD(useCompositor = true)
 
         if(!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
@@ -101,10 +101,10 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         // and re-bind them on the right-hand controller's trackpad or joystick.
         inputHandler?.let { handler ->
             hashMapOf(
-                "move_forward" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Up),
-                "move_back" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Down),
-                "move_left" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Left),
-                "move_right" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Right)
+                "move_forward" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Up),
+                "move_back" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Down),
+                "move_left" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Left),
+                "move_right" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Right)
             ).forEach { (name, key) ->
                 handler.getBehaviour(name)?.let { b ->
                     logger.info("Adding behaviour $name bound to $key to HMD")
@@ -120,7 +120,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             logger.info("Boxes visible: ${boxes.first().visible}")
         })
         // ...and bind that to the side button of the left-hand controller.
-        hmd.addKeyBinding("toggle_boxes", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Side)
+        hmd.addKeyBinding("toggle_boxes", TrackerRole.LeftHand, OpenXRHMD.OpenXRButton.Side)
 
         // Finally, add a behaviour to toggle the scene's shell
         hmd.addBehaviour("toggle_shell", ClickBehaviour { _, _ ->
@@ -128,7 +128,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             logger.info("Hull visible: ${hullbox.visible}")
         })
         //... and bind that to the A button on the left-hand controller.
-        hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
+        hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenXRHMD.OpenXRButton.A)
 
         // actions that need the position of the controller as an input need to be wrapped in the following lines
         hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
@@ -151,7 +151,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                             box.ifSpatial {
                                 position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
                             }
-                            (hmd as? OpenVRHMD)?.vibrate(device)
+                            (hmd as? OpenXRHMD)?.vibrate(device)
                         }
                     }
                 }

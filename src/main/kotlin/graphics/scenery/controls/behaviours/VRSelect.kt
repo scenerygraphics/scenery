@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.primitives.Cylinder
@@ -130,8 +130,8 @@ open class VRSelect(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            button: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             action: (Node) -> Unit = { },
             showIndicator: Boolean = false
