@@ -12,15 +12,6 @@ uniform vec2 dsp;
 uniform float fwnw;
 uniform float nw;
 
-uniform sampler3D volumeCache;
-
-// -- comes from CacheSpec -----
-uniform vec3 blockSize;
-uniform vec3 paddedBlockSize;
-uniform vec3 cachePadOffset;
-
-// -- comes from TextureCache --
-uniform vec3 cacheSize; // TODO: get from texture!?
 uniform mat4 transform;
 
 #pragma scenery verbatim
