@@ -6,16 +6,22 @@ import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
+import graphics.scenery.utils.GLBReader
+import graphics.scenery.utils.duplicateGeometry
 import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.joml.*
 import org.lwjgl.openxr.*
+import org.lwjgl.openxr.EXTInteractionRenderModel.*
+import org.lwjgl.openxr.EXTRenderModel.*
 import org.lwjgl.openxr.KHRVulkanEnable.*
 import org.lwjgl.openxr.XR10.*
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.NULL
+import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -137,6 +143,12 @@ open class OpenXRHMD(
 
     /** Disables submission in case of unrecoverable compositor errors. */
     protected var disableSubmission: Boolean = false
+
+    /** Whether the runtime supports the render model extensions, decided at instance creation. */
+    protected var renderModelsSupported = false
+
+    /** Render model assets, cached by their glTF cache ID so identical controllers load once. */
+    protected val renderModelCache = ConcurrentHashMap<String, Mesh>()
 
     /** The runtime's name, for informational purposes. */
     var runtimeName: String = ""
@@ -270,7 +282,20 @@ open class OpenXRHMD(
                 return
             }
 
-            val wanted = listOf(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
+            // Render models are optional: without them, placeholder geometry is used.
+            renderModelsSupported = XR_EXT_RENDER_MODEL_EXTENSION_NAME in available
+                && XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME in available
+
+            if (!renderModelsSupported) {
+                logger.info("Runtime does not support $XR_EXT_RENDER_MODEL_EXTENSION_NAME, falling back to placeholder controller models.")
+            }
+
+            val wanted = mutableListOf(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
+            if (renderModelsSupported) {
+                wanted += XR_EXT_RENDER_MODEL_EXTENSION_NAME
+                wanted += XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME
+            }
+
             val extensionNames = stack.callocPointer(wanted.size)
             wanted.forEach { extensionNames.put(stack.UTF8(it)) }
             extensionNames.flip()
@@ -1630,20 +1655,32 @@ open class OpenXRHMD(
         fadeToColor(Vector4f(0f), seconds)
     }
 
-    /** Loads a model representing the [TrackedDevice]. */
+    /**
+     * Loads a model representing the [TrackedDevice], preferring the runtime's own render model
+     * via `XR_EXT_render_model` and falling back to placeholder geometry.
+     */
     override fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh {
+        if (device.type == TrackedDeviceType.Controller && renderModelsSupported) {
+            try {
+                if (loadRenderModel(device, mesh)) {
+                    return mesh
+                }
+            } catch (e: Exception) {
+                logger.warn("Could not load render model for ${device.name}, using a placeholder. ($e)")
+            }
+        }
+
         return loadModelForMesh(device.type, mesh)
     }
 
     /**
-     * Builds a placeholder model for [type]. OpenXR core has no equivalent of OpenVR's
-     * `IVRRenderModels`, so simple geometry is generated instead. The child node named
-     * `collider` marks the controller tip, which the VR behaviours use as their interaction
-     * point; applications wanting realistic models can replace these children.
+     * Builds a placeholder model for [type], used when the runtime provides no render model.
+     * The child node named `collider` marks the controller tip, which the VR behaviours use as
+     * their interaction point.
      */
     override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
         if (type != TrackedDeviceType.Controller) {
-            logger.debug("OpenXR provides no render models, not generating one for $type.")
+            logger.debug("No model available for $type.")
             return mesh
         }
 
@@ -1662,6 +1699,169 @@ open class OpenXRHMD(
         mesh.addChild(body)
 
         return mesh
+    }
+
+    /**
+     * Loads the runtime's render model for [device] into [mesh], via `XR_EXT_render_model`.
+     *
+     * The runtime enumerates the models bound to the current interaction profile and hands out a
+     * glTF asset per model, which [GLBReader] turns into scenery geometry. Returns false if no
+     * model could be obtained, so the caller can fall back to placeholder geometry.
+     */
+    protected fun loadRenderModel(device: TrackedDevice, mesh: Mesh): Boolean {
+        val xrSession = session ?: return false
+        val topLevelPath = handPaths[device.role] ?: return false
+
+        stackPush().use { stack ->
+            val enumerateInfo = XrInteractionRenderModelIdsEnumerateInfoEXT.calloc(stack)
+                .type(XR_TYPE_INTERACTION_RENDER_MODEL_IDS_ENUMERATE_INFO_EXT)
+
+            val idCount = stack.callocInt(1)
+            if (xrEnumerateInteractionRenderModelIdsEXT(xrSession, enumerateInfo, idCount, null) != XR_SUCCESS
+                || idCount[0] == 0) {
+                logger.debug("Runtime reported no render models for ${device.role}.")
+                return false
+            }
+
+            val ids = stack.callocLong(idCount[0])
+            if (xrEnumerateInteractionRenderModelIdsEXT(xrSession, enumerateInfo, idCount, ids) != XR_SUCCESS) {
+                return false
+            }
+
+            // The enumeration covers both hands, so each model is matched against the hand it
+            // belongs to via its top-level user path.
+            for (i in 0 until idCount[0]) {
+                val renderModelId = ids[i]
+                if (renderModelId == XR_NULL_RENDER_MODEL_ID_EXT.toLong()) {
+                    continue
+                }
+
+                val createInfo = XrRenderModelCreateInfoEXT.calloc(stack)
+                    .type(XR_TYPE_RENDER_MODEL_CREATE_INFO_EXT)
+                    .renderModelId(renderModelId)
+                    .gltfExtensions(null)
+
+                val modelPointer = stack.callocPointer(1)
+                if (xrCreateRenderModelEXT(xrSession, createInfo, modelPointer) != XR_SUCCESS) {
+                    continue
+                }
+
+                val renderModel = XrRenderModelEXT(modelPointer[0], xrSession)
+
+                try {
+                    if (!modelBelongsToHand(stack, renderModel, topLevelPath)) {
+                        continue
+                    }
+
+                    val properties = XrRenderModelPropertiesEXT.calloc(stack)
+                        .type(XR_TYPE_RENDER_MODEL_PROPERTIES_EXT)
+
+                    if (xrGetRenderModelPropertiesEXT(renderModel, null, properties) != XR_SUCCESS) {
+                        continue
+                    }
+
+                    val cacheId = properties.cacheId().uuidString()
+
+                    // Both controllers usually share a model, so parse each asset only once.
+                    renderModelCache[cacheId]?.let { cached ->
+                        logger.debug("Reusing cached render model $cacheId for ${device.role}")
+                        mesh.addChild(cached.duplicateGeometry())
+                        addCollider(mesh)
+                        return true
+                    }
+
+                    val gltf = loadRenderModelAsset(stack, xrSession, properties.cacheId()) ?: continue
+                    val model = try {
+                        GLBReader.parseGLB(gltf)
+                    } finally {
+                        memFree(gltf)
+                    } ?: continue
+
+                    model.name = "rendermodel"
+                    renderModelCache[cacheId] = model
+
+                    mesh.addChild(model.duplicateGeometry())
+                    addCollider(mesh)
+
+                    logger.info("Loaded render model $cacheId for ${device.role}")
+                    return true
+                } finally {
+                    xrDestroyRenderModelEXT(renderModel)
+                }
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Returns whether [renderModel] belongs to the hand identified by [topLevelPath]. Runtimes
+     * that report no path are treated as a match, so single-model runtimes still return geometry.
+     */
+    protected fun modelBelongsToHand(stack: MemoryStack, renderModel: XrRenderModelEXT, topLevelPath: Long): Boolean {
+        val info = XrInteractionRenderModelTopLevelUserPathGetInfoEXT.calloc(stack)
+            .type(XR_TYPE_INTERACTION_RENDER_MODEL_TOP_LEVEL_USER_PATH_GET_INFO_EXT)
+
+        val path = stack.callocLong(1)
+        if (xrGetRenderModelPoseTopLevelUserPathEXT(renderModel, info, path) != XR_SUCCESS) {
+            return true
+        }
+
+        return path[0] == XR_NULL_PATH || path[0] == topLevelPath
+    }
+
+    /**
+     * Fetches the glTF asset bytes for the model identified by [cacheId], or null on failure.
+     */
+    protected fun loadRenderModelAsset(stack: MemoryStack, xrSession: XrSession, cacheId: XrUuidEXT): ByteBuffer? {
+        val assetCreateInfo = XrRenderModelAssetCreateInfoEXT.calloc(stack)
+            .type(XR_TYPE_RENDER_MODEL_ASSET_CREATE_INFO_EXT)
+            .cacheId(cacheId)
+
+        val assetPointer = stack.callocPointer(1)
+        if (xrCreateRenderModelAssetEXT(xrSession, assetCreateInfo, assetPointer) != XR_SUCCESS) {
+            return null
+        }
+
+        val asset = XrRenderModelAssetEXT(assetPointer[0], xrSession)
+
+        try {
+            val assetData = XrRenderModelAssetDataEXT.calloc(stack)
+                .type(XR_TYPE_RENDER_MODEL_ASSET_DATA_EXT)
+
+            if (xrGetRenderModelAssetDataEXT(asset, null, assetData) != XR_SUCCESS
+                || assetData.bufferCountOutput() == 0) {
+                return null
+            }
+
+            // The buffer outlives the stack frame, as parsing happens after this returns.
+            val size = assetData.bufferCountOutput()
+            val buffer = memAlloc(size)
+
+            assetData.bufferCapacityInput(size)
+            assetData.buffer(buffer)
+
+            if (xrGetRenderModelAssetDataEXT(asset, null, assetData) != XR_SUCCESS) {
+                memFree(buffer)
+                return null
+            }
+
+            return buffer
+        } finally {
+            xrDestroyRenderModelAssetEXT(asset)
+        }
+    }
+
+    /** Adds the `collider` child the VR behaviours use as their interaction point. */
+    protected fun addCollider(mesh: Mesh) {
+        if (mesh.children.any { it.name == "collider" }) {
+            return
+        }
+
+        val collider = Box(Vector3f(0.02f, 0.02f, 0.02f))
+        collider.name = "collider"
+        collider.visible = false
+        mesh.addChild(collider)
     }
 
     /**
@@ -1775,6 +1975,8 @@ open class OpenXRHMD(
         actionSet?.let { xrDestroyActionSet(it) }
         actionSet = null
 
+        renderModelCache.clear()
+
         session?.let { xrDestroySession(it) }
         session = null
         sessionInitialized = false
@@ -1886,6 +2088,13 @@ open class OpenXRHMD(
 
         return Matrix4f().frustum(left, right, down, up, near, far)
     }
+
+    /** Renders the UUID as a hex string, used to key [renderModelCache]. */
+    protected fun XrUuidEXT.uuidString(): String {
+        val data = this.data()
+        return (0 until data.remaining()).joinToString("") { "%02x".format(data.get(it)) }
+    }
+
 
     companion object {
         private val logger by lazyLogger()
