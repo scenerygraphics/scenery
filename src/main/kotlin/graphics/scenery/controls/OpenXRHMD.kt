@@ -19,7 +19,6 @@ import org.lwjgl.openxr.EXTRenderModel.*
 import org.lwjgl.openxr.EXTUUIUD.XR_EXT_UUID_EXTENSION_NAME
 import org.lwjgl.openxr.KHRVulkanEnable.*
 import org.lwjgl.openxr.XR10.*
-import org.lwjgl.openxr.XR11.XR_API_VERSION_1_1
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.NULL
@@ -285,9 +284,8 @@ open class OpenXRHMD(
                 return
             }
 
-            // Render models are optional: without them, placeholder geometry is used. They build
-            // on XR_EXT_uuid and are OpenXR 1.1 extensions, so all three have to be available
-            // together, and the instance has to ask for 1.1 below.
+            // Render models are optional: without them, placeholder geometry is used. Their
+            // cache IDs are XrUuidEXT, so XR_EXT_uuid has to be enabled alongside them.
             renderModelsSupported = XR_EXT_RENDER_MODEL_EXTENSION_NAME in available
                 && XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME in available
                 && XR_EXT_UUID_EXTENSION_NAME in available
@@ -317,17 +315,18 @@ open class OpenXRHMD(
 
             logger.debug("Requesting OpenXR extensions: ${wanted.joinToString(", ")}")
 
-            // The render model extensions require OpenXR 1.1, so 1.1 is requested whenever they
-            // are enabled. Runtimes reject an unsupported combination wholesale, so a failure
-            // falls back to a plain 1.0 instance with placeholder models rather than no VR.
-            val apiVersion = if (renderModelsSupported) XR_API_VERSION_1_1 else XR_API_VERSION_1_0
+            // 1.0 is requested deliberately: the render model extensions are built on
+            // XR_EXT_uuid rather than core 1.1 types, so they work on a 1.0 instance, and
+            // runtimes such as SteamVR reject 1.1 outright with XR_ERROR_API_VERSION_UNSUPPORTED.
             val instancePointer = stack.callocPointer(1)
 
-            var (result, createInfo) = createInstance(stack, apiVersion, extensionNames, instancePointer)
+            var (result, createInfo) = createInstance(stack, XR_API_VERSION_1_0, extensionNames, instancePointer)
 
+            // Should a runtime advertise the render model extensions but refuse to enable them,
+            // retry without, so controllers lose their models rather than VR failing entirely.
             if (result != XR_SUCCESS && renderModelsSupported) {
                 logger.warn(
-                    "Could not create an OpenXR 1.1 instance with render model support (${resultName(result)}), " +
+                    "Could not create an OpenXR instance with render model support (${resultName(result)}), " +
                         "retrying without it."
                 )
 
