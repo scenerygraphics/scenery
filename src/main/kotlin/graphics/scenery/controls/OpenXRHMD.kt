@@ -974,6 +974,48 @@ open class OpenXRHMD(
                 }
 
                 logger.info("Active interaction profile: $interactionProfile ($manufacturer)")
+
+                // Render models only become available once a profile is bound, which happens
+                // after the controllers were first seen, so any placeholder geometry handed out
+                // then is replaced here.
+                refreshRenderModels()
+            }
+        }
+    }
+
+    /**
+     * Re-attempts render model loading for controllers that were connected before the runtime
+     * bound an interaction profile, replacing their placeholder geometry.
+     */
+    protected fun refreshRenderModels() {
+        if (!renderModelsSupported) {
+            return
+        }
+
+        trackedDevices.values.filter { it.type == TrackedDeviceType.Controller }.forEach { device ->
+            val model = device.model ?: return@forEach
+
+            if (model.metadata["renderModelLoaded"] == true) {
+                return@forEach
+            }
+
+            try {
+                val replacement = Mesh()
+                replacement.name = device.name
+
+                if (loadRenderModel(device, replacement)) {
+                    replacement.metadata["renderModelLoaded"] = true
+
+                    // The node is already in the scene graph, so its children are swapped rather
+                    // than the node itself being replaced.
+                    model.children.toList().forEach { model.removeChild(it) }
+                    replacement.children.toList().forEach { model.addChild(it) }
+                    model.metadata["renderModelLoaded"] = true
+
+                    logger.info("Replaced placeholder model for ${device.name} with the runtime's render model.")
+                }
+            } catch (e: Exception) {
+                logger.warn("Could not refresh render model for ${device.name}: $e")
             }
         }
     }
@@ -1044,6 +1086,8 @@ open class OpenXRHMD(
         val viewState = XrViewState.calloc(stack).type(XR_TYPE_VIEW_STATE)
         val viewCountOutput = stack.callocInt(1)
 
+        // Located in the reference space, as the composition layer submitted in endFrame needs
+        // the eye poses in the same space it is submitted against.
         val result = xrLocateViews(xrSession, viewLocateInfo, viewState, viewCountOutput, viewBuffer)
         if (result != XR_SUCCESS) {
             return
@@ -1053,11 +1097,26 @@ open class OpenXRHMD(
             return
         }
 
-        // Refreshed every frame, as OpenXR may change these per frame.
+        // Refreshed every frame, as OpenXR may change the FOV per frame.
         for (eye in 0 until minOf(2, viewCountOutput[0])) {
-            val view = viewBuffer[eye]
-            eyeTransformCache[eye] = view.pose().toMatrix4f()
-            eyeProjectionCache[eye] = view.fov().toProjectionMatrix(cachedNearPlane, cachedFarPlane)
+            eyeProjectionCache[eye] = viewBuffer[eye].fov().toProjectionMatrix(cachedNearPlane, cachedFarPlane)
+        }
+
+        // scenery expects a head-relative eye transform, matching OpenVR's eye-to-head matrix,
+        // whereas the poses above are in the reference space. Locating the views a second time
+        // against the VIEW space yields exactly that head-relative transform.
+        val headSpace = viewSpace ?: return
+        val headRelative = XrView.calloc(viewBuffer.remaining(), stack)
+        headRelative.forEach { it.type(XR_TYPE_VIEW) }
+
+        viewLocateInfo.space(headSpace)
+
+        if (xrLocateViews(xrSession, viewLocateInfo, viewState, viewCountOutput, headRelative) != XR_SUCCESS) {
+            return
+        }
+
+        for (eye in 0 until minOf(2, viewCountOutput[0])) {
+            eyeTransformCache[eye] = headRelative[eye].pose().toMatrix4f()
         }
     }
 
@@ -1757,6 +1816,7 @@ open class OpenXRHMD(
         if (device.type == TrackedDeviceType.Controller && renderModelsSupported) {
             try {
                 if (loadRenderModel(device, mesh)) {
+                    mesh.metadata["renderModelLoaded"] = true
                     return mesh
                 }
             } catch (e: Exception) {
@@ -1803,19 +1863,35 @@ open class OpenXRHMD(
      * model could be obtained, so the caller can fall back to placeholder geometry.
      */
     protected fun loadRenderModel(device: TrackedDevice, mesh: Mesh): Boolean {
-        val xrSession = session ?: return false
-        val topLevelPath = handPaths[device.role] ?: return false
+        val xrSession = session ?: run {
+            logger.debug("No session yet, cannot load a render model for ${device.name}.")
+            return false
+        }
+        val topLevelPath = handPaths[device.role] ?: run {
+            logger.debug("No hand path for role ${device.role}, cannot load a render model.")
+            return false
+        }
 
         stackPush().use { stack ->
             val enumerateInfo = XrInteractionRenderModelIdsEnumerateInfoEXT.calloc(stack)
                 .type(XR_TYPE_INTERACTION_RENDER_MODEL_IDS_ENUMERATE_INFO_EXT)
 
             val idCount = stack.callocInt(1)
-            if (xrEnumerateInteractionRenderModelIdsEXT(xrSession, enumerateInfo, idCount, null) != XR_SUCCESS
-                || idCount[0] == 0) {
-                logger.debug("Runtime reported no render models for ${device.role}.")
+            val enumerateResult = xrEnumerateInteractionRenderModelIdsEXT(xrSession, enumerateInfo, idCount, null)
+
+            if (enumerateResult != XR_SUCCESS) {
+                logger.debug("Enumerating render models failed: {}", resultToString(enumerateResult))
                 return false
             }
+
+            if (idCount[0] == 0) {
+                // Models only appear once the runtime has bound an interaction profile, which
+                // happens after the controllers have been seen for the first time.
+                logger.debug("Runtime reported no render models for {} yet.", device.role)
+                return false
+            }
+
+            logger.debug("Runtime reported {} render model(s) for {}", idCount[0], device.role)
 
             val ids = stack.callocLong(idCount[0])
             if (xrEnumerateInteractionRenderModelIdsEXT(xrSession, enumerateInfo, idCount, ids) != XR_SUCCESS) {
@@ -1836,7 +1912,9 @@ open class OpenXRHMD(
                     .gltfExtensions(null)
 
                 val modelPointer = stack.callocPointer(1)
-                if (xrCreateRenderModelEXT(xrSession, createInfo, modelPointer) != XR_SUCCESS) {
+                val createResult = xrCreateRenderModelEXT(xrSession, createInfo, modelPointer)
+                if (createResult != XR_SUCCESS) {
+                    logger.debug("xrCreateRenderModelEXT failed for id {}: {}", renderModelId, resultToString(createResult))
                     continue
                 }
 
@@ -1844,13 +1922,16 @@ open class OpenXRHMD(
 
                 try {
                     if (!modelBelongsToHand(stack, renderModel, topLevelPath)) {
+                        logger.debug("Render model {} does not belong to {}", renderModelId, device.role)
                         continue
                     }
 
                     val properties = XrRenderModelPropertiesEXT.calloc(stack)
                         .type(XR_TYPE_RENDER_MODEL_PROPERTIES_EXT)
 
-                    if (xrGetRenderModelPropertiesEXT(renderModel, null, properties) != XR_SUCCESS) {
+                    val propertiesResult = xrGetRenderModelPropertiesEXT(renderModel, null, properties)
+                    if (propertiesResult != XR_SUCCESS) {
+                        logger.debug("xrGetRenderModelPropertiesEXT failed: {}", resultToString(propertiesResult))
                         continue
                     }
 
