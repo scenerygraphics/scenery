@@ -13,10 +13,13 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.joml.*
 import org.lwjgl.openxr.*
+import org.lwjgl.PointerBuffer
 import org.lwjgl.openxr.EXTInteractionRenderModel.*
 import org.lwjgl.openxr.EXTRenderModel.*
+import org.lwjgl.openxr.EXTUUIUD.XR_EXT_UUID_EXTENSION_NAME
 import org.lwjgl.openxr.KHRVulkanEnable.*
 import org.lwjgl.openxr.XR10.*
+import org.lwjgl.openxr.XR11.XR_API_VERSION_1_1
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.NULL
@@ -282,9 +285,12 @@ open class OpenXRHMD(
                 return
             }
 
-            // Render models are optional: without them, placeholder geometry is used.
+            // Render models are optional: without them, placeholder geometry is used. They build
+            // on XR_EXT_uuid and are OpenXR 1.1 extensions, so all three have to be available
+            // together, and the instance has to ask for 1.1 below.
             renderModelsSupported = XR_EXT_RENDER_MODEL_EXTENSION_NAME in available
                 && XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME in available
+                && XR_EXT_UUID_EXTENSION_NAME in available
 
             if (!renderModelsSupported) {
                 logger.info("Runtime does not support $XR_EXT_RENDER_MODEL_EXTENSION_NAME, falling back to placeholder controller models.")
@@ -292,6 +298,7 @@ open class OpenXRHMD(
 
             val wanted = mutableListOf(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
             if (renderModelsSupported) {
+                wanted += XR_EXT_UUID_EXTENSION_NAME
                 wanted += XR_EXT_RENDER_MODEL_EXTENSION_NAME
                 wanted += XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME
             }
@@ -300,30 +307,39 @@ open class OpenXRHMD(
             wanted.forEach { extensionNames.put(stack.UTF8(it)) }
             extensionNames.flip()
 
-            val applicationInfo = XrApplicationInfo.calloc(stack)
-                .apiVersion(XR_API_VERSION_1_0)
-                .applicationVersion(1)
-                .engineVersion(1)
-            applicationInfo.applicationName(stack.UTF8(applicationName.take(127)))
-            applicationInfo.engineName(stack.UTF8("scenery"))
+            logger.debug("Requesting OpenXR extensions: ${wanted.joinToString(", ")}")
 
-            val createInfo = XrInstanceCreateInfo.calloc(stack)
-                .type(XR_TYPE_INSTANCE_CREATE_INFO)
-                .next(NULL)
-                .createFlags(0)
-                .applicationInfo(applicationInfo)
-                .enabledApiLayerNames(null)
-                .enabledExtensionNames(extensionNames)
-
+            // The render model extensions require OpenXR 1.1, so 1.1 is requested whenever they
+            // are enabled. Runtimes reject an unsupported combination wholesale, so a failure
+            // falls back to a plain 1.0 instance with placeholder models rather than no VR.
+            val apiVersion = if (renderModelsSupported) XR_API_VERSION_1_1 else XR_API_VERSION_1_0
             val instancePointer = stack.callocPointer(1)
-            val result = xrCreateInstance(createInfo, instancePointer)
+
+            var (result, createInfo) = createInstance(stack, apiVersion, extensionNames, instancePointer)
+
+            if (result != XR_SUCCESS && renderModelsSupported) {
+                logger.warn(
+                    "Could not create an OpenXR 1.1 instance with render model support (${resultName(result)}), " +
+                        "retrying without it."
+                )
+
+                renderModelsSupported = false
+
+                val fallbackNames = stack.callocPointer(1)
+                fallbackNames.put(stack.UTF8(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+                fallbackNames.flip()
+
+                val retry = createInstance(stack, XR_API_VERSION_1_0, fallbackNames, instancePointer)
+                result = retry.first
+                createInfo = retry.second
+            }
 
             if (result != XR_SUCCESS) {
                 // A missing runtime is the common, benign case.
                 if (result == XR_ERROR_RUNTIME_UNAVAILABLE) {
                     logger.warn("No OpenXR runtime available. Is your headset connected and its runtime active?")
                 } else {
-                    logger.error("Failed to create OpenXR instance: XrResult($result)")
+                    logger.error("Failed to create OpenXR instance: ${resultName(result)} ($result)")
                 }
 
                 initialized = false
@@ -405,6 +421,34 @@ open class OpenXRHMD(
             initialized = true
             logger.info("Initialized OpenXR device with render target size ${recommendedSize.x()}x${recommendedSize.y()} per eye")
         }
+    }
+
+    /**
+     * Creates an [XrInstance] asking for [apiVersion] and [extensionNames], storing the handle in
+     * [instancePointer]. Returns the raw [XrResult].
+     */
+    protected fun createInstance(
+        stack: MemoryStack, apiVersion: Long,
+        extensionNames: PointerBuffer, instancePointer: PointerBuffer
+    ): Pair<Int, XrInstanceCreateInfo> {
+        val applicationInfo = XrApplicationInfo.calloc(stack)
+            .apiVersion(apiVersion)
+            .applicationVersion(1)
+            .engineVersion(1)
+
+        // Names are size-limited by the spec, and must be set before the struct is copied below.
+        applicationInfo.applicationName(stack.UTF8(applicationName.take(XR_MAX_APPLICATION_NAME_SIZE - 1)))
+        applicationInfo.engineName(stack.UTF8("scenery"))
+
+        val createInfo = XrInstanceCreateInfo.calloc(stack)
+            .type(XR_TYPE_INSTANCE_CREATE_INFO)
+            .next(NULL)
+            .createFlags(0)
+            .applicationInfo(applicationInfo)
+            .enabledApiLayerNames(null)
+            .enabledExtensionNames(extensionNames)
+
+        return xrCreateInstance(createInfo, instancePointer) to createInfo
     }
 
     /**
@@ -2001,16 +2045,42 @@ open class OpenXRHMD(
 
     /** Converts a result code to a string, using the runtime's translation where available. */
     protected fun resultToString(result: Int): String {
-        val xrInstance = instance ?: return "XrResult($result)"
+        val xrInstance = instance ?: return resultName(result)
 
         stackPush().use { stack ->
             val buffer = stack.calloc(XR_MAX_RESULT_STRING_SIZE)
             return if (xrResultToString(xrInstance, result, buffer) == XR_SUCCESS) {
                 memUTF8(buffer).trimEnd(' ')
             } else {
-                "XrResult($result)"
+                resultName(result)
             }
         }
+    }
+
+    /**
+     * Names a result code without needing an instance, for errors that happen before or during
+     * [xrCreateInstance] -- where [xrResultToString] is not yet available.
+     */
+    protected fun resultName(result: Int): String = when (result) {
+        XR_SUCCESS -> "XR_SUCCESS"
+        XR_ERROR_VALIDATION_FAILURE -> "XR_ERROR_VALIDATION_FAILURE"
+        XR_ERROR_RUNTIME_FAILURE -> "XR_ERROR_RUNTIME_FAILURE"
+        XR_ERROR_OUT_OF_MEMORY -> "XR_ERROR_OUT_OF_MEMORY"
+        XR_ERROR_API_VERSION_UNSUPPORTED -> "XR_ERROR_API_VERSION_UNSUPPORTED"
+        XR_ERROR_INITIALIZATION_FAILED -> "XR_ERROR_INITIALIZATION_FAILED"
+        XR_ERROR_FUNCTION_UNSUPPORTED -> "XR_ERROR_FUNCTION_UNSUPPORTED"
+        XR_ERROR_FEATURE_UNSUPPORTED -> "XR_ERROR_FEATURE_UNSUPPORTED"
+        XR_ERROR_EXTENSION_NOT_PRESENT -> "XR_ERROR_EXTENSION_NOT_PRESENT"
+        XR_ERROR_LIMIT_REACHED -> "XR_ERROR_LIMIT_REACHED"
+        XR_ERROR_SIZE_INSUFFICIENT -> "XR_ERROR_SIZE_INSUFFICIENT"
+        XR_ERROR_HANDLE_INVALID -> "XR_ERROR_HANDLE_INVALID"
+        XR_ERROR_INSTANCE_LOST -> "XR_ERROR_INSTANCE_LOST"
+        XR_ERROR_API_LAYER_NOT_PRESENT -> "XR_ERROR_API_LAYER_NOT_PRESENT"
+        XR_ERROR_NAME_INVALID -> "XR_ERROR_NAME_INVALID"
+        XR_ERROR_RUNTIME_UNAVAILABLE -> "XR_ERROR_RUNTIME_UNAVAILABLE"
+        XR_ERROR_FORM_FACTOR_UNSUPPORTED -> "XR_ERROR_FORM_FACTOR_UNSUPPORTED"
+        XR_ERROR_FORM_FACTOR_UNAVAILABLE -> "XR_ERROR_FORM_FACTOR_UNAVAILABLE"
+        else -> "XrResult(" + result + ")"
     }
 
     /** Converts a string into an `XrPath`. */
