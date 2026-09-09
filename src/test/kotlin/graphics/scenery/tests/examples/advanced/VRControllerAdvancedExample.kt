@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
@@ -43,14 +43,14 @@ class VRControllerAdvancedExample : SceneryBase(
     VRControllerAdvancedExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200
 ) {
-    private lateinit var hmd: OpenVRHMD
+    private lateinit var hmd: OpenXRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
     private var leftControllerPushes = true
     private var selectionStorage: Node? = null
 
     override fun init() {
-        hmd = OpenVRHMD(useCompositor = true)
+        hmd = OpenXRHMD(useCompositor = true)
 
         if (!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
@@ -169,7 +169,7 @@ class VRControllerAdvancedExample : SceneryBase(
         pen.addAttribute(
             Pressable::class.java, PerButtonPressable(
                 mapOf(
-                    OpenVRHMD.OpenVRButton.Trigger to SimplePressable(onHold = { _, _ ->
+                    OpenXRHMD.OpenXRButton.Trigger to SimplePressable(onHold = { _, _ ->
                         if (System.currentTimeMillis() - lastPenWriting > 50) {
                             val ink = Sphere(0.03f)
                             ink.spatial().position = tip.spatial().worldPosition()
@@ -177,7 +177,7 @@ class VRControllerAdvancedExample : SceneryBase(
                             lastPenWriting = System.currentTimeMillis()
                         }
                     }),
-                    OpenVRHMD.OpenVRButton.A to SimplePressable(onHold = { _, _ ->
+                    OpenXRHMD.OpenXRButton.A to SimplePressable(onHold = { _, _ ->
                         if (System.currentTimeMillis() - lastPenWriting > 50) {
                             val ink = Box(Vector3f(0.03f))
                             ink.spatial().position = tip.spatial().worldPosition()
@@ -216,10 +216,10 @@ class VRControllerAdvancedExample : SceneryBase(
         // and re-bind them on the right-hand controller's trackpad or joystick.
         inputHandler?.let { handler ->
             hashMapOf(
-                "move_forward" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Up),
-                "move_back" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Down),
-                "move_left" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Left),
-                "move_right" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Right)
+                "move_forward" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Up),
+                "move_back" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Down),
+                "move_left" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Left),
+                "move_right" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Right)
             ).forEach { (name, key) ->
                 handler.getBehaviour(name)?.let { b ->
                     logger.info("Adding behaviour $name bound to $key to HMD")
@@ -234,13 +234,13 @@ class VRControllerAdvancedExample : SceneryBase(
         VRGrab.createAndSet(
             scene,
             hmd,
-            listOf(OpenVRHMD.OpenVRButton.Side),
+            listOf(OpenXRHMD.OpenXRButton.Side),
             listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
         )
         VRPress.createAndSet(
             scene,
             hmd,
-            listOf(OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
+            listOf(OpenXRHMD.OpenXRButton.Trigger, OpenXRHMD.OpenXRButton.A),
             listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
         )
 
@@ -249,7 +249,7 @@ class VRControllerAdvancedExample : SceneryBase(
         VRSelect.createAndSet(
             scene,
             hmd,
-            listOf(OpenVRHMD.OpenVRButton.Trigger),
+            listOf(OpenXRHMD.OpenXRButton.Trigger),
             listOf(TrackerRole.LeftHand),
             { n ->
                 // this is just some action to show a successful selection.
@@ -263,20 +263,20 @@ class VRControllerAdvancedExample : SceneryBase(
         VRSelect.createAndSet(
             scene,
             hmd,
-            listOf(OpenVRHMD.OpenVRButton.Trigger),
+            listOf(OpenXRHMD.OpenXRButton.Trigger),
             listOf(TrackerRole.RightHand),
             showIndicator = true
         )
 
         // hold both side buttons to scale the selection
-        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+        VRScale.createAndSet(hmd, OpenXRHMD.OpenXRButton.Side) {
             selectionStorage?.ifSpatial { scale *= Vector3f(it) }
         }
 
         // open a menu with sub menus with the left menu/B button
         VRTreeSelectionWheel.createAndSet(
             scene, hmd,
-            listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.RightHand),
+            listOf(OpenXRHMD.OpenXRButton.Menu), listOf(TrackerRole.RightHand),
             listOf(
                 Switch("switch 1", false) { println("switch has been set to $it") },
                 Action("dummy1", false) { println("A dummy entry has been pressed") },
@@ -313,7 +313,7 @@ class VRControllerAdvancedExample : SceneryBase(
         // open a menu where the actions are changed after initialisation with the left menu/B button
         val menu = VRSelectionWheel.createAndSet(
             scene, hmd,
-            listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.LeftHand),
+            listOf(OpenXRHMD.OpenXRButton.Menu), listOf(TrackerRole.LeftHand),
             listOf("Loading please wait" to {})
         )
         thread {
