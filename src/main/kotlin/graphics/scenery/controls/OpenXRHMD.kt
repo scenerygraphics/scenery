@@ -293,7 +293,15 @@ open class OpenXRHMD(
                 && XR_EXT_UUID_EXTENSION_NAME in available
 
             if (!renderModelsSupported) {
-                logger.info("Runtime does not support $XR_EXT_RENDER_MODEL_EXTENSION_NAME, falling back to placeholder controller models.")
+                val missing = listOf(
+                    XR_EXT_UUID_EXTENSION_NAME,
+                    XR_EXT_RENDER_MODEL_EXTENSION_NAME,
+                    XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME
+                ).filter { it !in available }
+
+                logger.info(
+                    "Runtime is missing ${missing.joinToString(", ")}, falling back to placeholder controller models."
+                )
             }
 
             val wanted = mutableListOf(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
@@ -463,8 +471,33 @@ open class OpenXRHMD(
         }
 
         stackPush().use { stack ->
+            // OpenXR dictates which physical device the session must use. If the renderer picked a
+            // different one -- likely on multi-GPU machines -- xrCreateSession fails validation,
+            // so the mismatch is reported here rather than as an opaque error.
+            val required = getVulkanPhysicalDevice(instanceVk)
+            if (required != null && required.address() != device.physicalDevice.address()) {
+                logger.error(
+                    "OpenXR requires Vulkan physical device 0x{}, but the renderer is using 0x{}. " +
+                        "Set -Dscenery.Renderer.Device or -Dscenery.Renderer.DeviceId to select the device " +
+                        "the headset is attached to.",
+                    required.address().toString(16), device.physicalDevice.address().toString(16)
+                )
+            }
+
+            // The runtime's Vulkan API version bounds have to be respected by the instance.
+            val requirements = XrGraphicsRequirementsVulkanKHR.calloc(stack)
+                .type(XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR)
+            if (xrGetVulkanGraphicsRequirementsKHR(xrInstance, systemId, requirements) == XR_SUCCESS) {
+                logger.debug(
+                    "OpenXR requires Vulkan between {} and {}",
+                    versionString(requirements.minApiVersionSupported()),
+                    versionString(requirements.maxApiVersionSupported())
+                )
+            }
+
             val graphicsBinding = XrGraphicsBindingVulkanKHR.calloc(stack)
                 .type(XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR)
+                .next(NULL)
                 .instance(instanceVk)
                 .physicalDevice(device.physicalDevice)
                 .device(device.vulkanDevice)
@@ -477,11 +510,29 @@ open class OpenXRHMD(
                 .createFlags(0)
                 .systemId(systemId)
 
+            logger.debug(
+                "Creating OpenXR session: systemId={}, vkInstance=0x{}, physicalDevice=0x{}, device=0x{}, queueFamily={}, queueIndex={}",
+                systemId, instanceVk.address().toString(16),
+                device.physicalDevice.address().toString(16),
+                device.vulkanDevice.address().toString(16),
+                queueFamilyIndex, queueIndex
+            )
+
             val sessionPointer = stack.callocPointer(1)
             val result = xrCreateSession(xrInstance, sessionCreateInfo, sessionPointer)
 
             if (result != XR_SUCCESS) {
                 logger.error("Failed to create OpenXR session: ${resultToString(result)} ($result)")
+
+                if (result == XR_ERROR_VALIDATION_FAILURE) {
+                    logger.error(
+                        "A validation failure here usually means the Vulkan instance, device or queue " +
+                            "does not match what the runtime expects. Check that the instance and device " +
+                            "extensions from getVulkanInstanceExtensions()/getVulkanDeviceExtensions() were " +
+                            "enabled, and that the physical device matches the one logged above."
+                    )
+                }
+
                 disableSubmission = true
                 return
             }
@@ -2056,6 +2107,10 @@ open class OpenXRHMD(
             }
         }
     }
+
+    /** Formats an XrVersion or Vulkan version as major.minor.patch. */
+    protected fun versionString(version: Long): String =
+        "${(version shr 48) and 0xffff}.${(version shr 32) and 0xffff}.${version and 0xffffffffL}"
 
     /**
      * Names a result code without needing an instance, for errors that happen before or during
