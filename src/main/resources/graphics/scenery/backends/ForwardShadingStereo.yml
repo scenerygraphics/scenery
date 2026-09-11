@@ -4,12 +4,10 @@ stereoEnabled: true
 
 rendertargets:
   HDR:
-    HDRBuffer:
-      size: 1.0, 1.0
-      format: RGBA_Float32
-    ZBuffer:
-      size: 1.0, 1.0
-      format: Depth32
+    size: 1.0, 1.0
+    attachments:
+      Color: RGBA_Float16
+      ZBuffer: Depth32
 
 renderpasses:
   leftEye:
@@ -36,8 +34,10 @@ renderpasses:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
-      - HDR
+      - HDR.Color
     output: Viewport
     parameters:
-      Gamma: 1.7
-      Exposure: 1.5
+      TonemappingOperator: 0
+      Gamma: 1.8
+      Exposure: 1.0
+      WhitePoint: 11.2
