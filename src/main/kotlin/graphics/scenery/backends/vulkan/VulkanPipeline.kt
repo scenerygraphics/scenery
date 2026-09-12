@@ -81,7 +81,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
         .pNext(NULL)
         .pSampleMask(null)
-        .rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
+        .rasterizationSamples(renderpass.passConfig.samples)
 
     val shaderStages = ArrayList<VulkanShaderModule>(2)
 
@@ -164,6 +164,11 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
 
         val (p, pipelineCreateInfo) = when(type) {
             PipelineType.Graphics -> {
+                if(device.features.sampleRateShading() && multisampleState.rasterizationSamples() > VK_SAMPLE_COUNT_1_BIT) {
+                    multisampleState.sampleShadingEnable(true)
+                    multisampleState.minSampleShading(0.25f)
+                }
+
                 val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
                     .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
                     .pNext(NULL)
