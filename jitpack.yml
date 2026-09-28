@@ -1,3 +1,10 @@
 before_install:
   - sdk install java 21.0.2-zulu
   - sdk use java 21.0.2-zulu
+
+# Bypass JitPack's own publish-task auto-detection, which fails to find our
+# custom "maven" publication and injects a broken fallback publication
+# instead (NPE in generatePomFileForSceneryPublication). Running the real
+# task explicitly avoids that fallback entirely.
+install:
+  - ./gradlew publishMavenPublicationToMavenLocal -Pversion=$VERSION --console=plain
