@@ -33,7 +33,10 @@ import java.awt.Component
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import kotlin.math.abs
 import kotlin.math.tan
 
@@ -781,6 +784,8 @@ open class OpenXRHMD(
                 OpenXRButton.Trigger to "input/trigger/value",
                 OpenXRButton.Side to "input/squeeze/value",
                 OpenXRButton.Menu to "input/menu/click",
+                OpenXRButton.A to "input/a/click",
+                OpenXRButton.B to "input/b/click",
                 OpenXRButton.Thumbstick to "input/thumbstick/click"
             ),
             "/interaction_profiles/microsoft/motion_controller" to mapOf(
@@ -951,8 +956,11 @@ open class OpenXRHMD(
         }
     }
 
+    @Volatile protected var renderModelRefreshPending = false
+
     /** Queries the interaction profile currently bound to the controllers. */
     protected fun updateInteractionProfile() {
+
         val xrInstance = instance ?: return
         val xrSession = session ?: return
 
@@ -975,10 +983,12 @@ open class OpenXRHMD(
 
                 logger.info("Active interaction profile: $interactionProfile ($manufacturer)")
 
+                profileReady.complete(interactionProfile)
+
                 // Render models only become available once a profile is bound, which happens
                 // after the controllers were first seen, so any placeholder geometry handed out
                 // then is replaced here.
-                refreshRenderModels()
+                renderModelRefreshPending = true
             }
         }
     }
@@ -991,27 +1001,17 @@ open class OpenXRHMD(
         if (!renderModelsSupported) {
             return
         }
-
         trackedDevices.values.filter { it.type == TrackedDeviceType.Controller }.forEach { device ->
             val model = device.model ?: return@forEach
-
             if (model.metadata["renderModelLoaded"] == true) {
                 return@forEach
             }
-
             try {
-                val replacement = Mesh()
-                replacement.name = device.name
-
-                if (loadRenderModel(device, replacement)) {
-                    replacement.metadata["renderModelLoaded"] = true
-
-                    // The node is already in the scene graph, so its children are swapped rather
-                    // than the node itself being replaced.
-                    model.children.toList().forEach { model.removeChild(it) }
-                    replacement.children.toList().forEach { model.addChild(it) }
+                // Load directly into the live (scene-graph) node so any registered update
+                // handlers write to the node that is actually rendered, not an orphan.
+                model.children.toList().forEach { model.removeChild(it) }
+                if (loadRenderModel(device, model as Mesh)) {
                     model.metadata["renderModelLoaded"] = true
-
                     logger.info("Replaced placeholder model for ${device.name} with the runtime's render model.")
                 }
             } catch (e: Exception) {
@@ -1065,6 +1065,11 @@ open class OpenXRHMD(
             locateViews(stack)
             updateTrackedDevices(stack)
             processInput(stack)
+
+            if (renderModelRefreshPending && sessionState >= XR_SESSION_STATE_VISIBLE) {
+                renderModelRefreshPending = false
+                refreshRenderModels()
+            }
         }
     }
 
@@ -1182,6 +1187,14 @@ open class OpenXRHMD(
                 device.velocity = velocity.linearVelocity().toVector3f()
                 device.angularVelocity = velocity.angularVelocity().toVector3f()
             }
+
+            renderModelSpaces[role]?.let { rmSpace ->
+                val loc = XrSpaceLocation.calloc(stack).type(XR_TYPE_SPACE_LOCATION)
+                if (xrLocateSpace(rmSpace, space, predictedDisplayTime, loc) == XR_SUCCESS &&
+                    loc.locationFlags() and XR_SPACE_LOCATION_ORIENTATION_VALID_BIT.toLong() != 0L) {
+                    device.renderModelPose = loc.pose().toMatrix4f()
+                }
+            }
         }
     }
 
@@ -1193,7 +1206,7 @@ open class OpenXRHMD(
             try {
                 val mesh = Mesh()
                 mesh.name = device.name
-                loadModelForMesh(device, mesh)
+                loadModelForMesh(device.type, mesh)
                 device.model = mesh
             } catch (e: Exception) {
                 logger.warn("Could not load model for ${device.name}, device will not be visible in the scene. ($e)")
@@ -1202,6 +1215,18 @@ open class OpenXRHMD(
 
             events.onDeviceConnect.forEach { it.invoke(this@OpenXRHMD, device, timestamp) }
         }
+    }
+
+    /**
+     * Registers [handler] for device-connect events, immediately replaying it for every
+     * device already tracked, so a handler registered after connection doesn't miss it.
+     */
+    @Synchronized
+    fun onDeviceConnect(handler: (TrackerInput, TrackedDevice, Long) -> Unit) {
+        trackedDevices.values.forEach { device ->
+            handler(this, device, device.timestamp)
+        }
+        events.onDeviceConnect.add(handler)
     }
 
     /**
@@ -1563,6 +1588,17 @@ open class OpenXRHMD(
         logger.error("OpenGL compositor submission is not supported by OpenXRHMD, please use the Vulkan renderer.")
     }
 
+    private val profileReady = CompletableFuture<String>()
+
+    /** Blocks until the runtime has bound an interaction profile. Don't call from the render thread. */
+    fun awaitInteractionProfile(timeoutMs: Long = 15_000): Boolean =
+        try {
+            profileReady.get(timeoutMs, TimeUnit.MILLISECONDS)
+            true
+        } catch (e: TimeoutException) {
+            false
+        }
+
     /**
      * Returns a [List] of Vulkan instance extensions required by the OpenXR runtime.
      */
@@ -1855,6 +1891,9 @@ open class OpenXRHMD(
         return mesh
     }
 
+    protected val renderModelHandles = HashMap<TrackerRole, XrRenderModelEXT>()
+    protected val renderModelSpaces = HashMap<TrackerRole, XrSpace>()
+
     /**
      * Loads the runtime's render model for [device] into [mesh], via `XR_EXT_render_model`.
      *
@@ -1929,7 +1968,11 @@ open class OpenXRHMD(
                     val properties = XrRenderModelPropertiesEXT.calloc(stack)
                         .type(XR_TYPE_RENDER_MODEL_PROPERTIES_EXT)
 
-                    val propertiesResult = xrGetRenderModelPropertiesEXT(renderModel, null, properties)
+                    val propInfo = XrRenderModelPropertiesGetInfoEXT.calloc(stack)
+                        .type(XR_TYPE_RENDER_MODEL_PROPERTIES_GET_INFO_EXT)
+
+                    val propertiesResult = xrGetRenderModelPropertiesEXT(renderModel, propInfo, properties)
+
                     if (propertiesResult != XR_SUCCESS) {
                         logger.debug("xrGetRenderModelPropertiesEXT failed: {}", resultToString(propertiesResult))
                         continue
@@ -1939,9 +1982,11 @@ open class OpenXRHMD(
 
                     // Both controllers usually share a model, so parse each asset only once.
                     renderModelCache[cacheId]?.let { cached ->
-                        logger.debug("Reusing cached render model $cacheId for ${device.role}")
-                        mesh.addChild(cached.duplicateGeometry())
-                        addCollider(mesh)
+                        val instance = cached.duplicateGeometry()
+                        instance.children.forEach { it.generateBoundingBox() }
+                        instance.generateBoundingBox()
+                        mesh.addChild(instance)
+                        mesh.generateBoundingBox()
                         return true
                     }
 
@@ -1955,12 +2000,30 @@ open class OpenXRHMD(
                     model.name = "rendermodel"
                     renderModelCache[cacheId] = model
 
-                    mesh.addChild(model.duplicateGeometry())
-                    addCollider(mesh)
+                    val instance = model.duplicateGeometry()
+                    instance.children.forEach { it.generateBoundingBox() }
+                    instance.generateBoundingBox()
+                    mesh.addChild(instance)
+                    mesh.generateBoundingBox()
 
                     logger.info("Loaded render model $cacheId for ${device.role}")
+
+
+                    renderModelHandles[device.role]?.let { xrDestroyRenderModelEXT(it) } // drop any stale one for this hand
+                    renderModelHandles[device.role] = renderModel
+
+                    val spaceCreateInfo = XrRenderModelSpaceCreateInfoEXT.calloc(stack)
+                        .type(XR_TYPE_RENDER_MODEL_SPACE_CREATE_INFO_EXT)
+                        .renderModel(renderModel)
+
+                    val spacePointer = stack.callocPointer(1)
+                    if (xrCreateRenderModelSpaceEXT(xrSession, spaceCreateInfo, spacePointer) == XR_SUCCESS) {
+                        renderModelSpaces[device.role]?.let { xrDestroySpace(it) }
+                        renderModelSpaces[device.role] = XrSpace(spacePointer[0], xrSession)
+                    }
+
                     return true
-                } finally {
+                } catch (e: Exception) {
                     xrDestroyRenderModelEXT(renderModel)
                 }
             }
@@ -1974,8 +2037,14 @@ open class OpenXRHMD(
      * that report no path are treated as a match, so single-model runtimes still return geometry.
      */
     protected fun modelBelongsToHand(stack: MemoryStack, renderModel: XrRenderModelEXT, topLevelPath: Long): Boolean {
+        val candidates = handPaths.values.toLongArray()
+        val candidateBuffer = stack.callocLong(candidates.size)
+        candidates.forEachIndexed { i, p -> candidateBuffer.put(i, p) }
+        candidateBuffer.flip()
+
         val info = XrInteractionRenderModelTopLevelUserPathGetInfoEXT.calloc(stack)
             .type(XR_TYPE_INTERACTION_RENDER_MODEL_TOP_LEVEL_USER_PATH_GET_INFO_EXT)
+            .topLevelUserPaths(candidateBuffer)
 
         val path = stack.callocLong(1)
         if (xrGetRenderModelPoseTopLevelUserPathEXT(renderModel, info, path) != XR_SUCCESS) {
@@ -2001,22 +2070,24 @@ open class OpenXRHMD(
         val asset = XrRenderModelAssetEXT(assetPointer[0], xrSession)
 
         try {
+            val dataInfo = XrRenderModelAssetDataGetInfoEXT.calloc(stack)
+                .type(XR_TYPE_RENDER_MODEL_ASSET_DATA_GET_INFO_EXT)
+
             val assetData = XrRenderModelAssetDataEXT.calloc(stack)
                 .type(XR_TYPE_RENDER_MODEL_ASSET_DATA_EXT)
 
-            if (xrGetRenderModelAssetDataEXT(asset, null, assetData) != XR_SUCCESS
+            if (xrGetRenderModelAssetDataEXT(asset, dataInfo, assetData) != XR_SUCCESS
                 || assetData.bufferCountOutput() == 0) {
                 return null
             }
 
-            // The buffer outlives the stack frame, as parsing happens after this returns.
             val size = assetData.bufferCountOutput()
             val buffer = memAlloc(size)
 
             assetData.bufferCapacityInput(size)
             assetData.buffer(buffer)
 
-            if (xrGetRenderModelAssetDataEXT(asset, null, assetData) != XR_SUCCESS) {
+            if (xrGetRenderModelAssetDataEXT(asset, dataInfo, assetData) != XR_SUCCESS) {
                 memFree(buffer)
                 return null
             }
@@ -2027,22 +2098,13 @@ open class OpenXRHMD(
         }
     }
 
-    /** Adds the `collider` child the VR behaviours use as their interaction point. */
-    protected fun addCollider(mesh: Mesh) {
-        if (mesh.children.any { it.name == "collider" }) {
-            return
-        }
-
-        val collider = Box(Vector3f(0.02f, 0.02f, 0.02f))
-        collider.name = "collider"
-        collider.visible = false
-        mesh.addChild(collider)
-    }
+    private val attachLock = Any()
 
     /**
      * Attaches a given [TrackedDevice] to a scene graph [Node], camera-relative in case [camera]
      * is non-null.
      */
+
     override fun attachToNode(device: TrackedDevice, node: Node, camera: Camera?) {
         if (device.type != TrackedDeviceType.Controller) {
             logger.warn("No idea how to attach device type ${device.type} to a node, sorry.")
@@ -2050,23 +2112,27 @@ open class OpenXRHMD(
         }
 
         logger.info("Adding child $node to $camera")
-        camera?.getScene()?.addChild(node)
 
+        // Register the update handler first, while only this thread knows about the node.
         node.update.add {
-            this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
+            getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
                 node.metadata["TrackedDevice"] = controller
+                val trackedPose = controller.renderModelPose ?: controller.pose
+
                 node.ifSpatial {
                     wantsComposeModel = false
                     model.identity()
-                    camera?.let {
-                        model.translate(it.spatial().position)
-                    }
-                    model.mul(controller.pose)
-
+                    camera?.let { model.translate(it.spatial().position) }
+                    model.mul(trackedPose)
                     needsUpdate = false
                     needsUpdateWorld = true
                 }
             }
+        }
+
+        // Only now expose it to the main loop.
+        synchronized(attachLock) {
+            camera?.getScene()?.addChild(node)
         }
     }
 
