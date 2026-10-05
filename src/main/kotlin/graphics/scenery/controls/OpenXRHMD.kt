@@ -17,6 +17,7 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.openxr.EXTInteractionRenderModel.*
 import org.lwjgl.openxr.EXTRenderModel.*
 import org.lwjgl.openxr.EXTUUIUD.XR_EXT_UUID_EXTENSION_NAME
+import org.lwjgl.openxr.FBColorSpace.xrEnumerateColorSpacesFB
 import org.lwjgl.openxr.KHRVulkanEnable.*
 import org.lwjgl.openxr.XR10.*
 import org.lwjgl.system.MemoryStack
@@ -98,6 +99,12 @@ open class OpenXRHMD(
 
     /** The format [swapchain] was created with. */
     protected var swapchainFormat: Int = 0
+
+    /** Dimensions [swapchain] was created with. */
+    protected var swapchainWidth = 0
+
+    /** Dimensions [swapchain] was created with. */
+    protected var swapchainHeight = 0
 
     /** Per-eye render target size, as recommended by the runtime. */
     protected var recommendedSize = Vector2i(1920, 1080)
@@ -577,7 +584,7 @@ open class OpenXRHMD(
      * Creates the double-wide swapchain the renderer's images are blitted into, left eye in the
      * left half, right eye in the right half.
      */
-    protected fun createSwapchain(preferredFormat: Int) {
+    protected fun createSwapchain(preferredFormat: Int, width: Int, height: Int) {
         val xrSession = session ?: return
 
         stackPush().use { stack ->
@@ -590,17 +597,19 @@ open class OpenXRHMD(
             val supported = (0 until formatCount[0]).map { formats[it].toInt() }
             logger.debug("Runtime supports swapchain formats: ${supported.joinToString(", ")}")
 
-            // Prefer the renderer's format so the blit needs no conversion.
+            // The renderer's images are B8G8R8A8_UNORM, and the copy into the swapchain is
+            // byte-for-byte, so the target must be sRGB (so the compositor's decode/encode
+            // round trip is identity) with the same channel order (so R and B don't swap).
+            // A UNORM target would be read as linear by the compositor and encoded again.
             val format = when {
-                preferredFormat in supported -> preferredFormat
-                VK_FORMAT_R8G8B8A8_SRGB in supported -> VK_FORMAT_R8G8B8A8_SRGB
                 VK_FORMAT_B8G8R8A8_SRGB in supported -> VK_FORMAT_B8G8R8A8_SRGB
+                VK_FORMAT_R8G8B8A8_SRGB in supported -> VK_FORMAT_R8G8B8A8_SRGB
+                preferredFormat in supported -> preferredFormat
                 else -> supported.firstOrNull() ?: VK_FORMAT_R8G8B8A8_SRGB
             }
 
-            if (format != preferredFormat) {
-                logger.debug("Renderer format $preferredFormat is not supported by the runtime, using $format instead.")
-            }
+            logger.debug("Using OpenXR swapchain format $format (renderer format is $preferredFormat).")
+
 
             swapchainFormat = format
 
@@ -610,8 +619,8 @@ open class OpenXRHMD(
                 .usageFlags((XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT or XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT).toLong())
                 .format(format.toLong())
                 .sampleCount(1)
-                .width(recommendedSize.x() * 2)
-                .height(recommendedSize.y())
+                .width(width)
+                .height(height)
                 .faceCount(1)
                 .arraySize(1)
                 .mipCount(1)
@@ -621,6 +630,9 @@ open class OpenXRHMD(
 
             val xrSwapchain = XrSwapchain(swapchainPointer[0], xrSession)
             swapchain = xrSwapchain
+
+            swapchainWidth = width
+            swapchainHeight = height
 
             val imageCount = stack.callocInt(1)
             checkResult(xrEnumerateSwapchainImages(xrSwapchain, imageCount, null), "Enumerating swapchain images")
@@ -1384,7 +1396,7 @@ open class OpenXRHMD(
         }
 
         if (swapchain == null) {
-            createSwapchain(format)
+            createSwapchain(format, width, height)
         }
 
         val xrSession = session ?: return
@@ -1468,8 +1480,8 @@ open class OpenXRHMD(
                     .swapchain(xrSwapchain)
                     .imageArrayIndex(0)
                     .imageRect { rect ->
-                        rect.offset { it.x(eye * recommendedSize.x()).y(0) }
-                        rect.extent { it.width(recommendedSize.x()).height(recommendedSize.y()) }
+                        rect.offset { it.x(eye * (swapchainWidth / 2)).y(0) }
+                        rect.extent { it.width(swapchainWidth / 2).height(swapchainHeight) }
                     }
             }
 
@@ -1490,7 +1502,7 @@ open class OpenXRHMD(
         }
     }
 
-    /** Blits [sourceImage] into [targetImage], with the required layout transitions. */
+    /** Copies or blits [sourceImage] into [targetImage], with the required layout transitions. */
     protected fun blitToSwapchainImage(
         device: VulkanDevice, queue: VulkanDevice.QueueWithMutex,
         sourceImage: Long, sourceWidth: Int, sourceHeight: Int, targetImage: Long
@@ -1498,6 +1510,11 @@ open class OpenXRHMD(
         if (commandPool == -1L) {
             commandPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
         }
+
+        // Compare against the swapchain's actual size, not the runtime's recommendation, as
+        // the swapchain is created at the renderer's resolution.
+        val targetWidth = swapchainWidth
+        val targetHeight = swapchainHeight
 
         stackPush().use { stack ->
             val subresourceRange = VkImageSubresourceRange.calloc(stack)
@@ -1529,33 +1546,63 @@ open class OpenXRHMD(
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                 )
 
-                val targetWidth = recommendedSize.x() * 2
-                val targetHeight = recommendedSize.y()
+                if (sourceWidth == targetWidth && sourceHeight == targetHeight) {
+                    // Same size, so a raw copy. No pixel values are touched, which is what
+                    // keeps the sRGB round trip through the compositor an identity. A blit
+                    // here would add a linear->sRGB encode (double gamma, washed out).
+                    val region = VkImageCopy.calloc(1, stack)
+                    region.srcSubresource()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                    region.srcOffset().set(0, 0, 0)
+                    region.dstSubresource()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                    region.dstOffset().set(0, 0, 0)
+                    region.extent().set(sourceWidth, sourceHeight, 1)
+                    vkCmdCopyImage(
+                        this,
+                        sourceImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        region
+                    )
+                } else {
+                    // Sizes differ, so a scaled blit is the only option. This applies an extra
+                    // sRGB encode, so the result will look too bright.
+                    logger.warn(
+                        "VR source is ${sourceWidth}x$sourceHeight but swapchain is ${targetWidth}x$targetHeight, " +
+                            "blitting instead of copying. Colours will be too bright. " +
+                            "The swapchain is only created once, so a resolution change needs a restart."
+                    )
 
-                // A blit, as the renderer's resolution may differ from the recommended size.
-                val region = VkImageBlit.calloc(1, stack)
-                region.srcSubresource()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-                region.srcOffsets(0).set(0, 0, 0)
-                region.srcOffsets(1).set(sourceWidth, sourceHeight, 1)
+                    val region = VkImageBlit.calloc(1, stack)
+                    region.srcSubresource()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                    region.srcOffsets(0).set(0, 0, 0)
+                    region.srcOffsets(1).set(sourceWidth, sourceHeight, 1)
 
-                region.dstSubresource()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-                region.dstOffsets(0).set(0, 0, 0)
-                region.dstOffsets(1).set(targetWidth, targetHeight, 1)
+                    region.dstSubresource()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                    region.dstOffsets(0).set(0, 0, 0)
+                    region.dstOffsets(1).set(targetWidth, targetHeight, 1)
 
-                vkCmdBlitImage(
-                    this,
-                    sourceImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    region, VK_FILTER_LINEAR
-                )
+                    vkCmdBlitImage(
+                        this,
+                        sourceImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        region, VK_FILTER_LINEAR
+                    )
+                }
 
                 // OpenXR expects COLOR_ATTACHMENT_OPTIMAL on release.
                 VulkanTexture.transitionLayout(
