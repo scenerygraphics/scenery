@@ -118,8 +118,7 @@ abstract class VRTwoHandDragBehavior(
             var mainhandController: Node? = null
             var offhandController: Node? = null
             val future = CompletableFuture<VRTwoHandDragBehavior>()
-
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
 

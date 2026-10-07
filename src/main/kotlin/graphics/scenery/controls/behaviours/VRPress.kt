@@ -145,7 +145,7 @@ open class VRPress(
             customTip: Node? = null
         ): Future<List<VRPress>> {
             val future = CompletableFuture<List<VRPress>>()
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
