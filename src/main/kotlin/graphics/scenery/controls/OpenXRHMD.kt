@@ -17,7 +17,6 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.openxr.EXTInteractionRenderModel.*
 import org.lwjgl.openxr.EXTRenderModel.*
 import org.lwjgl.openxr.EXTUUIUD.XR_EXT_UUID_EXTENSION_NAME
-import org.lwjgl.openxr.FBColorSpace.xrEnumerateColorSpacesFB
 import org.lwjgl.openxr.KHRVulkanEnable.*
 import org.lwjgl.openxr.XR10.*
 import org.lwjgl.system.MemoryStack
@@ -217,6 +216,9 @@ open class OpenXRHMD(
     /** Boolean actions, keyed by the button they represent. */
     protected val buttonActions = HashMap<OpenXRButton, XrAction>()
 
+    /** Float actions, for components the profiles only expose as float. */
+    protected val floatActions = HashMap<OpenXRButton, XrAction>()
+
     /** The thumbstick/trackpad 2D action, used to synthesise D-pad events. */
     protected var thumbstickAction: XrAction? = null
 
@@ -248,6 +250,13 @@ open class OpenXRHMD(
     init {
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
+
+        listOf(TrackerRole.LeftHand, TrackerRole.RightHand).forEach { role ->
+            allowRepeats.addAll(
+                listOf(OpenXRButton.Left, OpenXRButton.Right, OpenXRButton.Up, OpenXRButton.Down)
+                    .map { it to role }
+            )
+        }
 
         try {
             initializeInstance()
@@ -717,8 +726,6 @@ open class OpenXRHMD(
 
             // Boolean actions, shared between hands via subaction paths.
             listOf(
-                OpenXRButton.Trigger to "trigger",
-                OpenXRButton.Side to "squeeze",
                 OpenXRButton.Menu to "menu",
                 OpenXRButton.A to "a_button",
                 OpenXRButton.B to "b_button",
@@ -738,6 +745,19 @@ open class OpenXRHMD(
                     buttonActions[button] = XrAction(pointer[0], set)
                 } else {
                     logger.warn("Could not create action for $button")
+                }
+            }
+
+            listOf(OpenXRButton.Trigger to "trigger", OpenXRButton.Side to "squeeze").forEach { (button, name) ->
+                val pointer = stack.callocPointer(1)
+                val info = XrActionCreateInfo.calloc(stack)
+                    .type(XR_TYPE_ACTION_CREATE_INFO)
+                    .actionType(XR_ACTION_TYPE_FLOAT_INPUT)
+                    .subactionPaths(subactionPaths)
+                info.actionName(stack.UTF8(name))
+                info.localizedActionName(stack.UTF8(name.replace('_', ' ').replaceFirstChar { it.uppercase() }))
+                if (xrCreateAction(set, info, pointer) == XR_SUCCESS) {
+                    floatActions[button] = XrAction(pointer[0], set)
                 }
             }
 
@@ -775,7 +795,7 @@ open class OpenXRHMD(
                 OpenXRButton.Menu to "input/menu/click"
             ),
             "/interaction_profiles/htc/vive_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/click",
+                OpenXRButton.Trigger to "input/trigger/value",
                 OpenXRButton.Side to "input/squeeze/click",
                 OpenXRButton.Menu to "input/menu/click",
                 OpenXRButton.System to "input/system/click",
@@ -784,7 +804,7 @@ open class OpenXRHMD(
                 OpenXRButton.A to "input/trackpad/click"
             ),
             "/interaction_profiles/valve/index_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/click",
+                OpenXRButton.Trigger to "input/trigger/value",
                 OpenXRButton.Side to "input/squeeze/force",
                 OpenXRButton.A to "input/a/click",
                 OpenXRButton.B to "input/b/click",
@@ -855,7 +875,7 @@ open class OpenXRHMD(
                             return@buttons
                         }
 
-                        buttonActions[button]?.let { action ->
+                        (buttonActions[button] ?: floatActions[button])?.let { action ->
                             bindings.add(action to stringToPath(xrInstance, "/user/hand/$hand/${override ?: path}"))
                         }
                     }
@@ -1264,7 +1284,7 @@ open class OpenXRHMD(
         listOf(TrackerRole.LeftHand, TrackerRole.RightHand).forEach { role ->
             val subactionPath = handPaths[role] ?: return@forEach
 
-            buttonActions.forEach buttons@{ (button, action) ->
+            buttonActions.forEach { (button, action) ->
                 val getInfo = XrActionStateGetInfo.calloc(stack)
                     .type(XR_TYPE_ACTION_STATE_GET_INFO)
                     .action(action)
@@ -1272,17 +1292,38 @@ open class OpenXRHMD(
 
                 val state = XrActionStateBoolean.calloc(stack).type(XR_TYPE_ACTION_STATE_BOOLEAN)
 
-                if (xrGetActionStateBoolean(xrSession, getInfo, state) != XR_SUCCESS || !state.isActive()) {
-                    return@buttons
-                }
+                val key = button to role
+                val wasDown = key in keysDown
 
-                if (state.changedSinceLastSync()) {
-                    if (state.currentState()) {
-                        pressButton(button, role)
-                    } else {
-                        releaseButton(button, role)
-                    }
+                // Poll the live value instead of trusting changedSinceLastSync.
+                // !isActive counts as "not down" so a drag can never get stuck.
+                val down = xrGetActionStateBoolean(xrSession, getInfo, state) == XR_SUCCESS &&
+                    state.isActive && state.currentState()
+
+                if (down && !wasDown) {
+                    pressButton(button, role)
+                } else if (!down && wasDown) {
+                    releaseButton(button, role)
                 }
+            }
+
+            floatActions.forEach { (button, action) ->
+                val getInfo = XrActionStateGetInfo.calloc(stack)
+                    .type(XR_TYPE_ACTION_STATE_GET_INFO)
+                    .action(action)
+                    .subactionPath(subactionPath)
+
+                val state = XrActionStateFloat.calloc(stack).type(XR_TYPE_ACTION_STATE_FLOAT)
+
+                val key = button to role
+                val wasDown = key in keysDown
+                // Treating a failed read as "not down" is what keeps a drag from sticking
+                // when the action set drops out of focus mid-gesture.
+                val down = xrGetActionStateFloat(xrSession, getInfo, state) == XR_SUCCESS &&
+                    state.isActive && state.currentState() > 0.5f
+
+                if (down && !wasDown) pressButton(button, role)
+                else if (!down && wasDown) releaseButton(button, role)
             }
 
             processThumbstick(stack, xrSession, role, subactionPath)
@@ -1352,7 +1393,6 @@ open class OpenXRHMD(
         GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(keyEvent.first)
         inputHandler.keyPressed(keyEvent.first)
         keysDown.add(button to role)
-        GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(keyEvent.second)
     }
 
     /** Dispatches a key release for [button] on [role]. */
@@ -2210,7 +2250,7 @@ open class OpenXRHMD(
      * Adds a key binding for [behaviourName] on [button] of [hand].
      */
     fun addKeyBinding(behaviourName: String, hand: TrackerRole, button: OpenXRButton) {
-        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keyBinding(hand, button))
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, "${keyBinding(hand, button)} | all")
     }
 
     /**

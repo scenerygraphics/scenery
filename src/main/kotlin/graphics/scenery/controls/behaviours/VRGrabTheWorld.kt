@@ -9,6 +9,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plusAssign
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
 
@@ -67,7 +68,7 @@ class VRGrabTheWorld (
             buttonManager: MultiButtonManager? = null,
             multiplier: Float = 1f
         ) {
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
