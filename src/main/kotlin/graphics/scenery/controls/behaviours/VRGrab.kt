@@ -176,7 +176,7 @@ open class VRGrab(
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
         ) : Future<VRGrab> {
             val future = CompletableFuture<VRGrab>()
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {

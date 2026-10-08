@@ -58,7 +58,7 @@ open class MovementCommand(private val direction: String, private var n: () -> N
         val axisProvider = node as? Camera ?: node?.getScene()?.findObserver() ?: return
 
         node?.let { node ->
-            if (node.lock.tryLock() != false) {
+            if (node.lock.tryLock()) {
                 node.ifSpatial {
                     when (direction) {
                         "forward" -> position += axisProvider.forward * speed * axisProvider.deltaT

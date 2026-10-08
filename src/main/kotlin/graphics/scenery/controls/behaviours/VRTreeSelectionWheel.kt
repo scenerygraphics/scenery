@@ -67,7 +67,7 @@ class VRTreeSelectionWheel(
             menu: List<WheelEntry>,
         ) : Future<VRTreeSelectionWheel> {
             val future = CompletableFuture<VRTreeSelectionWheel>()
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
