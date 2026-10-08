@@ -78,6 +78,7 @@ class ThumbstickMovement(
             logger.warn("Behavior isn't registered yet, can't deregister it.")
             return
         }
+        isRegistered = false
         hmd.clearThumbStickEvent(behaviorName)
         logger.debug("Successfully deregistered thumbstick $behaviorName.")
     }

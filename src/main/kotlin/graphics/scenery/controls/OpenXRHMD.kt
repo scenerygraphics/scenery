@@ -1966,7 +1966,7 @@ open class OpenXRHMD(
     }
 
     /** Removes any previously overlayed color. Not supported by OpenXR, see [fadeToColor]. */
-    fun fateToClear(seconds: Float = 0.1f) {
+    fun fadeToClear(seconds: Float = 0.1f) {
         fadeToColor(Vector4f(0f), seconds)
     }
 
@@ -2334,6 +2334,7 @@ open class OpenXRHMD(
         buttonActions.clear()
         thumbstickAction?.let { xrDestroyAction(it) }
         thumbstickAction = null
+        clearThumbStickEvents()
         poseActions.values.distinct().forEach { xrDestroyAction(it) }
         poseActions.clear()
         hapticActions.values.distinct().forEach { xrDestroyAction(it) }

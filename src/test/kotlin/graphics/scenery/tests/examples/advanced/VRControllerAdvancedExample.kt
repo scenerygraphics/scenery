@@ -305,7 +305,7 @@ class VRControllerAdvancedExample : SceneryBase(
                 Action("go to sleep") { thread {
                     hmd.fadeToBlack()
                     sleep(2000)
-                    hmd.fateToClear()
+                    hmd.fadeToClear()
                 } },
             )
         )
