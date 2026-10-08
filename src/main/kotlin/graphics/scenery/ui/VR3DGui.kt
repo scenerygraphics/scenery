@@ -4,7 +4,7 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.RichNode
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
@@ -109,8 +109,8 @@ class VR3DGui(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            buttons: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            buttons: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             trackingMode: WheelMenu.TrackingMode = WheelMenu.TrackingMode.START,
             offset: Vector3f = Vector3f(0.15f, 0f, 0.1f),

@@ -51,7 +51,6 @@ open class MovementCommand(private val direction: String, private var n: () -> N
     /**
      * This function is triggered upon arrival of a click event that concerns
      * this behaviour. The camera is then moved in the corresponding direction.
-     * this behaviour. The camera is then moved in the corresponding direction.
      */
     @Synchronized override fun click(x: Int, y: Int) {
         // see if the node is a camera, if not, try to find the active observer, and return
@@ -59,7 +58,7 @@ open class MovementCommand(private val direction: String, private var n: () -> N
         val axisProvider = node as? Camera ?: node?.getScene()?.findObserver() ?: return
 
         node?.let { node ->
-            if (node.lock.tryLock() != false) {
+            if (node.lock.tryLock()) {
                 node.ifSpatial {
                     when (direction) {
                         "forward" -> position += axisProvider.forward * speed * axisProvider.deltaT

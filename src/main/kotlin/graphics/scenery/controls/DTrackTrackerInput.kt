@@ -185,8 +185,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
         }
     }
 
-    fun addKeyBinding(behaviourName: String, hand: TrackerRole, button: OpenVRHMD.OpenVRButton) {
-        config.inputTriggerAdder(inputMap, "all").put(behaviourName, OpenVRHMD.keyBinding(hand, button))
+    fun addKeyBinding(behaviourName: String, hand: TrackerRole, button: OpenXRHMD.OpenXRButton) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, OpenXRHMD.keyBinding(hand, button))
     }
 
     /**

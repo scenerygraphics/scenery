@@ -1,6 +1,6 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.lazyLogger
 import java.util.concurrent.ConcurrentHashMap
@@ -16,7 +16,7 @@ import kotlin.collections.set
  * */
 class MultiButtonManager {
     data class ButtonConfig (
-        val button: OpenVRHMD.OpenVRButton,
+        val button: OpenXRHMD.OpenXRButton,
         val trackerRole: TrackerRole
     )
 
@@ -33,13 +33,13 @@ class MultiButtonManager {
     }
 
     /** Add a new button configuration that the manager will keep track of. */
-    fun registerButtonConfig(button: OpenVRHMD.OpenVRButton, trackerRole: TrackerRole) {
+    fun registerButtonConfig(button: OpenXRHMD.OpenXRButton, trackerRole: TrackerRole) {
         logger.debug("Registered new button config: $button, $trackerRole")
         buttons[ButtonConfig(button, trackerRole)] = false
     }
 
     /** Add a button to the list of pressed buttons. */
-    fun pressButton(button: OpenVRHMD.OpenVRButton, role: TrackerRole): Boolean {
+    fun pressButton(button: OpenXRHMD.OpenXRButton, role: TrackerRole): Boolean {
         val config = ButtonConfig(button, role)
         if (!buttons.containsKey(config)) { return false }
         buttons[config] = true
@@ -53,7 +53,7 @@ class MultiButtonManager {
     }
 
     /** Remove a button from the list of pressed buttons. */
-    fun releaseButton(button: OpenVRHMD.OpenVRButton, role: TrackerRole): Boolean {
+    fun releaseButton(button: OpenXRHMD.OpenXRButton, role: TrackerRole): Boolean {
         val config = ButtonConfig(button, role)
         if (!buttons.containsKey(config)) { return false }
         buttons[config] = false
@@ -77,7 +77,7 @@ class MultiButtonManager {
     fun isTwoHandedActive(): Boolean = twoHandedActive.get()
 
     /** Check if a button is currently being pressed. */
-    fun isButtonPressed(button: OpenVRHMD.OpenVRButton, role: TrackerRole): Boolean {
+    fun isButtonPressed(button: OpenXRHMD.OpenXRButton, role: TrackerRole): Boolean {
         return buttons[ButtonConfig(button, role)] ?: false
     }
 

@@ -28,7 +28,7 @@ val lwjglArtifacts = listOf(
         "lwjgl-jemalloc",
         "lwjgl-vulkan",
         "lwjgl-opengl",
-        "lwjgl-openvr",
+        "lwjgl-openxr",
         "lwjgl-xxhash",
         "lwjgl-remotery",
         "lwjgl-spvc",
@@ -79,11 +79,10 @@ dependencies {
                     }
                 }
 
-                // OpenVR binaries are available on all scenery-supported platforms,
-                // apart from macOS/ARM64
-                artifact.endsWith("openvr") -> {
-                    if(!(native.contains("macos") && native.contains("arm64"))) {
-                        logger.info("openvr: org.lwjgl:$artifact:$lwjglVersion:$native")
+                // OpenXR binaries are only available for Windows and Linux
+                artifact.endsWith("openxr") -> {
+                    if(!native.contains("macos")) {
+                        logger.info("openxr: org.lwjgl:$artifact:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
                     }
                 }
@@ -121,7 +120,7 @@ dependencies {
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.skalarproduktraum:lwjgl3-awt:c034a77") {
+    implementation("org.lwjglx:lwjgl3-awt:0.2.4") {
         // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
         // Maven properties for natives, which is not supported by Gradle
         exclude("org.lwjgl", "lwjgl-bom")
@@ -244,9 +243,9 @@ tasks {
                         return@pkg
                     }
 
-                    if(lwjglProject.contains("openvr")
-                        && nativePlatform.contains("mac")
-                        && nativePlatform.contains("arm64")) {
+                    // OpenXR has no macOS binaries
+                    if(lwjglProject.contains("openxr")
+                        && nativePlatform.contains("mac")) {
                         return@pkg
                     }
 
