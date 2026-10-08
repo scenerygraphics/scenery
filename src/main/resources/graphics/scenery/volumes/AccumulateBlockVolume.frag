@@ -5,7 +5,7 @@ uniform int sceneGraphVisibility;
 vis = vis && bool(sceneGraphVisibility);
 if (vis && step > localNear && step < localFar)
 {
-    vec4 x = sampleVolume(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+    vec4 x = sampleVolume(wpos);
     float newAlpha = x.a;
     vec3 newColor = x.rgb;
 
