@@ -1347,6 +1347,36 @@ open class OpenXRHMD(
         }
     }
 
+    /** Data class for thumbstick events to be stored in [thumbstickEventHooks] and executed in [processThumbstick]. */
+    data class ThumbstickEvent(
+        val role: TrackerRole,
+        val action: ((Vector2f) -> Unit),
+        val name: String
+    )
+
+    /** List of events to be triggered  */
+    private val thumbstickEventHooks = mutableListOf<ThumbstickEvent>()
+
+    /** Registers a new lambda to be executed each time [processThumbstick] is fired. */
+    fun registerThumbStickEvent(event: ThumbstickEvent) {
+        thumbstickEventHooks.add(event)
+    }
+
+    /** Registers a new lambda to be executed each time [processThumbstick] is fired. */
+    fun registerThumbStickEvent(role: TrackerRole, action: ((Vector2f) -> Unit), name: String) {
+        thumbstickEventHooks.add(ThumbstickEvent(role, action, name))
+    }
+
+    /** Clears a thumbstick event with a given [name]. */
+    fun clearThumbStickEvent(name: String) {
+        thumbstickEventHooks.removeIf { it.name == name }
+    }
+
+    /** Clears all [thumbstickEventHooks]. */
+    fun clearThumbStickEvents() {
+        thumbstickEventHooks.clear()
+    }
+
     /**
      * Turns thumbstick deflection into edge-triggered directional events, so behaviours bound to
      * the D-pad keep working as under OpenVR.
@@ -1361,12 +1391,21 @@ open class OpenXRHMD(
 
         val state = XrActionStateVector2f.calloc(stack).type(XR_TYPE_ACTION_STATE_VECTOR2F)
 
-        if (xrGetActionStateVector2f(xrSession, getInfo, state) != XR_SUCCESS || !state.isActive()) {
+        if (xrGetActionStateVector2f(xrSession, getInfo, state) != XR_SUCCESS || !state.isActive) {
             return
         }
 
         val x = state.currentState().x()
         val y = state.currentState().y()
+
+        val vec = Vector2f(x, y)
+        if (vec.length() > 0.01f) {
+            thumbstickEventHooks.forEach { event ->
+                if (event.role == role) {
+                    event.action.invoke(vec)
+                }
+            }
+        }
 
         val direction = when {
             x > 0.5f && abs(y) < 0.5f -> OpenXRButton.Right
