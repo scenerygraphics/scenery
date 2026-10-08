@@ -119,6 +119,7 @@ class RenderConfigReader {
         var dstColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
         var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
         var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
+        var samples: Int = 1,
         var shaders: List<String> = listOf(),
 
         @JsonDeserialize(contentUsing = JsonDeserialisers.BindingDeserializer::class)
