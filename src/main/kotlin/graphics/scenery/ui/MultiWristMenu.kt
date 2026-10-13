@@ -3,6 +3,7 @@ package graphics.scenery.ui
 import graphics.scenery.BoundingGrid
 import graphics.scenery.Mesh
 import graphics.scenery.Node
+import graphics.scenery.OrientedBoundingBox
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
@@ -42,7 +43,7 @@ class MultiWristMenu(
 
     defaultColor: Vector3f = Vector3f(0.8f),
     defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
-    defaultTouchingColor: Vector3f = Vector3f(0.7f, 0.55f, 0.55f),
+    defaultTouchingColor: Vector3f = Vector3f(0.8f, 0.71f, 0.71f),
     val debug: Boolean = false
 ): Mesh() {
 
@@ -62,6 +63,12 @@ class MultiWristMenu(
 
     /** Index into [columns.values] that points to the currently visible column. */
     private var currentIndex = 0
+
+    var isMenuVisible = true
+        set(value) {
+            columns.values.toList().getOrNull(currentIndex)?.visible = value
+            field = value
+        }
 
     /** Creates a new, empty [Column] and registers it under [name].
      * The column is immediately parented to [parentNode] and hidden.
@@ -84,13 +91,21 @@ class MultiWristMenu(
 
         attachColumn(column)
         columns[name] = column
-
     }
 
     /** Returns the [Column] registered under [name], or null.
      * Useful when you need to manipulate a column directly (e.g. force a [pack] call
      * after bulk-adding elements outside of this class). */
     fun getColumn(name: String): Column? = columns[name]
+
+    /** Returns the [Column] at a specific index.
+     * Throws an [IllegalArgumentException] when the index is larger than the size of available columns. */
+    fun getColumn(index: Int): Column {
+        require(index < columns.size) {
+            "The column index $index you're trying to access is out of bounds of size ${columns.size}."
+        }
+        return columns.values.toList()[index]
+    }
 
     /** Returns an unmodifiable view of all column names in insertion order. */
     fun columnNames(): List<String> = columns.keys.toList()
@@ -113,7 +128,7 @@ class MultiWristMenu(
         columnName: String,
         label: String,
         command: () -> Unit,
-        byTouch: Boolean = true,
+        byTouch: Boolean = false,
         stayPressed: Boolean = false,
         depressDelay: Int = 250,
         color: Vector3f = defaultColor,
@@ -124,11 +139,12 @@ class MultiWristMenu(
 
         val button = Button(
             text = label, command = command, byTouch = byTouch, stayPressed = stayPressed, depressDelay = depressDelay,
-            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, textInFront = true
         )
         column.addChild(button)
         column.onGeometryReady {
             column.pack()
+            this.generateBoundingBox()
             // Make column top-aligned
             column.ifSpatial {
                 position.set(columnBasePosition)
@@ -163,7 +179,7 @@ class MultiWristMenu(
         labelFalse: String,
         labelTrue: String,
         command: () -> Unit,
-        byTouch: Boolean = true,
+        byTouch: Boolean = false,
         color: Vector3f = defaultColor,
         pressedColor: Vector3f = defaultPressedColor,
         touchingColor: Vector3f = defaultTouchingColor,
@@ -172,11 +188,13 @@ class MultiWristMenu(
         val column = requireColumn(columnName)
 
         val button = ToggleButton(labelFalse, labelTrue, command = command, byTouch = byTouch,
-            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState)
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState, textInFront = true
+        )
 
         column.addChild(button)
         column.onGeometryReady {
             column.pack()
+            this.generateBoundingBox()
             // Make column top-aligned
             column.ifSpatial {
                 position.set(columnBasePosition)
@@ -210,6 +228,7 @@ class MultiWristMenu(
         row.onGeometryReady {
             row.pack()
             column.pack()
+            this.generateBoundingBox()
             column.ifSpatial {
                 position.set(columnBasePosition)
                 position.y = -column.height * columnScale + columnBasePosition.y
@@ -251,11 +270,15 @@ class MultiWristMenu(
      * Call this from a VR controller button behaviour. */
     fun cycleNext() {
         if (columns.isEmpty()) return
-        val list = columns.values.toList()
-        list[currentIndex].visible = false
-        currentIndex = (currentIndex + 1) % list.size
-        list[currentIndex].visible = true
-        logger.debug("Cycled to menu \"${list[currentIndex].name}\"")
+        val columnList = columns.values.toList()
+        columnList[currentIndex].visible = false
+        currentIndex = (currentIndex + 1) % columnList.size
+        // Inherit global visibility
+        columnList[currentIndex].visible = isMenuVisible
+
+        this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
+
+        logger.debug("Cycled to menu \"${columnList[currentIndex].name}\"")
     }
 
     /** Jumps directly to the column named [name]. Useful when an external event should surface a particular menu page. */
@@ -285,8 +308,8 @@ class MultiWristMenu(
     fun hideAll() { columns.values.forEach { it.visible = false } }
 
     /** Shows or hides the entire menu (only the currently-selected column is affected). */
-    fun toggleVisibility(visible: Boolean) {
-        columns.values.toList().getOrNull(currentIndex)?.visible = visible
+    fun toggleVisibility(wantVisible: Boolean? = null) {
+        isMenuVisible = wantVisible ?: !isMenuVisible
     }
 
     /**
@@ -325,5 +348,9 @@ class MultiWristMenu(
         }
     }
 
-
+    override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox {
+        val bb = getColumn(currentIndex).getMaximumBoundingBox()
+        boundingBox = bb
+        return bb
+    }
 }

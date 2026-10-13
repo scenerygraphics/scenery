@@ -51,10 +51,15 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** Font atlas height */
     var atlasHeight = 0
 
+    /** Stores the line height (ascent + descent) normalized to [0, 1] in glyph-size units */
+    protected var lineHeight: Float = 1f
+
+    var lineSpacing = 1.2f
+
     /** Backing store for the font atlas, will finally have a size of atlasWidth*atlasHeight. */
     protected var fontAtlasBacking: ByteBuffer
 
-    protected val sdfCacheFormatVersion: Int = 1
+    protected val sdfCacheFormatVersion: Int = 2
     protected val cacheDir = System.getProperty("user.home") + "/.scenery/sdf-cache"
     protected val sdfFileName = "$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf"
 
@@ -143,7 +148,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     fun dumpMetricsToFile(fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphTexCoordMap: HashMap<Char, Vector4f>) {
         val file = File("$sdfFileName.metrics")
 
-        val dump = "##$sdfCacheFormatVersion,$atlasWidth,$atlasHeight\n" + fontMap.entries.joinToString("\n") { entry ->
+        val dump = "##$sdfCacheFormatVersion,$atlasWidth,$atlasHeight,$lineHeight\n" + fontMap.entries.joinToString("\n") { entry ->
             val uvs = glyphTexCoordMap[entry.key] ?: throw IllegalStateException("Could not find texture coordinates for ${entry.key}")
 
             "${entry.key}->${entry.value.first},${uvs.x},${uvs.y},${uvs.z},${uvs.w}"
@@ -192,6 +197,8 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
                 atlasWidth = info[1].toInt()
                 atlasHeight = info[2].toInt()
+                // info[3] may be absent in older cache files — fall back to 1.0f gracefully
+                lineHeight  = info.getOrNull(3)?.toFloatOrNull() ?: 1.0f
 
 
             } else {
@@ -201,12 +208,12 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                 val coords = tokens[1].split(",")
                 val size = coords[0].toFloat()
 
-                val uv0 = coords[1].toFloat()
-                val uv1 = coords[2].toFloat()
-                val uv2 = coords[3].toFloat()
-                val uv3 = coords[4].toFloat()
-
-                glyphMap[char] = Vector4f(uv0, uv1, uv2, uv3)
+                glyphMap[char] = Vector4f(
+                    coords[1].toFloat(),
+                    coords[2].toFloat(),
+                    coords[3].toFloat(),
+                    coords[4].toFloat()
+                )
 
                 fontMap[char] = Pair(size, null)
             }
@@ -234,6 +241,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         var g: Graphics2D = image.createGraphics()
         g.font = font
         val metrics = g.fontMetrics
+
+        // Store normalized line height once (same for every glyph in this font)
+        lineHeight = (metrics.maxAscent + metrics.maxDescent).toFloat() / size.toFloat()
+
         g.dispose()
 
         /* Get char charWidth and charHeight */
@@ -374,16 +385,26 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             val indices = ArrayList<Int>()
 
             var basex = 0.0f
+            var basey = 0.0f
             var basei = 0
 
             text.toCharArray().forEachIndexed { _, char ->
-                val glyphWidth = fontMap[char]!!.first
+                // Handle newlines
+                if (char == '\n') {
+                    basex  = 0.0f
+                    basey -= lineHeight * lineSpacing
+                    return@forEachIndexed
+                }
+
+                // Guard: skip any character not in the font map
+                val glyphEntry = fontMap[char] ?: return@forEachIndexed
+                val glyphWidth = glyphEntry.first
 
                 vertices.addAll(listOf(
-                    basex + 0.0f, 0.0f, 0.0f,
-                    basex + glyphWidth, 0.0f, 0.0f,
-                    basex + glyphWidth, 1.0f, 0.0f,
-                    basex + 0.0f, 1.0f, 0.0f
+                    basex + 0.0f,       basey + 0.0f,       0.0f,
+                    basex + glyphWidth, basey + 0.0f,       0.0f,
+                    basex + glyphWidth, basey + lineHeight, 0.0f,
+                    basex + 0.0f,       basey + lineHeight, 0.0f
                 ))
 
                 normals.addAll(listOf(

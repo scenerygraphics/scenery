@@ -186,6 +186,11 @@ open class Volume(
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<Int, Vector4f>()
 
+    /** Standard deviation of the gauss function used for lensing */
+    var lensingRadius = 1f
+    /** Center of the lensing gauss function */
+    var lensingPosition = Vector3f(0f)
+
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
@@ -205,7 +210,10 @@ open class Volume(
         Slicing(2),
         // The slice around the slicing planes is rendered with no transparency
         // while also the cropping rule applies for the rest of the volume.
-        Both(3)
+        Both(3),
+        // Only render the volume within a defined radius either as a 3D gaussian or a hard falloff
+        LensingSmooth(4),
+        LensingHard(5)
     }
 
     @Transient
@@ -218,7 +226,7 @@ open class Volume(
     /** Current timepoint. */
     var currentTimepoint: Int = 0
         get() {
-            // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
+            // despite IDEAs warning this might not be false if kryo uses its de/serialization magic
             return if (dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
@@ -427,6 +435,8 @@ open class Volume(
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
+        this.lensingRadius = fresh.lensingRadius
+        this.lensingPosition = fresh.lensingPosition
         this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
         this.origin = fresh.origin
 

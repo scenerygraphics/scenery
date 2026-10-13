@@ -50,14 +50,14 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: Mat
 //            field.x *= Math.signum(field.x * (pose[9] - pose[6]))
 //            field.y *= Math.signum(field.y * (pose[2] - pose[8]))
 //            field.z *= Math.signum(field.z * (pose[4] - pose[1]))
-            field = Quaternionf().setFromUnnormalized(pose)
+            field = Quaternionf().setFromUnnormalized(Matrix4f(pose).transpose())
 
             return field
         }
 
     var position = Vector3f(0.0f, 0.0f, 0.0f)
         get(): Vector3f {
-            field = Vector3f(pose.get(0, 3), pose.get(1, 3), pose.get(2, 3))
+            field = Vector3f(pose.m30(), pose.m31(), pose.m32())
 
             return field
         }

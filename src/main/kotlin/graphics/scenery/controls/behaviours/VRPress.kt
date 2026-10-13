@@ -46,7 +46,9 @@ open class VRPress(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun init(x: Int, y: Int) {
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box, true) ?: false }
+        selected = targets().filter { node ->
+            if (!node.visible) { return@filter false }
+            controllerHitbox.spatialOrNull()?.intersects(node, true) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
         }
@@ -139,7 +141,8 @@ open class VRPress(
             hmd: OpenVRHMD,
             buttons: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            onPress: ((Node, OpenVRHMD.OpenVRButton) -> Unit)? = null
+            onPress: ((Node, OpenVRHMD.OpenVRButton) -> Unit)? = null,
+            customTip: Node? = null
         ): Future<List<VRPress>> {
             val future = CompletableFuture<List<VRPress>>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
@@ -150,7 +153,8 @@ open class VRPress(
                                 val name = "VRDPress:${hmd.trackingSystemName}:${device.role}:$button"
                                 val pressBehaviour = VRPress(
                                     name,
-                                    controller.children.firstOrNull { it.name == "collider"}?: controller.children.first(),
+                                    customTip ?: controller.children.firstOrNull { it.name == "collider" }
+                                    ?: controller.children.first(),
                                     {
                                         scene.discover(
                                             scene,

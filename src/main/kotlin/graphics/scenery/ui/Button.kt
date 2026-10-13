@@ -27,9 +27,10 @@ open class Button(
     val depressDelay: Int = 0,
     var defaultColor: Vector3f = Vector3f(1f),
     var pressedColor: Vector3f = Vector3f(0.4f),
-    var touchingColor: Vector3f = Vector3f(0.7f)
+    var touchingColor: Vector3f = Vector3f(0.7f),
+    textInFront: Boolean = false
 ) :
-    TextBox(text, height = height) {
+    TextBox(text, height = height, textInFront = textInFront) {
     /** Flag that determines whether the button is ready to be released from depressDelay. */
     private var depressReady = true
 
@@ -77,8 +78,8 @@ open class Button(
                 enteredTouchTime = System.currentTimeMillis()
                 box.changeColorWithTouchable(touchingColor)
                 this.spatial {
-                    scale.z = 0.8f
-                    position.z = -0.1f
+                    scale.z = 0.9f
+                    position.z = -0.05f
                     needsUpdate = true
                 }
             },
@@ -93,13 +94,13 @@ open class Button(
                 }
             },
             onRelease = {
-                if (byTouch && enabled.get()) {
-                    isTouching = false
-                    if (!stayPressed) {
-                        release()
-                    }
+                isTouching = false
+                if (!stayPressed) {
+                    release()
                 }
-            }
+                box.changeColorWithTouchable(if (pressed) pressedColor else defaultColor)
+            },
+            onHoldChangeDiffuseTo = null
         ))
         box.addAttribute(
             Pressable::class.java, SimplePressable(

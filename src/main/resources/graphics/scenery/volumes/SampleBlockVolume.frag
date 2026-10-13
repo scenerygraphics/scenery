@@ -6,6 +6,8 @@ uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
 uniform int slicingMode;
 uniform int usedSlicingPlanes;
+uniform float lensingRadius;
+uniform vec3 lensingPosition;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -25,6 +27,7 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
 {
     bool cropping = slicingMode == 1 || slicingMode == 3;
     bool slicing = slicingMode == 2 || slicingMode == 3;
+    bool lensing = slicingMode == 4 || slicingMode == 5;
 
     bool isCropped = false;
     bool isInSlice = false;
@@ -39,6 +42,17 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
 
         float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
         isInSlice = isInSlice || dist < 0.02f;
+    }
+
+    float lensingAlpha = 1.0;
+    if (lensing) {
+        vec3 dp = wpos.xyz - lensingPosition;
+        float distSq = dot(dp, dp);
+        float sigma2 = lensingRadius * lensingRadius;
+        if (distSq > 9.0 * sigma2) return vec4(0);
+        if (slicingMode == 4) {
+            lensingAlpha = exp(-distSq / (2.0 * sigma2));
+        }
     }
 
     if (   (!cropping && slicing && !isInSlice)
@@ -62,6 +76,8 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
-    int intransparent = int( slicing && isInSlice) ;
-    return vec4(cmapplied*tf,1) * intransparent + vec4(cmapplied, tf) * (1-intransparent);
+    int isOpaque = int(slicing && isInSlice);
+    vec4 opaque = vec4(cmapplied * tf, 1.0);
+    vec4 transparent = vec4(cmapplied, tf * lensingAlpha); // transparency modulated by lensingAlpha
+    return mix(transparent, opaque, float(isOpaque));
 }

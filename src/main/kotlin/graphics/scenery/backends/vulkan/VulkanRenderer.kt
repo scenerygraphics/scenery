@@ -2331,6 +2331,14 @@ open class VulkanRenderer(hub: Hub,
         initialized = false
 
         logger.info("Renderer teardown started.")
+        // Cancel all pending texture coroutines and wait for any currently
+        // executing ones to finish before touching any Vulkan resources.
+
+        textureCache.values.forEach { it.close() }
+
+        // Drain both queues — closeInternal previously only waited on the
+        // graphics queue, but texture uploads submit to transferQueue.
+        vkQueueWaitIdle(transferQueue.queue)
         vkQueueWaitIdle(queue.queue)
 
         logger.debug("Closing nodes...")
