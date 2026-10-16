@@ -5,7 +5,7 @@ import bdv.util.AxisOrder
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
@@ -32,13 +32,13 @@ import kotlin.system.exitProcess
  */
 class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
-    private lateinit var hmd: OpenVRHMD
+    private lateinit var hmd: OpenXRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
     private lateinit var volume: Volume
 
     override fun init() {
-        hmd = OpenVRHMD(useCompositor = true)
+        hmd = OpenXRHMD(useCompositor = true)
 
         if(!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
@@ -46,7 +46,7 @@ class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.
         }
 
         hub.add(SceneryElement.HMDInput, hmd)
-        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
+        VRGrab.createAndSet(scene,hmd, listOf(OpenXRHMD.OpenXRButton.Side), listOf(TrackerRole.RightHand))
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
@@ -129,10 +129,10 @@ class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.
         // and re-bind them on the right-hand controller's trackpad or joystick.
         inputHandler?.let { handler ->
             hashMapOf(
-                "move_forward" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Up),
-                "move_back" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Down),
-                "move_left" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Left),
-                "move_right" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Right)
+                "move_forward" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Up),
+                "move_back" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Down),
+                "move_left" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Left),
+                "move_right" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Right)
             ).forEach { (name, key) ->
                 handler.getBehaviour(name)?.let { b ->
                     logger.info("Adding behaviour $name bound to $key to HMD")
@@ -147,7 +147,7 @@ class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.
             logger.info("Hull visible: ${hullbox.visible}")
         })
         //... and bind that to the A button on the left-hand controller.
-        hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
+        hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenXRHMD.OpenXRButton.A)
 
         // slicing mode toggle
         hmd.addBehaviour("toggleSlicing", ClickBehaviour{ _, _ ->
@@ -155,7 +155,7 @@ class VRVolumeCroppingExample : SceneryBase(VRVolumeCroppingExample::class.java.
             val next = (current + 1 ) % Volume.SlicingMode.values().size
             volume.slicingMode = Volume.SlicingMode.values()[next]
         })
-        hmd.addKeyBinding("toggleSlicing",TrackerRole.RightHand,OpenVRHMD.OpenVRButton.A)
+        hmd.addKeyBinding("toggleSlicing",TrackerRole.RightHand,OpenXRHMD.OpenXRButton.A)
     }
 
     companion object {

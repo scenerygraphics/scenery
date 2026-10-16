@@ -65,6 +65,7 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: Mat
     var model: Node? = null
     var modelPath: String? = null
     var role: TrackerRole = TrackerRole.Invalid
+    var renderModelPose: Matrix4f? = Matrix4f()
 }
 
 typealias TrackerInputEventHandler = (TrackerInput, TrackedDevice, Long) -> Any

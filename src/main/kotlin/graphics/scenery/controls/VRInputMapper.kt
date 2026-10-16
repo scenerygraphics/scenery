@@ -2,8 +2,8 @@ package graphics.scenery.controls
 
 import graphics.scenery.Node
 import graphics.scenery.utils.lazyLogger
-import graphics.scenery.controls.OpenVRHMD.OpenVRButton
-import graphics.scenery.controls.OpenVRHMD.Manufacturer
+import graphics.scenery.controls.OpenXRHMD.OpenXRButton
+import graphics.scenery.controls.OpenXRHMD.Manufacturer
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.extensions.xyzw
 import org.joml.Quaternionf
@@ -50,7 +50,7 @@ class VRInputMapper {
     /**
      * Auto-load profile based on HMD manufacturer.
      */
-    fun loadProfileForHMD(hmd: OpenVRHMD): Boolean {
+    fun loadProfileForHMD(hmd: OpenXRHMD): Boolean {
         return loadProfile(hmd.manufacturer)
     }
 
@@ -85,7 +85,7 @@ class VRInputMapper {
      * Bind an action to a behavior on the HMD.
      * @return true if binding succeeded
      */
-    fun bind(hmd: OpenVRHMD, actionName: String, behavior: Behaviour): Boolean {
+    fun bind(hmd: OpenXRHMD, actionName: String, behavior: Behaviour): Boolean {
         val mapping = getMapping(actionName) ?: return false
         hmd.addKeyBinding(actionName, mapping.role, mapping.button)
         hmd.addBehaviour(actionName, behavior)
@@ -139,7 +139,7 @@ class VRInputMapper {
  */
 data class ButtonMapping(
     val role: TrackerRole,
-    val button: OpenVRButton,
+    val button: OpenXRButton,
     var label: String? = null,
     val offset: Vector3f? = null,
     val rotation: Quaternionf? = null,
