@@ -3,13 +3,19 @@
 uniform int sceneGraphVisibility;
 
 vis = vis && bool(sceneGraphVisibility);
-if (vis && step > localNear && step < localFar)
+if (vis && step > localNear && step_prev < localFar)
 {
-    vec4 x = sampleVolume(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+    // clamp the current segment to the volume/mesh bounds
+    float stepStart = max(step_prev, localNear);
+    float stepEnd = min(step, localFar);
+    vec4 wstart = mix(wfront, wback, stepStart);
+    vec4 wend = mix(wfront, wback, stepEnd);
+
+    vec4 x = sampleVolume(wend, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
     float newAlpha = x.a;
     vec3 newColor = x.rgb;
 
-    float adjusted_alpha = adjustOpacity(newAlpha, (distance(wpos, wprev)/standardStepSize));
+    float adjusted_alpha = adjustOpacity(newAlpha, (distance(wstart, wend)/standardStepSize));
 
     v.rgb = v.rgb + (1.0f - v.a) * newColor * adjusted_alpha;
     v.a = v.a + (1.0f - v.a) * adjusted_alpha;
@@ -18,3 +24,4 @@ if (vis && step > localNear && step < localFar)
         break;
     }
 }
+

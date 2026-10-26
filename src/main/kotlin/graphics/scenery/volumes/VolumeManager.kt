@@ -599,7 +599,16 @@ class VolumeManager(
             currentProg.setViewportWidth(cam.width)
             currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
-            currentProg.setProjectionViewMatrix(vp, maxAllowedStepInVoxels * minWorldVoxelSize)
+            // nw, fwnw and xf only depend on the projection. Passing the full
+            // view-projection causes float precision jitter in the inversion,
+            // which makes the volume depth slide relative to meshes.
+            val stepSizeProjection = if(hmd != null) {
+                Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
+            } else {
+                Matrix4f(cam.spatial().projection)
+            }
+            currentProg.setProjectionViewMatrix(stepSizeProjection, maxAllowedStepInVoxels * minWorldVoxelSize)
+
             currentProg.use(context)
             currentProg.setUniforms(context)
             currentProg.bindSamplers(context)

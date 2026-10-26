@@ -187,7 +187,7 @@ void main()
 		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
 		vec4 previous = vec4(0.0f);
-		for ( int i = 0; i < numSteps; ++i)
+		for ( int i = 0; i < numSteps + 2; ++i)
 		{
 			vec4 wpos = mix( wfront, wback, step );
 
@@ -201,6 +201,7 @@ void main()
 				v = max(v, convert(x));
 			}
 			*/
+            step_prev = step;
 			wprev = wpos;
 
 			if(fixedStepSize) {
