@@ -158,6 +158,9 @@ open class OpenXRHMD(
     /** Whether the runtime supports the render model extensions, decided at instance creation. */
     protected var renderModelsSupported = false
 
+    /** Whether the runtime offers the Steam Frame controller interaction profile. */
+    protected var frameControllerSupported = false
+
     /** Render model assets, cached by their glTF cache ID so identical controllers load once. */
     protected val renderModelCache = ConcurrentHashMap<String, Mesh>()
 
@@ -187,6 +190,7 @@ open class OpenXRHMD(
         Oculus,
         WindowsMR,
         Valve,
+        ValveFrame,
         Other
     }
 
@@ -240,11 +244,15 @@ open class OpenXRHMD(
         Menu,
         Side,
         Trigger,
+        // NB: Touch controllers use A/B on the left hand.
+        // X/Y are reserved for controllers with four buttons per controller (e.g. Steam Frame)
         A,
         B,
         System,
         Touchpad,
-        Thumbstick
+        Thumbstick,
+        X,
+        Y
     }
 
     init {
@@ -308,25 +316,21 @@ open class OpenXRHMD(
             renderModelsSupported = XR_EXT_RENDER_MODEL_EXTENSION_NAME in available
                 && XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME in available
                 && XR_EXT_UUID_EXTENSION_NAME in available
-
-            if (!renderModelsSupported) {
-                val missing = listOf(
-                    XR_EXT_UUID_EXTENSION_NAME,
-                    XR_EXT_RENDER_MODEL_EXTENSION_NAME,
-                    XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME
-                ).filter { it !in available }
-
-                logger.info(
-                    "Runtime is missing ${missing.joinToString(", ")}, falling back to placeholder controller models."
-                )
+            frameControllerSupported = XR_VALVE_FRAME_CONTROLLER_INTERACTION_EXTENSION_NAME in available
+            if (!frameControllerSupported) {
+                logger.debug("Runtime does not offer $XR_VALVE_FRAME_CONTROLLER_INTERACTION_EXTENSION_NAME, Steam Frame controllers will use a compatibility profile.")
             }
 
             val wanted = mutableListOf(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
+            if (frameControllerSupported) {
+                wanted += XR_VALVE_FRAME_CONTROLLER_INTERACTION_EXTENSION_NAME
+            }
             if (renderModelsSupported) {
                 wanted += XR_EXT_UUID_EXTENSION_NAME
                 wanted += XR_EXT_RENDER_MODEL_EXTENSION_NAME
                 wanted += XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME
             }
+
 
             val extensionNames = stack.callocPointer(wanted.size)
             wanted.forEach { extensionNames.put(stack.UTF8(it)) }
@@ -351,8 +355,12 @@ open class OpenXRHMD(
 
                 renderModelsSupported = false
 
-                val fallbackNames = stack.callocPointer(1)
-                fallbackNames.put(stack.UTF8(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+                val fallback = buildList {
+                    add(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME)
+                    if (frameControllerSupported) add(XR_VALVE_FRAME_CONTROLLER_INTERACTION_EXTENSION_NAME)
+                }
+                val fallbackNames = stack.callocPointer(fallback.size)
+                fallback.forEach { fallbackNames.put(stack.UTF8(it)) }
                 fallbackNames.flip()
 
                 val retry = createInstance(stack, XR_API_VERSION_1_0, fallbackNames, instancePointer)
@@ -729,6 +737,8 @@ open class OpenXRHMD(
                 OpenXRButton.Menu to "menu",
                 OpenXRButton.A to "a_button",
                 OpenXRButton.B to "b_button",
+                OpenXRButton.X to "x_button",
+                OpenXRButton.Y to "y_button",
                 OpenXRButton.System to "system",
                 OpenXRButton.Touchpad to "trackpad_click",
                 OpenXRButton.Thumbstick to "thumbstick_click"
@@ -789,47 +799,62 @@ open class OpenXRHMD(
      */
     protected fun suggestBindings(xrInstance: XrInstance) {
         // Maps abstract buttons to input paths. Buttons a profile lacks are left unbound.
-        val profiles = mapOf(
-            "/interaction_profiles/khr/simple_controller" to mapOf(
-                OpenXRButton.Trigger to "input/select/click",
-                OpenXRButton.Menu to "input/menu/click"
-            ),
-            "/interaction_profiles/htc/vive_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/value",
-                OpenXRButton.Side to "input/squeeze/click",
-                OpenXRButton.Menu to "input/menu/click",
-                OpenXRButton.System to "input/system/click",
-                OpenXRButton.Touchpad to "input/trackpad/click",
-                // Vive controllers have no A/B, so the trackpad click stands in for A.
-                OpenXRButton.A to "input/trackpad/click"
-            ),
-            "/interaction_profiles/valve/index_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/value",
-                OpenXRButton.Side to "input/squeeze/force",
-                OpenXRButton.A to "input/a/click",
-                OpenXRButton.B to "input/b/click",
-                OpenXRButton.System to "input/system/click",
-                OpenXRButton.Touchpad to "input/trackpad/force",
-                OpenXRButton.Thumbstick to "input/thumbstick/click"
-            ),
-            "/interaction_profiles/oculus/touch_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/value",
-                OpenXRButton.Side to "input/squeeze/value",
-                OpenXRButton.Menu to "input/menu/click",
-                OpenXRButton.A to "input/a/click",
-                OpenXRButton.B to "input/b/click",
-                OpenXRButton.Thumbstick to "input/thumbstick/click"
-            ),
-            "/interaction_profiles/microsoft/motion_controller" to mapOf(
-                OpenXRButton.Trigger to "input/trigger/value",
-                OpenXRButton.Side to "input/squeeze/click",
-                OpenXRButton.Menu to "input/menu/click",
-                OpenXRButton.Touchpad to "input/trackpad/click",
-                OpenXRButton.Thumbstick to "input/thumbstick/click",
-                // WMR controllers have no A/B, so the trackpad click stands in for A.
-                OpenXRButton.A to "input/trackpad/click"
-            )
-        )
+        val profiles = buildMap {
+            put("/interaction_profiles/khr/simple_controller", mapOf(
+                    OpenXRButton.Trigger to "input/select/click",
+                    OpenXRButton.Menu to "input/menu/click"
+                ))
+            put("/interaction_profiles/htc/vive_controller", mapOf(
+                    OpenXRButton.Trigger to "input/trigger/value",
+                    OpenXRButton.Side to "input/squeeze/click",
+                    OpenXRButton.Menu to "input/menu/click",
+                    OpenXRButton.System to "input/system/click",
+                    OpenXRButton.Touchpad to "input/trackpad/click",
+                    // Vive controllers have no A/B, so the trackpad click stands in for A.
+                    OpenXRButton.A to "input/trackpad/click"
+                ))
+            put("/interaction_profiles/valve/index_controller", mapOf(
+                    OpenXRButton.Trigger to "input/trigger/value",
+                    OpenXRButton.Side to "input/squeeze/force",
+                    OpenXRButton.A to "input/a/click",
+                    OpenXRButton.B to "input/b/click",
+                    OpenXRButton.System to "input/system/click",
+                    OpenXRButton.Touchpad to "input/trackpad/force",
+                    OpenXRButton.Thumbstick to "input/thumbstick/click"
+                ))
+            put("/interaction_profiles/oculus/touch_controller", mapOf(
+                    OpenXRButton.Trigger to "input/trigger/value",
+                    OpenXRButton.Side to "input/squeeze/value",
+                    OpenXRButton.Menu to "input/menu/click",
+                    OpenXRButton.A to "input/a/click",
+                    OpenXRButton.B to "input/b/click",
+                    OpenXRButton.Thumbstick to "input/thumbstick/click"
+                ))
+            put("/interaction_profiles/microsoft/motion_controller", mapOf(
+                    OpenXRButton.Trigger to "input/trigger/value",
+                    OpenXRButton.Side to "input/squeeze/click",
+                    OpenXRButton.Menu to "input/menu/click",
+                    OpenXRButton.Touchpad to "input/trackpad/click",
+                    OpenXRButton.Thumbstick to "input/thumbstick/click",
+                    // WMR controllers have no A/B, so the trackpad click stands in for A.
+                    OpenXRButton.A to "input/trackpad/click"
+                ))
+
+            if (frameControllerSupported) {
+                put(FRAME_CONTROLLER_PROFILE, mapOf(
+                    OpenXRButton.Trigger to "input/trigger/value",
+                    OpenXRButton.Side to "input/squeeze/value",
+                    OpenXRButton.System to "input/system/click",
+                    OpenXRButton.Thumbstick to "input/thumbstick/click",
+                    // per-hand below
+                    OpenXRButton.A to "input/a/click",
+                    OpenXRButton.B to "input/b/click",
+                    OpenXRButton.X to "input/x/click",
+                    OpenXRButton.Y to "input/y/click",
+                    OpenXRButton.Menu to "input/menu/click"
+                ))
+            }
+        }
 
         // Touch exposes A/B on the right, X/Y and menu on the left, so these bind per hand.
         val perHandOverrides = mapOf(
@@ -839,6 +864,18 @@ open class OpenXRHMD(
                 (TrackerRole.RightHand to OpenXRButton.A) to "input/a/click",
                 (TrackerRole.RightHand to OpenXRButton.B) to "input/b/click",
                 (TrackerRole.LeftHand to OpenXRButton.Menu) to "input/menu/click"
+            ),
+            FRAME_CONTROLLER_PROFILE to mapOf(
+                (TrackerRole.RightHand to OpenXRButton.A) to "input/a/click",
+                (TrackerRole.RightHand to OpenXRButton.B) to "input/b/click",
+                (TrackerRole.RightHand to OpenXRButton.X) to "input/x/click",
+                (TrackerRole.RightHand to OpenXRButton.Y) to "input/y/click",
+                (TrackerRole.RightHand to OpenXRButton.Menu) to "input/menu/click",
+                (TrackerRole.LeftHand to OpenXRButton.A) to "input/dpad_down/click",
+                (TrackerRole.LeftHand to OpenXRButton.B) to "input/dpad_right/click",
+                (TrackerRole.LeftHand to OpenXRButton.X) to "input/dpad_left/click",
+                (TrackerRole.LeftHand to OpenXRButton.Y) to "input/dpad_up/click",
+                (TrackerRole.LeftHand to OpenXRButton.Menu) to "input/view/click"
             )
         )
 
@@ -847,7 +884,8 @@ open class OpenXRHMD(
             "/interaction_profiles/htc/vive_controller" to "input/trackpad",
             "/interaction_profiles/valve/index_controller" to "input/thumbstick",
             "/interaction_profiles/oculus/touch_controller" to "input/thumbstick",
-            "/interaction_profiles/microsoft/motion_controller" to "input/thumbstick"
+            "/interaction_profiles/microsoft/motion_controller" to "input/thumbstick",
+            FRAME_CONTROLLER_PROFILE to "input/thumbstick"
         )
 
         profiles.forEach { (profile, buttons) ->
@@ -1006,6 +1044,7 @@ open class OpenXRHMD(
                 interactionProfile = pathToString(xrInstance, state.interactionProfile())
 
                 manufacturer = when {
+                    interactionProfile.contains("frame_controller") -> Manufacturer.ValveFrame
                     interactionProfile.contains("htc") -> Manufacturer.HTC
                     interactionProfile.contains("oculus") -> Manufacturer.Oculus
                     interactionProfile.contains("microsoft") -> Manufacturer.WindowsMR
@@ -2511,6 +2550,8 @@ open class OpenXRHMD(
             (TrackerRole.LeftHand to OpenXRButton.Side) to AWTKey(KeyEvent.VK_X),
             (TrackerRole.LeftHand to OpenXRButton.A) to AWTKey(KeyEvent.VK_Q),
             (TrackerRole.LeftHand to OpenXRButton.B) to AWTKey(KeyEvent.VK_O),
+            (TrackerRole.LeftHand to OpenXRButton.X) to AWTKey(KeyEvent.VK_C),
+            (TrackerRole.LeftHand to OpenXRButton.Y) to AWTKey(KeyEvent.VK_V),
             (TrackerRole.LeftHand to OpenXRButton.System) to AWTKey(KeyEvent.VK_E),
             (TrackerRole.LeftHand to OpenXRButton.Touchpad) to AWTKey(KeyEvent.VK_R),
             (TrackerRole.LeftHand to OpenXRButton.Thumbstick) to AWTKey(KeyEvent.VK_Z),
@@ -2524,10 +2565,15 @@ open class OpenXRHMD(
             (TrackerRole.RightHand to OpenXRButton.Side) to AWTKey(KeyEvent.VK_Y),
             (TrackerRole.RightHand to OpenXRButton.A) to AWTKey(KeyEvent.VK_1),
             (TrackerRole.RightHand to OpenXRButton.B) to AWTKey(KeyEvent.VK_6),
+            (TrackerRole.RightHand to OpenXRButton.X) to AWTKey(KeyEvent.VK_7),
+            (TrackerRole.RightHand to OpenXRButton.Y) to AWTKey(KeyEvent.VK_8),
             (TrackerRole.RightHand to OpenXRButton.System) to AWTKey(KeyEvent.VK_2),
             (TrackerRole.RightHand to OpenXRButton.Touchpad) to AWTKey(KeyEvent.VK_3),
             (TrackerRole.RightHand to OpenXRButton.Thumbstick) to AWTKey(KeyEvent.VK_4)
         )
+
+        const val XR_VALVE_FRAME_CONTROLLER_INTERACTION_EXTENSION_NAME = "XR_VALVE_frame_controller_interaction"
+        const val FRAME_CONTROLLER_PROFILE = "/interaction_profiles/valve/frame_controller_valve"
 
         /**
          * Returns the key string mapped to [button] on [hand].
