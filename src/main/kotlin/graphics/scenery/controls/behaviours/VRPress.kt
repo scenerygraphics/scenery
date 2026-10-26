@@ -164,7 +164,7 @@ open class VRPress(
                                     false,
                                     device
                                 ) {
-                                    (hmd as? OpenXRHMD)?.vibrate(device)
+                                    (hmd as? OpenXRHMD)?.vibrate(device, 100, 0.3f)
                                     onPress?.invoke(it, button)
                                 }
 

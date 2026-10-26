@@ -1910,7 +1910,7 @@ open class OpenXRHMD(
     /**
      * Triggers a haptic pulse on [controller] for [duration] milliseconds.
      */
-    fun vibrate(controller: TrackedDevice, duration: Int = 1000) {
+    fun vibrate(controller: TrackedDevice, duration: Int = 1000, amplitude: Float = 1f) {
         val xrSession = session ?: return
         val action = hapticActions[controller.role] ?: return
         val subactionPath = handPaths[controller.role] ?: return
@@ -1920,7 +1920,7 @@ open class OpenXRHMD(
                 .type(XR_TYPE_HAPTIC_VIBRATION)
                 .duration(duration * 1000L * 1000L)
                 .frequency(XR_FREQUENCY_UNSPECIFIED)
-                .amplitude(1.0f)
+                .amplitude(amplitude)
 
             val actionInfo = XrHapticActionInfo.calloc(stack)
                 .type(XR_TYPE_HAPTIC_ACTION_INFO)
