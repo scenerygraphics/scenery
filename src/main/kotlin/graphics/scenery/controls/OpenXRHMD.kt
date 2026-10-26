@@ -1748,11 +1748,6 @@ open class OpenXRHMD(
         }
     }
 
-    /** Not supported; use [submitToCompositorVulkan] with the Vulkan renderer. */
-    override fun submitToCompositor(textureId: Int) {
-        logger.error("OpenGL compositor submission is not supported by OpenXRHMD, please use the Vulkan renderer.")
-    }
-
     private val profileReady = CompletableFuture<String>()
 
     /** Blocks until the runtime has bound an interaction profile. Don't call from the render thread. */
