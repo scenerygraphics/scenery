@@ -305,7 +305,10 @@ class MultiWristMenu(
     }
 
     /** Convenience: hide the menu entirely (all columns). */
-    fun hideAll() { columns.values.forEach { it.visible = false } }
+    fun hideAll() {
+        columns.values.forEach { it.visible = false }
+        isMenuVisible = false
+    }
 
     /** Shows or hides the entire menu (only the currently-selected column is affected). */
     fun toggleVisibility(wantVisible: Boolean? = null) {
