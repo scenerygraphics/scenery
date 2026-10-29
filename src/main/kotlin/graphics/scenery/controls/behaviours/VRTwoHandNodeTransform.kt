@@ -37,22 +37,19 @@ class VRTwoHandNodeTransform(
 
     val logger by lazyLogger()
 
-    /** To trigger the [onStartCallback] regardless of which order of buttons was used. */
-    private var startCallbackTriggered = false
+    /** Guard against double start/end callbacks. */
+    private var transformActive = false
 
     override fun init(x: Int, y: Int) {
+        // Press first, so the manager state is correct if super.init() triggers onBothStart
+        transformBtn()?.let { resetRotationBtnManager?.pressButton(it) }
         super.init(x, y)
-        // Find the button that doesn't lock the y Axis and indicate that it is now pressed
-        val transformBtn =
-            resetRotationBtnManager?.getRegisteredButtons()
-                ?.filter { it.key != resetRotationButton }?.map { it.key }?.firstOrNull()
-        if (transformBtn != null) {
-            resetRotationBtnManager?.pressButton(transformBtn)
-        }
-        if (bothPressed) {
-            onStartCallback?.invoke()
-            startCallbackTriggered = true
-        }
+    }
+
+    override fun onBothStart() {
+        if (transformActive) return
+        transformActive = true
+        onStartCallback?.invoke()
     }
 
     override fun dragDelta(
@@ -62,12 +59,6 @@ class VRTwoHandNodeTransform(
         lastPositionOff: Vector3f
     ) {
         if (!bothPressed) return
-
-        // Test whether we now press both buttons but the startCallback wasn't triggered yet.
-        if (!startCallbackTriggered) {
-            onStartCallback?.invoke()
-            startCallbackTriggered = true
-        }
 
         val scaleDelta =
             VRScale.getScaleDelta(currentPositionMain, currentPositionOff, lastPositionMain, lastPositionOff)
@@ -110,19 +101,20 @@ class VRTwoHandNodeTransform(
         onDragCallback?.invoke()
     }
 
-    override fun end(x: Int, y: Int) {
-        if (bothPressed) {
-            onEndCallback?.invoke()
-        }
-        // Find the button that doesn't lock the y Axis and indicate that it is now released
-        val transformBtn = resetRotationBtnManager?.getRegisteredButtons()?.filter { it.key != resetRotationButton }?.map {it.key}?.firstOrNull()
-        if (transformBtn != null) {
-            resetRotationBtnManager?.releaseButton(transformBtn)
-        }
-        // Reset this flag for the next event
-        startCallbackTriggered = false
-        super.end(x, y)
+    override fun onBothEnd() {
+        if (!transformActive) return
+        transformActive = false
+        onEndCallback?.invoke()
     }
+
+    override fun end(x: Int, y: Int) {
+        super.end(x, y)
+        transformBtn()?.let { resetRotationBtnManager?.releaseButton(it) }
+    }
+
+    private fun transformBtn() =
+        resetRotationBtnManager?.getRegisteredButtons()?.keys
+            ?.firstOrNull { it != resetRotationButton }
 
     companion object {
         /**

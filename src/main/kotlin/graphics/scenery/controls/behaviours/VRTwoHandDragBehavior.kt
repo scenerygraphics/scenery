@@ -78,6 +78,7 @@ abstract class VRTwoHandDragBehavior(
         logger.debug("both init")
         lastPosMain = controller.worldPosition()
         lastPosOff = offhand.controller.worldPosition()
+        onBothStart()
     }
 
     private fun bothDrag() {
@@ -92,8 +93,13 @@ abstract class VRTwoHandDragBehavior(
 
     private fun bothEnd() {
         logger.debug("both end")
+        onBothEnd()
     }
 
+    /** Called once when both buttons become pressed, regardless of press order. */
+    protected open fun onBothStart() {}
+    /** Called once when two-handed mode ends, regardless of release order. */
+    protected open fun onBothEnd() {}
 
     /**
      * Implementation of you drag behavior goes here. Time between current and last should be one frame.
