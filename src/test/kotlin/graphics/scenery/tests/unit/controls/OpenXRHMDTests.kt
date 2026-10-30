@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit.controls
 
 import graphics.scenery.Mesh
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
@@ -11,39 +11,39 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for [OpenVRHMD].
+ * Tests for [OpenXRHMD].
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class OpenVRHMDTests {
+class OpenXRHMDTests {
     private val logger by lazyLogger()
 
     /**
-     * Companion object for checking whether OpenVR is installed.
+     * Companion object for checking whether OpenXR is installed.
      */
     companion object {
         private val logger by lazyLogger()
 
         /**
-         * Checks if OpenVR and associated libraries are available, skips
+         * Checks if OpenXR and associated libraries are available, skips
          * tests if not.
          */
         @JvmStatic @BeforeClass
-        fun checkForOpenVR() {
-            var hmd: OpenVRHMD? = null
+        fun checkForOpenXR() {
+            var hmd: OpenXRHMD? = null
             try {
-                hmd = OpenVRHMD()
+                hmd = OpenXRHMD()
             } catch (e: Throwable) {
-                logger.warn("Skipping test, could not initialise OpenVR because of $e")
+                logger.warn("Skipping test, could not initialise OpenXR because of $e")
             }
 
             org.junit.Assume.assumeTrue(hmd?.initializedAndWorking() ?: false)
-            logger.info("OpenVR initialised correctly, continuing tests.")
+            logger.info("OpenXR initialised correctly, continuing tests.")
         }
     }
     
-    private fun initialiseAndWait(): OpenVRHMD {
-        val hmd = OpenVRHMD()
+    private fun initialiseAndWait(): OpenXRHMD {
+        val hmd = OpenXRHMD()
         while(!hmd.initializedAndWorking()) {
             Thread.sleep(200)
         }
@@ -53,22 +53,22 @@ class OpenVRHMDTests {
 
 
     /**
-     * Tests OpenVR initialisation.
+     * Tests OpenXR initialisation.
      */
     @Test
     fun testInitialisation() {
-        logger.info("Testing OpenVR initialisation ...")
+        logger.info("Testing OpenXR initialisation ...")
         val hmd = initialiseAndWait()
         hmd.update()
         hmd.close()
     }
 
     /**
-     * Tests querying poses from OpenVR.
+     * Tests querying poses from OpenXR.
      */
     @Test
     fun testGetPosition() {
-        logger.info("Testing OpenVR pose query ...")
+        logger.info("Testing OpenXR pose query ...")
         val hmd = initialiseAndWait()
 
         hmd.update()
@@ -83,7 +83,7 @@ class OpenVRHMDTests {
      */
     @Test
     fun testGetVulkanInstanceExtensions() {
-        logger.info("Testing getting Vulkan instance extensions from OpenVR ...")
+        logger.info("Testing getting Vulkan instance extensions from OpenXR ...")
         val hmd = initialiseAndWait()
 
         hmd.update()
@@ -97,7 +97,7 @@ class OpenVRHMDTests {
      */
     @Test
     fun testGetProjections() {
-        logger.info("Testing getting projections from OpenVR ...")
+        logger.info("Testing getting projections from OpenXR ...")
         val hmd = initialiseAndWait()
 
         val left = hmd.getEyeProjection(0)
@@ -129,7 +129,7 @@ class OpenVRHMDTests {
     }
 
     /**
-     * Tests getting the HMD orientation via OpenVR as quaternion.
+     * Tests getting the HMD orientation via OpenXR as quaternion.
      */
     @Test
     fun testGetOrientation() {
