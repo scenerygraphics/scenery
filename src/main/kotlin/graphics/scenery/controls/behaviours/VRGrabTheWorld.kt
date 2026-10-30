@@ -40,6 +40,7 @@ class VRGrabTheWorld (
     }
 
     override fun drag(x: Int, y: Int) {
+        val newCamDiff = controllerSpatial.worldPosition() - cam.position
         // Only drag when no other grab button is currently active
         // to prevent simultaneous behaviors with two-handed gestures
         if (grabButtonmanager?.isTwoHandedActive() != true) {
@@ -47,8 +48,8 @@ class VRGrabTheWorld (
             val newCamDiff = controllerSpatial.worldPosition() - cam.position
             val diffTranslation = camDiff - newCamDiff //reversed
             cam.position += diffTranslation * multiplier
-            camDiff = newCamDiff
         }
+        camDiff = newCamDiff
     }
 
     override fun end(x: Int, y: Int) {
