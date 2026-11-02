@@ -47,7 +47,7 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.98.0")
+    annotationProcessor("org.scijava:scijava-common:2.99.3")
 
     implementation("graphics.scenery:autofab:0.1"){
         exclude("org.slf4j", "slf4j-api")
