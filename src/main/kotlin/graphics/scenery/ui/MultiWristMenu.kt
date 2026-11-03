@@ -284,7 +284,7 @@ class MultiWristMenu(
         if (columns.isEmpty()) return
         val columnList = columns.values.toList()
         columnList[currentIndex].visible = false
-        currentIndex = (currentIndex - 1) % columnList.size
+        currentIndex = (currentIndex - 1).mod(columnList.size)
         // Inherit global visibility
         columnList[currentIndex].visible = isMenuVisible
         this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
