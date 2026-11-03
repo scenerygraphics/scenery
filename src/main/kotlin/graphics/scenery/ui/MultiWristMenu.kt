@@ -275,9 +275,19 @@ class MultiWristMenu(
         currentIndex = (currentIndex + 1) % columnList.size
         // Inherit global visibility
         columnList[currentIndex].visible = isMenuVisible
-
         this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
+        logger.debug("Cycled to menu \"${columnList[currentIndex].name}\"")
+    }
 
+    /** Advances to the previous column in insertion order, wrapping around. */
+    fun cyclePrevious () {
+        if (columns.isEmpty()) return
+        val columnList = columns.values.toList()
+        columnList[currentIndex].visible = false
+        currentIndex = (currentIndex - 1) % columnList.size
+        // Inherit global visibility
+        columnList[currentIndex].visible = isMenuVisible
+        this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
         logger.debug("Cycled to menu \"${columnList[currentIndex].name}\"")
     }
 
