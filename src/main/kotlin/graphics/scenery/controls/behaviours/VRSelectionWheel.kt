@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
@@ -94,8 +94,8 @@ class VRSelectionWheel(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            button: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             actions: List<Pair<String, (Spatial) -> Unit>>,
         ): Future<VRSelectionWheel> {

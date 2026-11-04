@@ -319,6 +319,13 @@ class ShaderIntrospection(
         }
     }
 
+    private fun arraySizeOf(type: Long): Int {
+        if (Spvc.spvc_type_get_num_array_dimensions(type) == 0) return 1   // not an array
+        val dim = Spvc.spvc_type_get_array_dimension(type, 0)
+        // 0 = unsized/runtime array
+        return if (dim > 0) dim else 1
+    }
+
     /**
      * Returns a list of specifications of sampled images from what's given in [spirv].
      */
@@ -327,7 +334,7 @@ class ShaderIntrospection(
             val descriptorSet = Spvc.spvc_compiler_get_decoration(compiler, resource.id(), SpvDecorationDescriptorSet)
             val binding = Spvc.spvc_compiler_get_decoration(compiler, resource.id(), SpvDecorationBinding)
             val type = Spvc.spvc_compiler_get_type_handle(compiler, resource.type_id())
-            val arraySize = maxOf(Spvc.spvc_type_get_array_dimension(type, 0), 1)
+            val arraySize = arraySizeOf(type)
 
             val samplerDim = Spvc.spvc_type_get_image_dimension(type)
 
@@ -364,7 +371,7 @@ class ShaderIntrospection(
             val descriptorSet = Spvc.spvc_compiler_get_decoration(compiler, resource.id(), SpvDecorationDescriptorSet)
             val binding = Spvc.spvc_compiler_get_decoration(compiler, resource.id(), SpvDecorationBinding)
             val type = Spvc.spvc_compiler_get_type_handle(compiler, resource.type_id())
-            val arraySize = Spvc.spvc_type_get_array_dimension(type, 0)
+            val arraySize = arraySizeOf(type)
 
             val samplerDim = Spvc.spvc_type_get_image_dimension(type)
 

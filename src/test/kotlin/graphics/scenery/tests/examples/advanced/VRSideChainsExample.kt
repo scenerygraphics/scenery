@@ -4,7 +4,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
@@ -24,7 +24,7 @@ import kotlin.system.exitProcess
 class VRSideChainsExample : SceneryBase(
     VRSideChainsExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
-    private lateinit var hmd: OpenVRHMD
+    private lateinit var hmd: OpenXRHMD
     private lateinit var protein: Protein
     private lateinit var ribbon: RibbonDiagram
     private lateinit var hullbox: Box
@@ -32,7 +32,7 @@ class VRSideChainsExample : SceneryBase(
     private val chosenCurveSection = mutableListOf<Int>()
 
     override fun init() {
-        hmd = OpenVRHMD(useCompositor = true)
+        hmd = OpenXRHMD(useCompositor = true)
 
         if(!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
@@ -121,10 +121,10 @@ class VRSideChainsExample : SceneryBase(
         // and re-bind them on the right-hand controller's trackpad or joystick.
         inputHandler?.let { handler ->
             hashMapOf(
-                "move_forward" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Up),
-                "move_back" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Down),
-                "move_left" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Left),
-                "move_right" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Right)
+                "move_forward" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Up),
+                "move_back" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Down),
+                "move_left" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Left),
+                "move_right" to OpenXRHMD.keyBinding(TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Right)
             ).forEach { (name, key) ->
                 handler.getBehaviour(name)?.let { b ->
                     logger.info("Adding behaviour $name bound to $key to HMD")
@@ -177,7 +177,7 @@ class VRSideChainsExample : SceneryBase(
             }
         })
         // ...and bind that to the side button of the right-hand controller.
-        hmd.addKeyBinding("show_side_chain", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Trigger)
+        hmd.addKeyBinding("show_side_chain", TrackerRole.RightHand, OpenXRHMD.OpenXRButton.Trigger)
     }
 
     companion object {

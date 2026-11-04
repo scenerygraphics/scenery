@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.lazyLogger
@@ -78,6 +78,7 @@ abstract class VRTwoHandDragBehavior(
         logger.debug("both init")
         lastPosMain = controller.worldPosition()
         lastPosOff = offhand.controller.worldPosition()
+        onBothStart()
     }
 
     private fun bothDrag() {
@@ -92,8 +93,13 @@ abstract class VRTwoHandDragBehavior(
 
     private fun bothEnd() {
         logger.debug("both end")
+        onBothEnd()
     }
 
+    /** Called once when both buttons become pressed, regardless of press order. */
+    protected open fun onBothStart() {}
+    /** Called once when two-handed mode ends, regardless of release order. */
+    protected open fun onBothEnd() {}
 
     /**
      * Implementation of you drag behavior goes here. Time between current and last should be one frame.
@@ -111,15 +117,14 @@ abstract class VRTwoHandDragBehavior(
          * Convenience method for adding behaviour
          */
         fun createAndSet(
-            hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, createBehavior: (
+            hmd: OpenXRHMD, button: OpenXRHMD.OpenXRButton, createBehavior: (
                 controller: Spatial, offhand: VRTwoHandDragOffhand
             ) -> VRTwoHandDragBehavior
         ): CompletableFuture<VRTwoHandDragBehavior> {
             var mainhandController: Node? = null
             var offhandController: Node? = null
             val future = CompletableFuture<VRTwoHandDragBehavior>()
-
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
 

@@ -3,12 +3,13 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plusAssign
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
 
@@ -22,7 +23,7 @@ class VRGrabTheWorld (
     controllerHitbox: Node,
     private val cam: Spatial,
     private val grabButtonmanager: MultiButtonManager? = null,
-    val button: OpenVRHMD.OpenVRButton,
+    val button: OpenXRHMD.OpenXRButton,
     private val trackerRole: TrackerRole,
     private val multiplier: Float
 ) : DragBehaviour {
@@ -39,6 +40,7 @@ class VRGrabTheWorld (
     }
 
     override fun drag(x: Int, y: Int) {
+        val newCamDiff = controllerSpatial.worldPosition() - cam.position
         // Only drag when no other grab button is currently active
         // to prevent simultaneous behaviors with two-handed gestures
         if (grabButtonmanager?.isTwoHandedActive() != true) {
@@ -46,8 +48,8 @@ class VRGrabTheWorld (
             val newCamDiff = controllerSpatial.worldPosition() - cam.position
             val diffTranslation = camDiff - newCamDiff //reversed
             cam.position += diffTranslation * multiplier
-            camDiff = newCamDiff
         }
+        camDiff = newCamDiff
     }
 
     override fun end(x: Int, y: Int) {
@@ -61,13 +63,13 @@ class VRGrabTheWorld (
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            buttons: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            buttons: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             buttonManager: MultiButtonManager? = null,
             multiplier: Float = 1f
         ) {
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
