@@ -106,6 +106,7 @@ renderpasses:
     renderTransparent: true
     renderOpaque: false
     blitInputs: true
+    samples: 4
     shaders:
       - "DefaultForward.vert.spv"
       - "DefaultForward.frag.spv"
