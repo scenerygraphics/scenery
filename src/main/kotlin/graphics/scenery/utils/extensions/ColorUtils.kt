@@ -15,6 +15,16 @@ fun Int.unpackRGB(): Vector4f {
     return Vector4f(r, g, b, 1.0f)
 }
 
+/** Returns an Integer encoding of the four RGBA elements. */
+fun Vector4f.packRGBA(): Int {
+    val r = (x.coerceIn(0f, 1f) * 255).toInt() and 0xFF
+    val g = (y.coerceIn(0f, 1f) * 255).toInt() and 0xFF
+    val b = (z.coerceIn(0f, 1f) * 255).toInt() and 0xFF
+    val a = (w.coerceIn(0f, 1f) * 255).toInt() and 0xFF
+    return (a shl 24) or (r shl 16) or (g shl 8) or b
+}
+
+
 /**
  * Convert a [Vector4f] into a [Color] from AWT.
  * */
