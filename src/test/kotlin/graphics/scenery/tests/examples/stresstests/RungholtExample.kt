@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.stresstests
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import kotlin.concurrent.thread
@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windowHeight = 720) {
-    var hmd: OpenVRHMD? = null
+    var hmd: OpenXRHMD? = null
     override fun init() {
         val lightCount = 512
 
@@ -22,7 +22,7 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         logger.warn("This example needs an additional model file, which is not available as part of the")
         logger.warn("example models zip. Please download it from: http://graphics.cs.williams.edu/data/meshes.xml#13")
 
-        hmd = hub.add(OpenVRHMD(useCompositor = true))
+        hmd = hub.add(OpenXRHMD(useCompositor = true))
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)

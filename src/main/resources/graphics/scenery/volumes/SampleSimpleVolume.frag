@@ -5,6 +5,7 @@ uniform int slicingMode;
 uniform int usedSlicingPlanes;
 uniform float lensingRadius;
 uniform vec3 lensingPosition;
+uniform float lensingBackgroundStrength;
 uniform ivec3 volTextureSize;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
@@ -45,7 +46,7 @@ vec4 sampleVolume( vec4 wpos )
         float distSq = dot(dp, dp);
         float sigma2 = lensingRadius * lensingRadius;
         if (distSq > 7.0 * sigma2) return vec4(0);
-        lensingAlpha = exp(-distSq / (2.0 * sigma2));
+        lensingAlpha = max(exp(-distSq / (2.0 * sigma2)), lensingBackgroundStrength);
     }
 
     if (   (!cropping && slicing && !isInSlice)

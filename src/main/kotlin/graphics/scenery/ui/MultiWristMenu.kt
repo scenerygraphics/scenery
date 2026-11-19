@@ -166,7 +166,7 @@ class MultiWristMenu(
      * @param columnName   Target column (must have been created with [addColumn]).
      * @param labelFalse   The button's display text if toggled off.
      * @param labelTrue    The button's display text if toggled on.
-     * @param command      Action executed when the button is activated.
+     * @param command      Action executed when the button is activated. Passes the new state to the lambda.
      * @param byTouch      If true the button fires on touch-hold; otherwise on press.
      * @param color        Resting color override (defaults to [defaultColor]).
      * @param pressedColor Pressed color override (defaults to [defaultPressedColor]).
@@ -178,7 +178,7 @@ class MultiWristMenu(
         columnName: String,
         labelFalse: String,
         labelTrue: String,
-        command: () -> Unit,
+        command: (Boolean) -> Unit,
         byTouch: Boolean = false,
         color: Vector3f = defaultColor,
         pressedColor: Vector3f = defaultPressedColor,
@@ -188,7 +188,8 @@ class MultiWristMenu(
         val column = requireColumn(columnName)
 
         val button = ToggleButton(labelFalse, labelTrue, command = command, byTouch = byTouch,
-            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor, default = defaultState, textInFront = true
+            defaultColor = color, pressedColor = pressedColor, touchingColor = touchingColor,
+            default = defaultState, textInFront = true
         )
 
         column.addChild(button)
@@ -275,9 +276,19 @@ class MultiWristMenu(
         currentIndex = (currentIndex + 1) % columnList.size
         // Inherit global visibility
         columnList[currentIndex].visible = isMenuVisible
-
         this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
+        logger.debug("Cycled to menu \"${columnList[currentIndex].name}\"")
+    }
 
+    /** Advances to the previous column in insertion order, wrapping around. */
+    fun cyclePrevious () {
+        if (columns.isEmpty()) return
+        val columnList = columns.values.toList()
+        columnList[currentIndex].visible = false
+        currentIndex = (currentIndex - 1).mod(columnList.size)
+        // Inherit global visibility
+        columnList[currentIndex].visible = isMenuVisible
+        this.boundingBox = columnList[currentIndex].getMaximumBoundingBox()
         logger.debug("Cycled to menu \"${columnList[currentIndex].name}\"")
     }
 
@@ -305,7 +316,10 @@ class MultiWristMenu(
     }
 
     /** Convenience: hide the menu entirely (all columns). */
-    fun hideAll() { columns.values.forEach { it.visible = false } }
+    fun hideAll() {
+        columns.values.forEach { it.visible = false }
+        isMenuVisible = false
+    }
 
     /** Shows or hides the entire menu (only the currently-selected column is affected). */
     fun toggleVisibility(wantVisible: Boolean? = null) {

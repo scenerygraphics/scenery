@@ -9,6 +9,7 @@ import org.joml.Vector3f
  * @param textFalse shown when the button state is false
  * @param textTrue shown when the button state is true
  * @param command is executed when the user interacts with the button. Executes both on toggle on and toggle off.
+ * Passes the new state to the lambda.
  * @param defaultColor default color of the button
  * @param pressedColor color after being pressed
  * @param touchingColor optional color input for touch feedback
@@ -21,7 +22,7 @@ class ToggleButton(
     private val textFalse: String,
     private val textTrue: String,
     height: Float = 1f,
-    command: () -> Unit,
+    command: (Boolean) -> Unit,
     byTouch: Boolean = false,
     defaultColor: Vector3f = Vector3f(1f),
     pressedColor: Vector3f = Vector3f(0.4f),
@@ -31,7 +32,7 @@ class ToggleButton(
 ) : Button(
     if (default) textTrue else textFalse,
     height,
-    command,
+    {},
     byTouch,
     defaultColor = defaultColor,
     pressedColor = pressedColor,
@@ -78,10 +79,10 @@ class ToggleButton(
                     val timeSinceTouch = System.currentTimeMillis() - enteredTouchTime
                     val availableForTouch = byTouch && !isTouching && enabled.get()
                     if (availableForTouch && timeSinceTouch > 50) {
-                        command()
                         isTouching = true
                         pressed = !pressed
                         enteredTouchTime = System.currentTimeMillis()
+                        command(pressed)
                     }
                 },
                 onRelease = {
@@ -96,7 +97,7 @@ class ToggleButton(
                 onPress = { _, _ ->
                     if (!byTouch && enabled.get()) {
                         pressed = !pressed
-                        command()
+                        command(pressed)
                     }
                 }
             ))

@@ -1,7 +1,7 @@
 package graphics.scenery.controls.behaviours
 
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import org.joml.Vector3f
 import java.util.concurrent.CompletableFuture
 
@@ -56,7 +56,7 @@ class VRScale(
          * Convenience method for adding scale behaviour
          */
         fun createAndSet(
-            hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, setScale: (Float) -> Unit
+            hmd: OpenXRHMD, button: OpenXRHMD.OpenXRButton, setScale: (Float) -> Unit
         ): CompletableFuture<VRScale> {
             @Suppress("UNCHECKED_CAST") return createAndSet(
                 hmd,

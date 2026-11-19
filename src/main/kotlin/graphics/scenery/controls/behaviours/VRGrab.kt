@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
-import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.OpenXRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
@@ -167,16 +167,16 @@ open class VRGrab(
          */
         fun createAndSet(
             scene: Scene,
-            hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
+            hmd: OpenXRHMD,
+            button: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             holdToDrag: Boolean = true,
-            onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
+            onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenXRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
         ) : Future<VRGrab> {
             val future = CompletableFuture<VRGrab>()
-            hmd.events.onDeviceConnect.add { _, device, _ ->
+            hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {

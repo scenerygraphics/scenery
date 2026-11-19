@@ -336,14 +336,15 @@ class VolumeManager(
             "usedSlicingPlanes",
             "sceneGraphVisibility",
             "lensingRadius",
-            "lensingPosition"
+            "lensingPosition",
+            "lensingBackgroundStrength"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
             "slicingMode", "usedSlicingPlanes",
-            "sceneGraphVisibility", "volTextureSize", "lensingRadius", "lensingPosition"
+            "sceneGraphVisibility", "volTextureSize", "lensingRadius", "lensingPosition", "lensingBackgroundStrength"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -568,6 +569,7 @@ class VolumeManager(
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
                     currentProg.setUniform(i, "lensingRadius", state.node.lensingRadius)
                     currentProg.setUniform(i, "lensingPosition", state.node.lensingPosition)
+                    currentProg.setUniform(i, "lensingBackgroundStrength", state.node.lensingBackgroundStrength)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)

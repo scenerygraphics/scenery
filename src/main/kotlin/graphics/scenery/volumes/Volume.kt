@@ -190,6 +190,8 @@ open class Volume(
     var lensingRadius = 1f
     /** Center of the lensing gauss function */
     var lensingPosition = Vector3f(0f)
+    /** How strongly the background should be visible when the lens is on */
+    var lensingBackgroundStrength = 0.04f
 
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
@@ -436,6 +438,7 @@ open class Volume(
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
         this.lensingRadius = fresh.lensingRadius
+        this.lensingBackgroundStrength = fresh.lensingBackgroundStrength
         this.lensingPosition = fresh.lensingPosition
         this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
         this.origin = fresh.origin
