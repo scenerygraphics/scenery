@@ -320,10 +320,16 @@ class ShaderIntrospection(
     }
 
     private fun arraySizeOf(type: Long): Int {
-        if (Spvc.spvc_type_get_num_array_dimensions(type) == 0) return 1   // not an array
+        if (Spvc.spvc_type_get_num_array_dimensions(type) == 0) {
+            return 1   // not an array
+        }
         val dim = Spvc.spvc_type_get_array_dimension(type, 0)
         // 0 = unsized/runtime array
-        return if (dim > 0) dim else 1
+        return if (dim > 0) {
+            dim
+        } else {
+            1
+        }
     }
 
     /**
