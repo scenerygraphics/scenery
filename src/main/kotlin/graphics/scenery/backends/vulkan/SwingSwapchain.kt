@@ -59,14 +59,31 @@ open class SwingSwapchain(override val device: VulkanDevice,
             val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
 
             val canvas = Canvas()
+            // The canvas is only ever painted by native Vulkan/Metal presentation, never by AWT's
+            // own paint machinery. Without this, AWT can still issue a repaint of the canvas (e.g.
+            // during/after the deferred layout pass) that fills it with its plain background color;
+            // since nothing then tells AWT to repaint it again, that fill can end up staying on top
+            // of the Metal layer's content permanently, even though presentation keeps succeeding
+            // underneath it.
+            canvas.ignoreRepaint = true
 
             p.component = canvas
             p.layout = BorderLayout()
             p.add(canvas, BorderLayout.CENTER)
+            // Force the BorderLayout pass synchronously here, instead of leaving it to a deferred
+            // EDT task -- the wait loop below runs on the EDT too and would otherwise be able to
+            // starve that deferred layout, leaving [canvas] at a stale/zero size when the surface
+            // is created from it.
+            p.validate()
 
             val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
 
-            surface = AWTVK.create(canvas, device.instance)
+            // Per LWJGL's own AWTVK docs: "Before the canvas can be passed into
+            // AWTVK#create(Canvas, VkInstance), it must have a peer, which can be forced by calling
+            // Frame#pack()." The frame was already packed once in createApplicationFrame(), but that
+            // was before [canvas] existed -- pack() must be called again now that it's been added,
+            // to force real native peer creation for the canvas specifically, not just a layout pass.
+            frame.pack()
 
             frame.addWindowListener(object : WindowAdapter() {
                 override fun windowClosing(e: WindowEvent?) {
@@ -83,7 +100,11 @@ open class SwingSwapchain(override val device: VulkanDevice,
 
             // the listener should only be initialized here, otherwise [window]
             // might be uninitialized.
-            p.addComponentListener(object : ComponentListener {
+            // Attached to both [p] and [canvas]: [p]'s size only changes on an actual window
+            // resize, but [canvas]'s bounds (set by [p]'s BorderLayout) can also change on their
+            // own, e.g. once a deferred layout pass finally runs -- that must trigger a swapchain
+            // recreate too, or a canvas that grew/shrank after surface creation is never corrected.
+            val resizeListener = object : ComponentListener {
                 override fun componentResized(e: ComponentEvent) {
                     if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT > System.nanoTime()) {
                         return
@@ -104,9 +125,29 @@ open class SwingSwapchain(override val device: VulkanDevice,
                 override fun componentMoved(e: ComponentEvent) {}
                 override fun componentHidden(e: ComponentEvent) {}
                 override fun componentShown(e: ComponentEvent) {}
-            })
+            }
+            p.addComponentListener(resizeListener)
+            canvas.addComponentListener(resizeListener)
 
             frame.isVisible = true
+
+            // On macOS in particular, the AWT/Cocoa native peer behind [canvas] (and the CAMetalLayer
+            // backing it) is not guaranteed to be fully realised the instant frame.isVisible is set --
+            // peer/layer attachment happens asynchronously on the AppKit main thread. Creating the
+            // Vulkan surface before that finishes binds it to a layer the window server never
+            // composites, or binds it while canvas still has a stale/zero size: the window opens,
+            // but nothing ever renders. Wait here for the canvas to actually be showing, bound to a
+            // valid GraphicsConfiguration, and to have a real (non-zero) size before creating the surface.
+            fun canvasReady() = canvas.isShowing && canvas.graphicsConfiguration != null && canvas.width > 0 && canvas.height > 0
+            val readyDeadline = System.nanoTime() + 2_000_000_000L
+            while (!canvasReady() && System.nanoTime() < readyDeadline) {
+                Thread.sleep(5)
+            }
+            if (!canvasReady()) {
+                logger.warn("Canvas did not become showing/ready within timeout, proceeding anyway")
+            }
+
+            surface = AWTVK.create(canvas, device.instance)
         }
 
         if(SwingUtilities.isEventDispatchThread()) {
