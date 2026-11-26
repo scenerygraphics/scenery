@@ -23,28 +23,30 @@ import org.joml.Vector3f
  * ```
  * @param parentNode The node to attach this menu to (typically the VR controller model)
  * @param columnScale Allows scaling the menu down. A good default value is 0.05 for Quest 2 controllers
- * @param columnBasePosition Adjust this value to move the position relative to the controller
+ * @param positionOffset Adjust this value to move the position relative to the controller
  * @param columnRotation menu rotation. Default value fits the left controller
  * @param defaultColor Base color of new buttons. Can be overwritten in [addButton]
  * @param defaultPressedColor Color when button is pressed. Can be overwritten in [addButton]
  * @param defaultTouchingColor Color when the button is touched. Can be overwritten in [addButton]
  * @author Samuel Pantze
  */
-class MultiWristMenu(
+open class VRButtonMenu(
     /** The scene node to which all menu columns will be parented (e.g. a controller model node). */
     private val parentNode: Node,
     /** Scale applied to every column when it is attached to the parent. */
     private val columnScale: Float = 0.04f,
     /** Base position offset for the columns relative to the parent. The z-component is
      *  adjusted per-column based on its packed height; see [attachColumn]. */
-    private val columnBasePosition: Vector3f = Vector3f(0.0f),
+    private val positionOffset: Vector3f = Vector3f(0.0f),
     /** Rotation applied to every column (matches the default wrist orientation). */
     private val columnRotation: Quaternionf = Quaternionf().rotationXYZ(0f, 0f, 0f),
 
     defaultColor: Vector3f = Vector3f(0.8f),
     defaultPressedColor: Vector3f = Vector3f(0.95f, 0.35f, 0.25f),
     defaultTouchingColor: Vector3f = Vector3f(0.8f, 0.71f, 0.71f),
-    val debug: Boolean = false
+    val debug: Boolean = false,
+    val columnAnchor: Gui3DElement.Anchor = Gui3DElement.Anchor.Top,
+    var toggleParentVisibility: Boolean = false
 ): Mesh() {
 
     /** Default resting color for buttons. */
@@ -64,11 +66,20 @@ class MultiWristMenu(
     /** Index into [columns.values] that points to the currently visible column. */
     private var currentIndex = 0
 
-    var isMenuVisible = true
+    var isMenuVisible = false
         set(value) {
-            columns.values.toList().getOrNull(currentIndex)?.visible = value
             field = value
+            if (toggleParentVisibility) {
+                parentNode.visible = value
+            }
+            columns.values.forEachIndexed { i, column ->
+                // Only make the current column visible, hide the rest
+                column.visible = value && i == currentIndex
+            }
+            onVisibilityChanged(value)
         }
+
+    protected open fun onVisibilityChanged(visible: Boolean) {}
 
     /** Creates a new, empty [Column] and registers it under [name].
      * The column is immediately parented to [parentNode] and hidden.
@@ -83,7 +94,7 @@ class MultiWristMenu(
             centerVertically = false,
             centerHorizontally = true,
             invertedYOrder = true,
-            anchor = Gui3DElement.Anchor.Top
+            anchor = columnAnchor
         )
         column.name = name
         // hidden by default; only the "current" one is shown
@@ -106,6 +117,8 @@ class MultiWristMenu(
         }
         return columns.values.toList()[index]
     }
+
+    protected fun currentColumn(): Column = getColumn(currentIndex)
 
     /** Returns an unmodifiable view of all column names in insertion order. */
     fun columnNames(): List<String> = columns.keys.toList()
@@ -145,12 +158,7 @@ class MultiWristMenu(
         column.onGeometryReady {
             column.pack()
             this.generateBoundingBox()
-            // Make column top-aligned
-            column.ifSpatial {
-                position.set(columnBasePosition)
-                position.y = -column.height * columnScale + columnBasePosition.y
-                needsUpdate = true
-            }
+            alignColumn(column)
             if (debug) {
                 val bb = BoundingGrid()
                 bb.lineWidth = 3f
@@ -196,12 +204,7 @@ class MultiWristMenu(
         column.onGeometryReady {
             column.pack()
             this.generateBoundingBox()
-            // Make column top-aligned
-            column.ifSpatial {
-                position.set(columnBasePosition)
-                position.y = -column.height * columnScale + columnBasePosition.y
-                needsUpdate = true
-            }
+            alignColumn(column)
         }
         return button
     }
@@ -230,11 +233,7 @@ class MultiWristMenu(
             row.pack()
             column.pack()
             this.generateBoundingBox()
-            column.ifSpatial {
-                position.set(columnBasePosition)
-                position.y = -column.height * columnScale + columnBasePosition.y
-                needsUpdate = true
-            }
+            alignColumn(column)
         }
         return row
     }
@@ -245,6 +244,19 @@ class MultiWristMenu(
         val column = requireColumn(columnName)
         column.addChild(element)
         column.pack()
+        alignColumn(column)
+    }
+
+    /** Positions a packed column relative to the parent. Top-anchored columns hang below the offset,
+     *  bottom-anchored ones grow upward from it. */
+    protected open fun alignColumn(column: Column) {
+        column.ifSpatial {
+            position.set(positionOffset)
+            if (columnAnchor == Gui3DElement.Anchor.Top) {
+                position.y -= column.height * columnScale
+            }
+            needsUpdate = true
+        }
     }
 
     /** Positions and parents a [Column] node to [parentNode].
@@ -252,7 +264,7 @@ class MultiWristMenu(
     private fun attachColumn(column: Column) {
         column.ifSpatial {
             scale.set(columnScale)
-            position.set(columnBasePosition)
+            position.set(positionOffset)
             rotation.set(columnRotation)
         }
         parentNode.addChild(column)
@@ -299,7 +311,7 @@ class MultiWristMenu(
         val list = columns.values.toList()
         list[currentIndex].visible = false
         currentIndex = targetIndex
-        list[currentIndex].visible = true
+        list[currentIndex].visible = isMenuVisible
         logger.debug("Jumped to menu \"$name\"")
     }
 
