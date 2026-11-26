@@ -173,7 +173,9 @@ open class VRGrab(
             holdToDrag: Boolean = true,
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenXRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
-            onRelease: ((Node, TrackedDevice) -> Unit)? = null
+            onRelease: ((Node, TrackedDevice) -> Unit)? = null,
+            customTip: Node? = null,
+            targets: List<Node>? = null
         ) : Future<VRGrab> {
             val future = CompletableFuture<VRGrab>()
             hmd.onDeviceConnect { _, device, _ ->
@@ -181,10 +183,19 @@ open class VRGrab(
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
+                            val hitBox = customTip?.spatialOrNull()
+                                ?: (controller.children.firstOrNull { it.name == "collider"}
+                                ?: controller.children.first()).spatialOrNull()
+                                ?: throw IllegalArgumentException("Need collider spatial for VRGrab.")
                             val grabBehaviour = VRGrab(
                                 name,
-                                (controller.children.firstOrNull { it.name == "collider"}?: controller.children.first()).spatialOrNull() ?: throw IllegalArgumentException("Need collider spatial for VRGrab."),
-                                { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
+                                hitBox,
+                                {
+                                    targets?.filter { it.getAttributeOrNull(Grabable::class.java) != null }
+                                        ?: scene.discover(scene, { n ->
+                                            n.getAttributeOrNull(Grabable::class.java) != null
+                                        })
+                                },
                                 false,
                                 holdToDrag,
                                 { n -> onGrab?.invoke(n, device) },
