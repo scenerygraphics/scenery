@@ -89,14 +89,17 @@ open class Row(
     override fun generateBoundingBox(includeChildren: Boolean): OrientedBoundingBox? {
         val localMin = Vector3f(Float.POSITIVE_INFINITY)
         val localMax = Vector3f(Float.NEGATIVE_INFINITY)
+        var found = false
         // Iteratively expand the min/max values of this BB based on the column's children
         children.filterIsInstance<Gui3DElement>().forEach { element ->
             element.boundingBox?.let { bb ->
                 localMin.min(bb.min + element.spatial().position)
                 localMax.max(bb.max + element.spatial().position)
+                found = true
             }
         }
-        boundingBox = if(includeChildren) OrientedBoundingBox(this, localMin, localMax) else null
+        // Don't cache BB without geometry, otherwise this would return an inverted BB
+        boundingBox = if (includeChildren && found) OrientedBoundingBox(this, localMin, localMax) else null
         return boundingBox
     }
 
