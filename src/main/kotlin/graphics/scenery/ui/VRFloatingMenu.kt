@@ -51,7 +51,7 @@ class VRFloatingMenu(
     private val handleTouchColor = Vector3f(0.5f, 0.5f, 1.0f)
     private val handleGrabColor = Vector3f(0.4f, 0.4f, 1.0f)
 
-    private val spawnOffset = Vector3f(-0.15f, -.3f, -.3f)
+    private val spawnOffset = Vector3f(-0.1f, -.3f, -.35f)
 
     var isGrabbing = false
         private set
@@ -87,6 +87,14 @@ class VRFloatingMenu(
                 grabHandle.material().diffuse = handleBaseColor
                 isGrabbing = false
             }, customTip = cursor.cursorPointer, targets = listOf(grabHandle))
+    }
+
+    fun getHandlePosition(): Vector3f {
+        return Vector3f(grabHandle.spatial().position)
+    }
+
+    fun setHandlePosition(pos: Vector3f) {
+        grabHandle.spatial().position = pos
     }
 
 
