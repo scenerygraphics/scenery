@@ -16,6 +16,7 @@ import org.scijava.ui.behaviour.DragBehaviour
 /** Move yourself (the scene camera) by pressing a VR button.
  * The fastest way to attach the behavior is by using [createAndSet].
  * You can pass a [grabButtonmanager] to handle multiple assignments per button.
+ * @param onDrag hook to allow other behaviours to be executed at the same time. Provides the movement delta.
  * @author Jan Tiemann
  * @author Samuel Pantze */
 class VRGrabTheWorld (
@@ -25,7 +26,8 @@ class VRGrabTheWorld (
     private val grabButtonmanager: MultiButtonManager? = null,
     val button: OpenXRHMD.OpenXRButton,
     private val trackerRole: TrackerRole,
-    private val multiplier: Float
+    private val multiplier: Float,
+    private val onDrag: ((Vector3f) -> Unit)? = null,
 ) : DragBehaviour {
 
     private var camDiff = Vector3f()
@@ -46,9 +48,12 @@ class VRGrabTheWorld (
         if (grabButtonmanager?.isTwoHandedActive() != true) {
             //grabbed world
             val newCamDiff = controllerSpatial.worldPosition() - cam.position
-            val diffTranslation = camDiff - newCamDiff //reversed
-            cam.position += diffTranslation * multiplier
+            // reversed, since we move the world by moving ourselves the other way
+            val applied = (camDiff - newCamDiff) * multiplier
+            cam.position += applied
+            onDrag?.invoke(applied)
         }
+
         camDiff = newCamDiff
     }
 
@@ -67,7 +72,8 @@ class VRGrabTheWorld (
             buttons: List<OpenXRHMD.OpenXRButton>,
             controllerSide: List<TrackerRole>,
             buttonManager: MultiButtonManager? = null,
-            multiplier: Float = 1f
+            multiplier: Float = 1f,
+            onDrag: ((Vector3f) -> Unit)? = null,
         ) {
             hmd.onDeviceConnect { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -82,7 +88,8 @@ class VRGrabTheWorld (
                                     buttonManager,
                                     button,
                                     device.role,
-                                    multiplier
+                                    multiplier,
+                                    onDrag
                                 )
                                 buttonManager?.registerButtonConfig(button, device.role)
                                 hmd.addBehaviour(name, grabBehaviour)

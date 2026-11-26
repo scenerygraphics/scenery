@@ -9,15 +9,15 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.ui.Button
-import graphics.scenery.ui.MultiWristMenu
+import graphics.scenery.ui.VRButtonMenu
 import org.joml.Quaternionf
 import org.joml.Vector3f
 
 /**
- * Simple example to test out [MultiWristMenu]s.
+ * Simple example to test out [VRButtonMenu]s.
  * @author Samuel Pantze
  * */
-class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
+class VRWristMenuExample : SceneryBase("MultiWristMenuExample") {
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
@@ -39,10 +39,10 @@ class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
         scene.addChild(box)
 
         val menu =
-            MultiWristMenu(
+            VRButtonMenu(
                 box,
                 columnScale = 0.1f,
-                columnBasePosition = Vector3f(0f),
+                positionOffset = Vector3f(0f),
                 columnRotation = Quaternionf().rotateXYZ(0f, 0f, 0.5f)
             )
         menu.addColumn("Default")
@@ -79,7 +79,7 @@ class MultiWristMenuExample : SceneryBase("MultiWristMenuExample") {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            MultiWristMenuExample().main()
+            VRWristMenuExample().main()
         }
     }
 }
