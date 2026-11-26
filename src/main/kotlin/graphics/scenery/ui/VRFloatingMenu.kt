@@ -51,7 +51,7 @@ class VRFloatingMenu(
     private val handleTouchColor = Vector3f(0.5f, 0.5f, 1.0f)
     private val handleGrabColor = Vector3f(0.4f, 0.4f, 1.0f)
 
-    private val spawnOffset = Vector3f(-0.25f, -.2f, -.4f)
+    private val spawnOffset = Vector3f(-0.15f, -.3f, -.3f)
 
     var isGrabbing = false
         private set
@@ -101,6 +101,8 @@ class VRFloatingMenu(
     /** Places the menu next to the user once on first toggle */
     override fun onVisibilityChanged(visible: Boolean) {
         if (!visible) return
+        // Regenerate this column's bounding box to be safe
+        generateBoundingBox()
         grabHandle.spatial {
             position = headWorldPos().add(headYaw().transform(Vector3f(spawnOffset)))
             needsUpdate = true
