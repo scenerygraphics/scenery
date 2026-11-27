@@ -59,7 +59,7 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s)
       bool blinn = true;
       vec3 color = d;
       // Ambient
-      vec3 ambient = 0.05 * a;
+      vec3 ambient = a;
       vec3 diffuse = Material.Kd;
       vec3 specular = Material.Ks;
 
